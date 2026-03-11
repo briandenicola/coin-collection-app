@@ -49,11 +49,12 @@ func (h *AnalysisHandler) Analyze(c *gin.Context) {
 	ollamaURL := services.GetSetting(services.SettingOllamaURL)
 	ollamaModel := services.GetSetting(services.SettingOllamaModel)
 	customPrompt := services.GetSetting(services.SettingAIPrompt)
+	ollamaTimeout, _ := strconv.Atoi(services.GetSetting(services.SettingOllamaTimeout))
 
-	logger.Debug("analysis", "Ollama URL: %s, Model: %s", ollamaURL, ollamaModel)
+	logger.Debug("analysis", "Ollama URL: %s, Model: %s, Timeout: %ds", ollamaURL, ollamaModel, ollamaTimeout)
 	logger.Trace("analysis", "Custom prompt length: %d", len(customPrompt))
 
-	ollamaSvc := services.NewOllamaService(ollamaURL)
+	ollamaSvc := services.NewOllamaService(ollamaURL, ollamaTimeout)
 
 	var imagePaths []string
 	for _, img := range coin.Images {
@@ -113,10 +114,11 @@ func (h *AnalysisHandler) ExtractText(c *gin.Context) {
 
 	ollamaURL := services.GetSetting(services.SettingOllamaURL)
 	ollamaModel := services.GetSetting(services.SettingOllamaModel)
+	ollamaTimeout, _ := strconv.Atoi(services.GetSetting(services.SettingOllamaTimeout))
 
-	logger.Debug("extract-text", "Sending to Ollama: URL=%s, Model=%s", ollamaURL, ollamaModel)
+	logger.Debug("extract-text", "Sending to Ollama: URL=%s, Model=%s, Timeout=%ds", ollamaURL, ollamaModel, ollamaTimeout)
 
-	ollamaSvc := services.NewOllamaService(ollamaURL)
+	ollamaSvc := services.NewOllamaService(ollamaURL, ollamaTimeout)
 	text, err := ollamaSvc.ExtractTextFromImage(imageData, ollamaModel)
 	if err != nil {
 		logger.Error("extract-text", "Text extraction failed: %v", err)
@@ -138,7 +140,7 @@ func (h *AnalysisHandler) OllamaStatus(c *gin.Context) {
 	ollamaURL := services.GetSetting(services.SettingOllamaURL)
 	ollamaModel := services.GetSetting(services.SettingOllamaModel)
 
-	ollamaSvc := services.NewOllamaService(ollamaURL)
+	ollamaSvc := services.NewOllamaService(ollamaURL, 10)
 	available, message := ollamaSvc.CheckModel(ollamaModel)
 
 	logger.Info("ollama-status", "Ollama available=%v, model=%s, message=%s", available, ollamaModel, message)

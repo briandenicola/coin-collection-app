@@ -76,6 +76,11 @@
             <span class="form-hint">e.g. llava, llama3.2-vision, bakllava</span>
           </div>
           <div class="form-group">
+            <label class="form-label">Request Timeout (seconds)</label>
+            <input v-model="settings.OllamaTimeout" class="form-input" type="number" min="10" max="1800" step="10" />
+            <span class="form-hint">Time limit for AI analysis calls. Default: 300 (5 minutes)</span>
+          </div>
+          <div class="form-group">
             <label class="form-label">Custom Analysis Prompt</label>
             <textarea
               v-model="settings.AiAnalysisPrompt"
@@ -259,6 +264,7 @@ const settings = ref<AppSettings>({
   OllamaURL: 'http://localhost:11434',
   OllamaModel: 'llava',
   AiAnalysisPrompt: '',
+  OllamaTimeout: '300',
   LogLevel: 'info',
 })
 const settingsMsg = ref('')

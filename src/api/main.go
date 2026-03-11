@@ -140,7 +140,7 @@ func main() {
 	func() {
 		ollamaURL := services.GetSetting(services.SettingOllamaURL)
 		ollamaModel := services.GetSetting(services.SettingOllamaModel)
-		svc := services.NewOllamaService(ollamaURL)
+		svc := services.NewOllamaService(ollamaURL, 10)
 		available, msg := svc.CheckModel(ollamaModel)
 		if available {
 			logger.Info("startup", "Ollama: %s", msg)

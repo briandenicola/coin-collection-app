@@ -97,6 +97,7 @@ export interface AppSettings {
   OllamaURL: string
   OllamaModel: string
   AiAnalysisPrompt: string
+  OllamaTimeout: string
   LogLevel: string
   [key: string]: string
 }

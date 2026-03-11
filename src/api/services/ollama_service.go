@@ -31,11 +31,14 @@ type ollamaResponse struct {
 	Done     bool   `json:"done"`
 }
 
-func NewOllamaService(baseURL string) *OllamaService {
+func NewOllamaService(baseURL string, timeoutSeconds int) *OllamaService {
+	if timeoutSeconds <= 0 {
+		timeoutSeconds = 300
+	}
 	return &OllamaService{
 		BaseURL: strings.TrimRight(baseURL, "/"),
 		Client: &http.Client{
-			Timeout: 120 * time.Second,
+			Timeout: time.Duration(timeoutSeconds) * time.Second,
 		},
 	}
 }
