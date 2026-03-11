@@ -59,8 +59,24 @@
               </div>
             </div>
             <p v-if="!ollamaAvailable" class="ai-unavailable">AI unavailable — configure Ollama in Admin → AI Configuration</p>
-            <div v-if="coin.aiAnalysis" class="ai-content" v-html="renderedAnalysis"></div>
-            <p v-else-if="ollamaAvailable" class="ai-empty">Upload images and click an analyze button to get an expert assessment.</p>
+
+            <div v-if="coin.obverseAnalysis" class="ai-result-section">
+              <h5 class="ai-result-heading">Obverse Analysis</h5>
+              <div class="ai-content" v-html="renderedObverse"></div>
+            </div>
+
+            <div v-if="coin.reverseAnalysis" class="ai-result-section">
+              <h5 class="ai-result-heading">Reverse Analysis</h5>
+              <div class="ai-content" v-html="renderedReverse"></div>
+            </div>
+
+            <div v-if="coin.aiAnalysis && !coin.obverseAnalysis && !coin.reverseAnalysis" class="ai-result-section">
+              <div class="ai-content" v-html="renderedLegacy"></div>
+            </div>
+
+            <p v-if="!coin.obverseAnalysis && !coin.reverseAnalysis && !coin.aiAnalysis && ollamaAvailable" class="ai-empty">
+              Upload images and click an analyze button to get an expert assessment.
+            </p>
           </div>
         </div>
 
@@ -182,7 +198,9 @@ const ollamaMessage = ref('')
 const md = new MarkdownIt()
 
 const coin = computed(() => store.currentCoin)
-const renderedAnalysis = computed(() => (coin.value?.aiAnalysis ? md.render(coin.value.aiAnalysis) : ''))
+const renderedObverse = computed(() => (coin.value?.obverseAnalysis ? md.render(coin.value.obverseAnalysis) : ''))
+const renderedReverse = computed(() => (coin.value?.reverseAnalysis ? md.render(coin.value.reverseAnalysis) : ''))
+const renderedLegacy = computed(() => (coin.value?.aiAnalysis ? md.render(coin.value.aiAnalysis) : ''))
 const hasObverse = computed(() => coin.value?.images?.some(i => i.imageType === 'obverse'))
 const hasReverse = computed(() => coin.value?.images?.some(i => i.imageType === 'reverse'))
 
@@ -449,6 +467,27 @@ function formatCurrency(value: number) {
 .ai-buttons {
   display: flex;
   gap: 0.4rem;
+}
+
+.ai-result-section {
+  margin-bottom: 1.25rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.ai-result-section:last-of-type {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.ai-result-heading {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--accent-gold);
+  margin-bottom: 0.5rem;
 }
 
 .ai-content {

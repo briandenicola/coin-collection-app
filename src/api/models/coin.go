@@ -55,6 +55,8 @@ type Coin struct {
 	PurchaseLocation    string     `json:"purchaseLocation"`
 	Notes               string     `gorm:"type:text" json:"notes"`
 	AIAnalysis          string     `gorm:"type:text;column:ai_analysis" json:"aiAnalysis"`
+	ObverseAnalysis     string     `gorm:"type:text;column:obverse_analysis" json:"obverseAnalysis"`
+	ReverseAnalysis     string     `gorm:"type:text;column:reverse_analysis" json:"reverseAnalysis"`
 	ReferenceURL        string     `json:"referenceUrl"`
 	ReferenceText       string     `json:"referenceText"`
 	IsWishlist          bool       `gorm:"default:false" json:"isWishlist"`

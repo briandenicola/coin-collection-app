@@ -93,11 +93,22 @@ func (h *AnalysisHandler) Analyze(c *gin.Context) {
 	logger.Info("analysis", "Analysis complete for coin %d (%d chars)", coinID, len(analysis))
 	logger.Trace("analysis", "Analysis result: %s", analysis)
 
-	database.DB.Model(&coin).Update("ai_analysis", analysis)
-	coin.AIAnalysis = analysis
+	// Store in the appropriate field based on side
+	switch side {
+	case "obverse":
+		database.DB.Model(&coin).Update("obverse_analysis", analysis)
+		coin.ObverseAnalysis = analysis
+	case "reverse":
+		database.DB.Model(&coin).Update("reverse_analysis", analysis)
+		coin.ReverseAnalysis = analysis
+	default:
+		database.DB.Model(&coin).Update("ai_analysis", analysis)
+		coin.AIAnalysis = analysis
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"analysis": analysis,
+		"side":     side,
 		"coin":     coin,
 	})
 }

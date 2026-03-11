@@ -21,6 +21,8 @@ export interface Coin {
   purchaseLocation: string
   notes: string
   aiAnalysis: string
+  obverseAnalysis: string
+  reverseAnalysis: string
   referenceUrl: string
   referenceText: string
   isWishlist: boolean
