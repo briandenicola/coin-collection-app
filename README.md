@@ -79,6 +79,8 @@ task run-web    # frontend only
 
 When the app launches for the first time, register your first account — it is automatically assigned as the admin. You can then configure Ollama and other settings from the Admin page.
 
+For a detailed walkthrough of first-time setup, adding coins, import/export, and AI analysis, see the [Getting Started Guide](docs/getting-started.md).
+
 ## Task Commands
 
 | Command            | Description                              |
@@ -207,7 +209,7 @@ All authenticated users can access **Settings** to configure:
 - **Change Password** — Update your account password (requires current password).
 - **Theme** — Switch between dark (museum) and light mode. Persists across sessions.
 - **Time Zone** — Select your preferred time zone for date/time display.
-- **Export / Import** — Export your entire collection as JSON, or import coins from a JSON file.
+- **Export / Import** — Export your entire collection as JSON, or import coins from a JSON file. See the [Getting Started Guide](docs/getting-started.md#import--export) for the full import file format and field reference.
 
 ### Admin Settings
 
