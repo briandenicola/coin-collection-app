@@ -78,6 +78,10 @@ export const analyzeCoin = (coinId: number) =>
 // Stats
 export const getStats = () => api.get<StatsResponse>('/stats')
 
+// Autocomplete suggestions
+export const getSuggestions = (field: string, q: string) =>
+  api.get<string[]>('/suggestions', { params: { field, q } })
+
 // User self-service
 export const getMe = () => api.get<UserInfo>('/auth/me')
 export const changePassword = (currentPassword: string, newPassword: string) =>

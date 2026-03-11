@@ -220,3 +220,36 @@ func (h *CoinHandler) Stats(c *gin.Context) {
 		"values":        values,
 	})
 }
+
+// Suggestions returns distinct values for autocomplete fields
+func (h *CoinHandler) Suggestions(c *gin.Context) {
+	userID := c.GetUint("userId")
+	field := c.Query("field")
+	q := c.Query("q")
+
+	var column string
+	switch field {
+	case "name":
+		column = "name"
+	case "denomination":
+		column = "denomination"
+	case "purchaseLocation":
+		column = "purchase_location"
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid field"})
+		return
+	}
+
+	var values []string
+	query := database.DB.Model(&models.Coin{}).
+		Where("user_id = ? AND "+column+" != ''", userID).
+		Distinct(column).
+		Order(column)
+
+	if q != "" {
+		query = query.Where(column+" LIKE ?", "%"+q+"%")
+	}
+
+	query.Limit(20).Pluck(column, &values)
+	c.JSON(http.StatusOK, values)
+}

@@ -6,7 +6,7 @@
         <legend>Basic Information</legend>
         <div class="form-group">
           <label class="form-label">Name *</label>
-          <input v-model="form.name" class="form-input" required placeholder="e.g. Augustus Denarius" />
+          <AutocompleteInput v-model="form.name!" field="name" required placeholder="e.g. Augustus Denarius" />
         </div>
         <div class="form-row">
           <div class="form-group">
@@ -25,17 +25,7 @@
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">Denomination</label>
-            <input v-model="form.denomination" class="form-input" placeholder="e.g. Denarius" />
-          </div>
-          <div class="form-group">
-            <label class="form-label">Ruler / Emperor</label>
-            <input v-model="form.ruler" class="form-input" placeholder="e.g. Augustus" />
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">Era / Date</label>
-            <input v-model="form.era" class="form-input" placeholder="e.g. 27 BC – 14 AD" />
+            <AutocompleteInput v-model="form.denomination!" field="denomination" placeholder="e.g. Denarius" />
           </div>
           <div class="form-group">
             <label class="form-label">Mint</label>
@@ -94,6 +84,29 @@
         </div>
       </fieldset>
 
+      <!-- Images -->
+      <fieldset class="form-section full-width">
+        <legend>Images</legend>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Obverse Image</label>
+            <div v-if="obversePreview || existingObverse" class="image-preview-box">
+              <img :src="obversePreview || existingObverse!" alt="Obverse" class="image-preview" />
+              <button type="button" class="image-remove-btn" @click="clearObverse" title="Remove">✕</button>
+            </div>
+            <input type="file" accept=".jpg,.jpeg,.png" class="form-input file-input" @change="onObverseFile" ref="obverseInput" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Reverse Image</label>
+            <div v-if="reversePreview || existingReverse" class="image-preview-box">
+              <img :src="reversePreview || existingReverse!" alt="Reverse" class="image-preview" />
+              <button type="button" class="image-remove-btn" @click="clearReverse" title="Remove">✕</button>
+            </div>
+            <input type="file" accept=".jpg,.jpeg,.png" class="form-input file-input" @change="onReverseFile" ref="reverseInput" />
+          </div>
+        </div>
+      </fieldset>
+
       <!-- Purchase Info -->
       <fieldset class="form-section">
         <legend>Purchase & Value</legend>
@@ -114,7 +127,7 @@
           </div>
           <div class="form-group">
             <label class="form-label">Purchase Location</label>
-            <input v-model="form.purchaseLocation" class="form-input" placeholder="e.g. Heritage Auctions" />
+            <AutocompleteInput v-model="form.purchaseLocation!" field="purchaseLocation" placeholder="e.g. Heritage Auctions" />
           </div>
         </div>
       </fieldset>
@@ -155,16 +168,78 @@
 </template>
 
 <script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
 import { CATEGORIES, MATERIALS } from '@/types'
 import type { Coin } from '@/types'
+import AutocompleteInput from '@/components/AutocompleteInput.vue'
 
-defineProps<{
+const props = defineProps<{
   form: Partial<Coin>
   submitLabel: string
   loading?: boolean
+  coinId?: number
 }>()
 
 defineEmits<{ submit: [] }>()
+
+const obverseFile = ref<File | null>(null)
+const reverseFile = ref<File | null>(null)
+const obversePreview = ref<string | null>(null)
+const reversePreview = ref<string | null>(null)
+const obverseInput = ref<HTMLInputElement | null>(null)
+const reverseInput = ref<HTMLInputElement | null>(null)
+const removedObverseId = ref<number | null>(null)
+const removedReverseId = ref<number | null>(null)
+
+const existingObverse = computed(() => {
+  if (removedObverseId.value) return null
+  const img = props.form.images?.find((i) => i.imageType === 'obverse')
+  return img ? `/uploads/${img.filePath}` : null
+})
+
+const existingReverse = computed(() => {
+  if (removedReverseId.value) return null
+  const img = props.form.images?.find((i) => i.imageType === 'reverse')
+  return img ? `/uploads/${img.filePath}` : null
+})
+
+function onObverseFile(e: Event) {
+  const file = (e.target as HTMLInputElement).files?.[0]
+  if (!file) return
+  obverseFile.value = file
+  obversePreview.value = URL.createObjectURL(file)
+}
+
+function onReverseFile(e: Event) {
+  const file = (e.target as HTMLInputElement).files?.[0]
+  if (!file) return
+  reverseFile.value = file
+  reversePreview.value = URL.createObjectURL(file)
+}
+
+function clearObverse() {
+  const existing = props.form.images?.find((i) => i.imageType === 'obverse')
+  if (existing) removedObverseId.value = existing.id
+  obverseFile.value = null
+  obversePreview.value = null
+  if (obverseInput.value) obverseInput.value.value = ''
+}
+
+function clearReverse() {
+  const existing = props.form.images?.find((i) => i.imageType === 'reverse')
+  if (existing) removedReverseId.value = existing.id
+  reverseFile.value = null
+  reversePreview.value = null
+  if (reverseInput.value) reverseInput.value.value = ''
+}
+
+// Expose pending images for parent to upload after save
+defineExpose({
+  obverseFile,
+  reverseFile,
+  removedObverseId,
+  removedReverseId,
+})
 </script>
 
 <style scoped>
@@ -227,6 +302,43 @@ legend {
   margin-top: 2rem;
   padding-top: 1.5rem;
   border-top: 1px solid var(--border-subtle);
+}
+
+.file-input {
+  font-size: 0.85rem;
+  padding: 0.4rem;
+}
+
+.image-preview-box {
+  position: relative;
+  display: inline-block;
+  margin-bottom: 0.5rem;
+}
+
+.image-preview {
+  width: 140px;
+  height: 140px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+}
+
+.image-remove-btn {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: none;
+  background: #c0392b;
+  color: white;
+  font-size: 0.7rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }
 
 @media (max-width: 768px) {

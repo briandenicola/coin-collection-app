@@ -7,7 +7,7 @@
       <div v-if="loading" class="loading-overlay">
         <div class="spinner"></div>
       </div>
-      <CoinForm v-else :form="form" submit-label="Save Changes" :loading="saving" @submit="handleSubmit" />
+      <CoinForm v-else ref="coinFormRef" :form="form" :coin-id="form.id" submit-label="Save Changes" :loading="saving" @submit="handleSubmit" />
     </div>
   </div>
 </template>
@@ -16,13 +16,14 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import CoinForm from '@/components/CoinForm.vue'
-import { getCoin, updateCoin } from '@/api/client'
+import { getCoin, updateCoin, uploadImage, deleteImage } from '@/api/client'
 import type { Coin } from '@/types'
 
 const route = useRoute()
 const router = useRouter()
 const loading = ref(true)
 const saving = ref(false)
+const coinFormRef = ref<InstanceType<typeof CoinForm> | null>(null)
 
 const form = reactive<Partial<Coin>>({})
 
@@ -31,7 +32,6 @@ onMounted(async () => {
   try {
     const res = await getCoin(id)
     Object.assign(form, res.data)
-    // Format date for input[type=date]
     if (form.purchaseDate) {
       form.purchaseDate = form.purchaseDate.substring(0, 10)
     }
@@ -47,7 +47,36 @@ async function handleSubmit() {
   saving.value = true
   try {
     await updateCoin(form.id!, form)
-    router.push(`/coin/${form.id}`)
+
+    const formComp = coinFormRef.value
+    const coinId = form.id!
+
+    // Delete removed images
+    if (formComp?.removedObverseId) {
+      await deleteImage(coinId, formComp.removedObverseId)
+    }
+    if (formComp?.removedReverseId) {
+      await deleteImage(coinId, formComp.removedReverseId)
+    }
+
+    // Upload new/replacement images
+    if (formComp?.obverseFile) {
+      // If replacing, delete the old one first (if not already removed)
+      const existingObverse = form.images?.find((i) => i.imageType === 'obverse')
+      if (existingObverse && !formComp.removedObverseId) {
+        await deleteImage(coinId, existingObverse.id)
+      }
+      await uploadImage(coinId, formComp.obverseFile, 'obverse', true)
+    }
+    if (formComp?.reverseFile) {
+      const existingReverse = form.images?.find((i) => i.imageType === 'reverse')
+      if (existingReverse && !formComp.removedReverseId) {
+        await deleteImage(coinId, existingReverse.id)
+      }
+      await uploadImage(coinId, formComp.reverseFile, 'reverse', false)
+    }
+
+    router.push(`/coin/${coinId}`)
   } catch {
     alert('Failed to update coin')
   } finally {

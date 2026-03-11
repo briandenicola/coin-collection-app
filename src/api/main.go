@@ -90,6 +90,7 @@ func main() {
 		protected.DELETE("/coins/:id", coinHandler.Delete)
 
 		protected.GET("/stats", coinHandler.Stats)
+		protected.GET("/suggestions", coinHandler.Suggestions)
 
 		imageHandler := handlers.NewImageHandler(cfg.UploadDir)
 		protected.POST("/coins/:id/images", imageHandler.Upload)
