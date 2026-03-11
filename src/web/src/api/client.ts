@@ -43,9 +43,21 @@ export const getCoins = (params?: {
   limit?: number
 }) => api.get<CoinListResponse>('/coins', { params })
 
+const NULLABLE_FIELDS = ['weightGrams', 'diameterMm', 'purchasePrice', 'currentValue', 'purchaseDate']
+
+function sanitizeCoin(coin: Partial<Coin>): Partial<Coin> {
+  const clean = { ...coin }
+  for (const field of NULLABLE_FIELDS) {
+    if ((clean as any)[field] === '' || (clean as any)[field] === undefined) {
+      ;(clean as any)[field] = null
+    }
+  }
+  return clean
+}
+
 export const getCoin = (id: number) => api.get<Coin>(`/coins/${id}`)
-export const createCoin = (coin: Partial<Coin>) => api.post<Coin>('/coins', coin)
-export const updateCoin = (id: number, coin: Partial<Coin>) => api.put<Coin>(`/coins/${id}`, coin)
+export const createCoin = (coin: Partial<Coin>) => api.post<Coin>('/coins', sanitizeCoin(coin))
+export const updateCoin = (id: number, coin: Partial<Coin>) => api.put<Coin>(`/coins/${id}`, sanitizeCoin(coin))
 export const deleteCoin = (id: number) => api.delete(`/coins/${id}`)
 
 // Images
