@@ -4,6 +4,14 @@
       <h1>🏛️ My Collection</h1>
       <div class="header-actions">
         <SearchBar v-model="search" />
+        <div class="view-toggle">
+          <button class="view-btn" :class="{ active: viewMode === 'swipe' }" @click="viewMode = 'swipe'" title="Swipe view">
+            🃏
+          </button>
+          <button class="view-btn" :class="{ active: viewMode === 'grid' }" @click="viewMode = 'grid'" title="Grid view">
+            ▦
+          </button>
+        </div>
         <router-link to="/add" class="btn btn-primary">➕ Add Coin</router-link>
       </div>
     </div>
@@ -15,9 +23,15 @@
       <p>Loading collection...</p>
     </div>
 
-    <div v-else-if="store.coins.length" class="coins-grid" style="margin-top: 1.5rem">
-      <CoinCard v-for="coin in store.coins" :key="coin.id" :coin="coin" />
-    </div>
+    <template v-else-if="store.coins.length">
+      <!-- Swipe view -->
+      <SwipeGallery v-if="viewMode === 'swipe'" :coins="store.coins" />
+
+      <!-- Grid view -->
+      <div v-else class="coins-grid" style="margin-top: 1.5rem">
+        <CoinCard v-for="coin in store.coins" :key="coin.id" :coin="coin" />
+      </div>
+    </template>
 
     <div v-else class="empty-state">
       <h3>{{ search || selectedCategory ? 'No coins match your search' : 'Your collection is empty' }}</h3>
@@ -36,9 +50,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { useCoinsStore } from '@/stores/coins'
 import CoinCard from '@/components/CoinCard.vue'
+import SwipeGallery from '@/components/SwipeGallery.vue'
 import CategoryFilter from '@/components/CategoryFilter.vue'
 import SearchBar from '@/components/SearchBar.vue'
 
@@ -46,6 +61,11 @@ const store = useCoinsStore()
 const selectedCategory = ref('')
 const search = ref('')
 const page = ref(1)
+
+// Default to swipe in standalone PWA mode, grid otherwise
+const isPwa = window.matchMedia('(display-mode: standalone)').matches
+  || (window.navigator as any).standalone === true
+const viewMode = ref<'grid' | 'swipe'>(isPwa ? 'swipe' : 'grid')
 
 let debounceTimer: ReturnType<typeof setTimeout>
 
@@ -82,6 +102,33 @@ loadCoins()
   gap: 0.75rem;
   align-items: center;
   flex-wrap: wrap;
+}
+
+.view-toggle {
+  display: flex;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.view-btn {
+  padding: 0.4rem 0.6rem;
+  border: none;
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  line-height: 1;
+}
+
+.view-btn.active {
+  background: var(--accent-gold-dim);
+  color: var(--accent-gold);
+}
+
+.view-btn:hover:not(.active) {
+  background: var(--bg-card-hover);
 }
 
 .pagination {
