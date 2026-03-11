@@ -3,6 +3,7 @@ package handlers
 import (
 	"io"
 	"net/http"
+	"path/filepath"
 	"strconv"
 
 	"github.com/briandenicola/ancient-coins-api/database"
@@ -45,7 +46,7 @@ func (h *AnalysisHandler) Analyze(c *gin.Context) {
 
 	var imagePaths []string
 	for _, img := range coin.Images {
-		imagePaths = append(imagePaths, img.FilePath)
+		imagePaths = append(imagePaths, filepath.Join("uploads", img.FilePath))
 	}
 
 	analysis, err := ollamaSvc.AnalyzeCoinImages(imagePaths, coin, ollamaModel, customPrompt)

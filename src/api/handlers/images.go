@@ -69,7 +69,7 @@ func (h *ImageHandler) Upload(c *gin.Context) {
 
 	image := models.CoinImage{
 		CoinID:    uint(coinID),
-		FilePath:  filepath.ToSlash(filePath),
+		FilePath:  filepath.ToSlash(filepath.Join(fmt.Sprintf("coin-%d", coinID), filename)),
 		ImageType: imageType,
 		IsPrimary: isPrimary,
 	}
@@ -109,7 +109,7 @@ func (h *ImageHandler) Delete(c *gin.Context) {
 	}
 
 	// Delete file from disk
-	os.Remove(image.FilePath)
+	os.Remove(filepath.Join(h.UploadDir, image.FilePath))
 
 	database.DB.Delete(&image)
 	c.JSON(http.StatusOK, gin.H{"message": "Image deleted"})
