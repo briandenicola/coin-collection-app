@@ -93,9 +93,24 @@ When the app launches for the first time, register your first account — it is 
 | `task docker-build`| Build the Docker container image         |
 | `task docker-run`  | Run the Docker container locally         |
 
+## CI/CD
+
+A GitHub Actions workflow (`.github/workflows/docker-publish.yml`) builds and pushes the Docker image to Docker Hub:
+
+- **Triggers** — Push to `main` branch and manual dispatch
+- **Tags** — Full commit SHA, short commit SHA, and `latest` (on main)
+- **Caching** — Uses GitHub Actions cache for Docker layer caching
+
+### Required Secrets
+
+| Secret | Description |
+| ------ | ----------- |
+| `DOCKERHUB_USERNAME` | Your Docker Hub username |
+| `DOCKERHUB_TOKEN` | A Docker Hub access token |
+
 ## Deployment
 
-The application ships as a single Docker container that serves both the API and the Vue SPA. The pre-built image is hosted on GitHub Container Registry.
+The application ships as a single Docker container that serves both the API and the Vue SPA. The pre-built image is hosted on Docker Hub.
 
 ### Configuration
 
@@ -249,7 +264,7 @@ AncientCoins/
 
 Future feature ideas for the app:
 
-- [ ] **CI/CD Pipeline** — GitHub Actions workflow to build and push Docker image to GHCR
+- [x] **CI/CD Pipeline** — GitHub Actions workflow to build and push Docker image to Docker Hub
 - [ ] **Wear Heatmap** — GitHub-style heatmap for tracking when coins were viewed or handled
 - [ ] **Collection Timeline** — Visual timeline of when each coin was acquired
 - [ ] **Coin Comparison** — Side-by-side spec comparison of any two coins
