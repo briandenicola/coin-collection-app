@@ -5,8 +5,11 @@ env:
 
 tasks:
   default:
-    cmds:
-    - task --list
+    desc: Run both API and web servers in parallel
+    deps:
+      - run-api
+      - run-web
+    silent: true
 
   build-api:
     desc: Build the Go API
