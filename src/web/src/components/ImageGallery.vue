@@ -5,7 +5,7 @@
       <span class="gallery-type-badge">{{ activeImage?.imageType }}</span>
     </div>
     <div v-else class="gallery-empty">
-      <span class="empty-icon">🪙</span>
+      <span class="empty-icon"><Coins :size="48" :stroke-width="1" /></span>
       <p>No images uploaded</p>
     </div>
     <div v-if="images.length > 1" class="gallery-thumbs">
@@ -25,6 +25,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import type { CoinImage } from '@/types'
+import { Coins } from 'lucide-vue-next'
 
 const props = defineProps<{ images: CoinImage[] }>()
 

@@ -1,7 +1,7 @@
 <template>
   <div class="container">
     <div class="page-header">
-      <h1>⚙️ Settings</h1>
+      <h1>Settings</h1>
     </div>
 
     <div class="settings-layout">
@@ -57,12 +57,12 @@
               class="theme-btn"
               :class="{ active: theme === 'dark' }"
               @click="setTheme('dark')"
-            >🌙 Dark</button>
+            >Dark</button>
             <button
               class="theme-btn"
               :class="{ active: theme === 'light' }"
               @click="setTheme('light')"
-            >☀️ Light</button>
+            >Light</button>
           </div>
         </div>
 

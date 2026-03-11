@@ -1,7 +1,7 @@
 <template>
   <div class="container">
     <div class="page-header">
-      <h1>🛡️ Admin</h1>
+      <h1>Admin</h1>
     </div>
 
     <div v-if="!auth.isAdmin" class="empty-state">
@@ -18,7 +18,7 @@
           class="tab-btn"
           :class="{ active: activeTab === tab.id }"
           @click="activeTab = tab.id"
-        >{{ tab.icon }} {{ tab.label }}</button>
+        ><component :is="tabIcons[tab.id]" :size="16" /> {{ tab.label }}</button>
       </div>
 
       <!-- Users Tab -->
@@ -49,10 +49,10 @@
               <td>
                 <div v-if="user.id !== auth.user?.id" class="action-btns">
                   <button class="btn btn-secondary btn-sm" @click="openResetModal(user)">
-                    🔑 Reset
+                    Reset
                   </button>
                   <button class="btn btn-danger btn-sm" @click="handleDeleteUser(user)">
-                    🗑️ Delete
+                    Delete
                   </button>
                 </div>
                 <span v-else class="text-muted">—</span>
@@ -133,7 +133,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, type Component } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import {
   getUsers, deleteUser, resetUserPassword,
@@ -141,13 +141,16 @@ import {
 } from '@/api/client'
 import { LOG_LEVELS } from '@/types'
 import type { UserInfo, AppSettings } from '@/types'
+import { Users, Cpu, Wrench } from 'lucide-vue-next'
+
+const tabIcons: Record<string, Component> = { users: Users, ai: Cpu, system: Wrench }
 
 const auth = useAuthStore()
 
 const tabs = [
-  { id: 'users', icon: '👥', label: 'Users' },
-  { id: 'ai', icon: '🤖', label: 'AI Config' },
-  { id: 'system', icon: '🔧', label: 'System' },
+  { id: 'users', icon: 'users', label: 'Users' },
+  { id: 'ai', icon: 'cpu', label: 'AI Config' },
+  { id: 'system', icon: 'wrench', label: 'System' },
 ]
 const activeTab = ref('users')
 

@@ -1,18 +1,18 @@
 <template>
   <div class="container">
     <div class="page-header">
-      <h1>🏛️ My Collection</h1>
+      <h1>My Collection</h1>
       <div class="header-actions">
         <SearchBar v-model="search" />
         <div class="view-toggle">
           <button class="view-btn" :class="{ active: viewMode === 'swipe' }" @click="viewMode = 'swipe'" title="Swipe view">
-            🃏
+            <Layers :size="18" />
           </button>
           <button class="view-btn" :class="{ active: viewMode === 'grid' }" @click="viewMode = 'grid'" title="Grid view">
-            ▦
+            <LayoutGrid :size="18" />
           </button>
         </div>
-        <router-link to="/add" class="btn btn-primary">➕ Add Coin</router-link>
+        <router-link to="/add" class="btn btn-primary"><CirclePlus :size="16" /> Add Coin</router-link>
       </div>
     </div>
 
@@ -56,6 +56,8 @@ import CoinCard from '@/components/CoinCard.vue'
 import SwipeGallery from '@/components/SwipeGallery.vue'
 import CategoryFilter from '@/components/CategoryFilter.vue'
 import SearchBar from '@/components/SearchBar.vue'
+
+import { Layers, LayoutGrid, CirclePlus } from 'lucide-vue-next'
 
 const store = useCoinsStore()
 const selectedCategory = ref('')

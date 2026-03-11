@@ -1,8 +1,8 @@
 <template>
   <div class="container">
     <div class="page-header">
-      <h1>⭐ Wishlist</h1>
-      <router-link to="/add" class="btn btn-primary">➕ Add Coin</router-link>
+      <h1>Wishlist</h1>
+      <router-link to="/add" class="btn btn-primary"><CirclePlus :size="16" /> Add Coin</router-link>
     </div>
 
     <div v-if="store.loading" class="loading-overlay">
@@ -24,6 +24,7 @@
 import { onMounted } from 'vue'
 import { useCoinsStore } from '@/stores/coins'
 import CoinCard from '@/components/CoinCard.vue'
+import { CirclePlus } from 'lucide-vue-next'
 
 const store = useCoinsStore()
 

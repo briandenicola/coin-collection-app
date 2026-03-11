@@ -1,7 +1,7 @@
 <template>
   <div class="container">
     <div class="page-header">
-      <h1>📊 Collection Stats</h1>
+      <h1>Collection Stats</h1>
     </div>
 
     <div v-if="!stats" class="loading-overlay">

@@ -8,32 +8,34 @@
         </router-link>
         <div class="nav-links">
           <router-link to="/" class="nav-link" active-class="active">
-            <span class="nav-icon">🏛️</span>
+            <Landmark :size="18" />
             <span class="nav-label">Collection</span>
           </router-link>
           <router-link to="/wishlist" class="nav-link" active-class="active">
-            <span class="nav-icon">⭐</span>
+            <Bookmark :size="18" />
             <span class="nav-label">Wishlist</span>
           </router-link>
           <router-link to="/stats" class="nav-link" active-class="active">
-            <span class="nav-icon">📊</span>
+            <BarChart3 :size="18" />
             <span class="nav-label">Stats</span>
           </router-link>
           <router-link to="/add" class="nav-link add-link" active-class="active">
-            <span class="nav-icon">➕</span>
+            <CirclePlus :size="18" />
             <span class="nav-label">Add</span>
           </router-link>
         </div>
         <div class="nav-right">
           <router-link to="/settings" class="nav-link" active-class="active">
-            <span class="nav-icon">⚙️</span>
+            <Settings :size="18" />
             <span class="nav-label">Settings</span>
           </router-link>
           <router-link v-if="auth.isAdmin" to="/admin" class="nav-link" active-class="active">
-            <span class="nav-icon">🛡️</span>
+            <ShieldCheck :size="18" />
             <span class="nav-label">Admin</span>
           </router-link>
-          <button class="btn-logout" @click="handleLogout">Logout</button>
+          <button class="btn-logout" @click="handleLogout">
+            <LogOut :size="16" />
+          </button>
         </div>
       </div>
     </nav>
@@ -46,6 +48,7 @@
 <script setup lang="ts">
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
+import { Landmark, Bookmark, BarChart3, CirclePlus, Settings, ShieldCheck, LogOut } from 'lucide-vue-next'
 
 const auth = useAuthStore()
 const router = useRouter()

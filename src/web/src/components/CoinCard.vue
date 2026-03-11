@@ -2,7 +2,7 @@
   <div class="coin-card card" @click="$router.push(`/coin/${coin.id}`)">
     <div class="card-image-container">
       <img v-if="primaryImage" :src="primaryImage" :alt="coin.name" class="card-image" />
-      <div v-else class="card-image-placeholder">🪙</div>
+      <div v-else class="card-image-placeholder"><Coins :size="48" :stroke-width="1" /></div>
       <span class="badge" :class="`badge-${coin.category.toLowerCase()}`">{{ coin.category }}</span>
     </div>
     <div class="card-body">
@@ -28,6 +28,7 @@
 <script setup lang="ts">
 import type { Coin } from '@/types'
 import { computed } from 'vue'
+import { Coins } from 'lucide-vue-next'
 
 const props = defineProps<{ coin: Coin }>()
 

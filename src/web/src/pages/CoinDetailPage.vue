@@ -8,8 +8,8 @@
       <div class="detail-header">
         <button class="btn btn-secondary btn-sm" @click="$router.back()">← Back</button>
         <div class="detail-actions">
-          <router-link :to="`/edit/${coin.id}`" class="btn btn-secondary btn-sm">✏️ Edit</router-link>
-          <button class="btn btn-danger btn-sm" @click="handleDelete">🗑️ Delete</button>
+          <router-link :to="`/edit/${coin.id}`" class="btn btn-secondary btn-sm">Edit</router-link>
+          <button class="btn btn-danger btn-sm" @click="handleDelete">Delete</button>
         </div>
       </div>
 
@@ -28,7 +28,7 @@
                 <option value="other">Other</option>
               </select>
               <label class="btn btn-secondary btn-sm upload-btn">
-                📷 Choose File
+                Choose File
                 <input type="file" accept="image/*" hidden @change="handleImageUpload" />
               </label>
             </div>
@@ -38,7 +38,7 @@
           <!-- AI Analysis -->
           <div class="ai-section">
             <div class="ai-header">
-              <h4>🤖 AI Analysis</h4>
+              <h4>AI Analysis</h4>
               <button
                 class="btn btn-primary btn-sm"
                 :disabled="analyzing || !coin.images?.length"

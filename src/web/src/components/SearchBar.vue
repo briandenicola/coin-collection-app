@@ -1,6 +1,6 @@
 <template>
   <div class="search-bar">
-    <span class="search-icon">🔍</span>
+    <Search class="search-icon" :size="16" />
     <input
       type="text"
       class="search-input"
@@ -8,11 +8,12 @@
       @input="$emit('update:modelValue', ($event.target as HTMLInputElement).value)"
       placeholder="Search coins by name, ruler, inscription..."
     />
-    <button v-if="modelValue" class="search-clear" @click="$emit('update:modelValue', '')">✕</button>
+    <button v-if="modelValue" class="search-clear" @click="$emit('update:modelValue', '')"><X :size="14" /></button>
   </div>
 </template>
 
 <script setup lang="ts">
+import { Search, X } from 'lucide-vue-next'
 defineProps<{ modelValue: string }>()
 defineEmits<{ 'update:modelValue': [value: string] }>()
 </script>
@@ -29,7 +30,7 @@ defineEmits<{ 'update:modelValue': [value: string] }>()
 .search-icon {
   position: absolute;
   left: 0.8rem;
-  font-size: 0.9rem;
+  color: var(--text-muted);
   pointer-events: none;
 }
 

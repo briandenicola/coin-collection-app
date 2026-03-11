@@ -2,7 +2,7 @@
   <div class="container">
     <div class="form-wrapper">
       <div class="page-header">
-        <h1>➕ Add Coin</h1>
+        <h1>Add Coin</h1>
       </div>
       <CoinForm ref="coinFormRef" :form="form" submit-label="Add to Collection" :loading="saving" @submit="handleSubmit" />
     </div>

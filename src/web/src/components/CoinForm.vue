@@ -92,7 +92,7 @@
             <label class="form-label">Obverse Image</label>
             <div v-if="obversePreview || existingObverse" class="image-preview-box">
               <img :src="obversePreview || existingObverse!" alt="Obverse" class="image-preview" />
-              <button type="button" class="image-remove-btn" @click="clearObverse" title="Remove">✕</button>
+              <button type="button" class="image-remove-btn" @click="clearObverse" title="Remove"><X :size="12" /></button>
             </div>
             <input type="file" accept=".jpg,.jpeg,.png" class="form-input file-input" @change="onObverseFile" ref="obverseInput" />
           </div>
@@ -100,7 +100,7 @@
             <label class="form-label">Reverse Image</label>
             <div v-if="reversePreview || existingReverse" class="image-preview-box">
               <img :src="reversePreview || existingReverse!" alt="Reverse" class="image-preview" />
-              <button type="button" class="image-remove-btn" @click="clearReverse" title="Remove">✕</button>
+              <button type="button" class="image-remove-btn" @click="clearReverse" title="Remove"><X :size="12" /></button>
             </div>
             <input type="file" accept=".jpg,.jpeg,.png" class="form-input file-input" @change="onReverseFile" ref="reverseInput" />
           </div>
@@ -172,6 +172,7 @@ import { ref, computed, onMounted } from 'vue'
 import { CATEGORIES, MATERIALS } from '@/types'
 import type { Coin } from '@/types'
 import AutocompleteInput from '@/components/AutocompleteInput.vue'
+import { X } from 'lucide-vue-next'
 
 const props = defineProps<{
   form: Partial<Coin>

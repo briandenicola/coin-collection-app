@@ -29,7 +29,7 @@
       <div v-if="nextCoin" class="swipe-card next-card">
         <div class="swipe-card-image">
           <img v-if="getImage(nextCoin)" :src="getImage(nextCoin)!" :alt="nextCoin.name" />
-          <div v-else class="swipe-card-placeholder">🪙</div>
+          <div v-else class="swipe-card-placeholder"><Coins :size="64" :stroke-width="1" /></div>
         </div>
         <div class="swipe-card-name">{{ nextCoin.name }}</div>
       </div>
@@ -45,11 +45,11 @@
       >
         <div class="swipe-card-image">
           <img v-if="getImage(currentCoin)" :src="getImage(currentCoin)!" :alt="currentCoin.name" />
-          <div v-else class="swipe-card-placeholder">🪙</div>
+          <div v-else class="swipe-card-placeholder"><Coins :size="64" :stroke-width="1" /></div>
         </div>
         <div class="swipe-card-name">{{ currentCoin.name }}</div>
-        <div class="swipe-hint left-hint" :style="{ opacity: leftHintOpacity }">◀</div>
-        <div class="swipe-hint right-hint" :style="{ opacity: rightHintOpacity }">▶</div>
+        <div class="swipe-hint left-hint" :style="{ opacity: leftHintOpacity }"><ChevronLeft :size="32" /></div>
+        <div class="swipe-hint right-hint" :style="{ opacity: rightHintOpacity }"><ChevronRight :size="32" /></div>
       </div>
     </div>
 
@@ -60,10 +60,10 @@
     <!-- Arrow navigation -->
     <div v-if="coins.length > 1" class="swipe-nav">
       <button class="nav-btn" @click="goPrev" :disabled="currentIndex === 0">
-        ◀ Prev
+        <ChevronLeft :size="16" /> Prev
       </button>
       <button class="nav-btn" @click="goNext" :disabled="currentIndex >= coins.length - 1">
-        Next ▶
+        Next <ChevronRight :size="16" />
       </button>
     </div>
   </div>
@@ -73,6 +73,7 @@
 import { ref, computed, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import type { Coin, ImageType } from '@/types'
+import { Coins, ChevronLeft, ChevronRight } from 'lucide-vue-next'
 
 const props = defineProps<{ coins: Coin[] }>()
 const router = useRouter()

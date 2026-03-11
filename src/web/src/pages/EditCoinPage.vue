@@ -2,7 +2,7 @@
   <div class="container">
     <div class="form-wrapper">
       <div class="page-header">
-        <h1>✏️ Edit Coin</h1>
+        <h1>Edit Coin</h1>
       </div>
       <div v-if="loading" class="loading-overlay">
         <div class="spinner"></div>
