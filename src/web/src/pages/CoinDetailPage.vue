@@ -39,18 +39,28 @@
           <div class="ai-section">
             <div class="ai-header">
               <h4>AI Analysis</h4>
-              <button
-                class="btn btn-primary btn-sm"
-                :disabled="analyzing || !coin.images?.length || !ollamaAvailable"
-                :title="!ollamaAvailable ? ollamaMessage : ''"
-                @click="handleAnalyze"
-              >
-                {{ analyzing ? 'Analyzing...' : 'Analyze with AI' }}
-              </button>
+              <div class="ai-buttons">
+                <button
+                  class="btn btn-primary btn-sm"
+                  :disabled="analyzing || !hasObverse || !ollamaAvailable"
+                  :title="!ollamaAvailable ? ollamaMessage : !hasObverse ? 'No obverse image' : ''"
+                  @click="handleAnalyze('obverse')"
+                >
+                  {{ analyzingSide === 'obverse' ? 'Analyzing...' : 'Analyze Obverse' }}
+                </button>
+                <button
+                  class="btn btn-primary btn-sm"
+                  :disabled="analyzing || !hasReverse || !ollamaAvailable"
+                  :title="!ollamaAvailable ? ollamaMessage : !hasReverse ? 'No reverse image' : ''"
+                  @click="handleAnalyze('reverse')"
+                >
+                  {{ analyzingSide === 'reverse' ? 'Analyzing...' : 'Analyze Reverse' }}
+                </button>
+              </div>
             </div>
             <p v-if="!ollamaAvailable" class="ai-unavailable">AI unavailable — configure Ollama in Admin → AI Configuration</p>
             <div v-if="coin.aiAnalysis" class="ai-content" v-html="renderedAnalysis"></div>
-            <p v-else-if="ollamaAvailable" class="ai-empty">Upload images and click "Analyze with AI" to get an expert assessment.</p>
+            <p v-else-if="ollamaAvailable" class="ai-empty">Upload images and click an analyze button to get an expert assessment.</p>
           </div>
         </div>
 
@@ -165,6 +175,7 @@ const uploadType = ref('obverse')
 const uploadStatus = ref('')
 const uploadError = ref(false)
 const analyzing = ref(false)
+const analyzingSide = ref<string | null>(null)
 const ollamaAvailable = ref(true)
 const ollamaMessage = ref('')
 
@@ -172,6 +183,8 @@ const md = new MarkdownIt()
 
 const coin = computed(() => store.currentCoin)
 const renderedAnalysis = computed(() => (coin.value?.aiAnalysis ? md.render(coin.value.aiAnalysis) : ''))
+const hasObverse = computed(() => coin.value?.images?.some(i => i.imageType === 'obverse'))
+const hasReverse = computed(() => coin.value?.images?.some(i => i.imageType === 'reverse'))
 
 onMounted(async () => {
   const id = Number(route.params['id'])
@@ -203,16 +216,18 @@ async function handleImageUpload(e: Event) {
   }
 }
 
-async function handleAnalyze() {
+async function handleAnalyze(side: 'obverse' | 'reverse') {
   if (!coin.value) return
   analyzing.value = true
+  analyzingSide.value = side
   try {
-    await analyzeCoin(coin.value.id)
+    await analyzeCoin(coin.value.id, side)
     store.fetchCoin(coin.value.id)
   } catch {
-    alert('AI analysis failed. Ensure Ollama is running.')
+    alert(`AI analysis failed for ${side}. Ensure Ollama is running.`)
   } finally {
     analyzing.value = false
+    analyzingSide.value = null
   }
 }
 
@@ -429,6 +444,11 @@ function formatCurrency(value: number) {
 
 .ai-header h4 {
   font-size: 0.9rem;
+}
+
+.ai-buttons {
+  display: flex;
+  gap: 0.4rem;
 }
 
 .ai-content {

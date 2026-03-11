@@ -45,6 +45,25 @@ func (h *AnalysisHandler) Analyze(c *gin.Context) {
 		return
 	}
 
+	// Filter by side if requested
+	side := c.Query("side")
+	var analyzeImages []models.CoinImage
+	if side == "obverse" || side == "reverse" {
+		for _, img := range coin.Images {
+			if string(img.ImageType) == side {
+				analyzeImages = append(analyzeImages, img)
+			}
+		}
+		if len(analyzeImages) == 0 {
+			logger.Warn("analysis", "Coin %d has no %s image", coinID, side)
+			c.JSON(http.StatusBadRequest, gin.H{"error": "No " + side + " image found"})
+			return
+		}
+		logger.Info("analysis", "Analyzing %s side only for coin %d", side, coinID)
+	} else {
+		analyzeImages = coin.Images
+	}
+
 	// Read Ollama settings from DB (with fallback to env/defaults)
 	ollamaURL := services.GetSetting(services.SettingOllamaURL)
 	ollamaModel := services.GetSetting(services.SettingOllamaModel)
@@ -57,13 +76,13 @@ func (h *AnalysisHandler) Analyze(c *gin.Context) {
 	ollamaSvc := services.NewOllamaService(ollamaURL, ollamaTimeout)
 
 	var imagePaths []string
-	for _, img := range coin.Images {
+	for _, img := range analyzeImages {
 		p := filepath.Join("uploads", img.FilePath)
 		imagePaths = append(imagePaths, p)
 		logger.Trace("analysis", "Image path: %s", p)
 	}
 
-	logger.Info("analysis", "Sending %d images to Ollama for coin %d", len(imagePaths), coinID)
+	logger.Info("analysis", "Sending %d image(s) to Ollama for coin %d", len(imagePaths), coinID)
 	analysis, err := ollamaSvc.AnalyzeCoinImages(imagePaths, coin, ollamaModel, customPrompt)
 	if err != nil {
 		logger.Error("analysis", "AI analysis failed for coin %d: %v", coinID, err)

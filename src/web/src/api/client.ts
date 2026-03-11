@@ -72,8 +72,10 @@ export const deleteImage = (coinId: number, imageId: number) =>
   api.delete(`/coins/${coinId}/images/${imageId}`)
 
 // Analysis
-export const analyzeCoin = (coinId: number) =>
-  api.post<{ analysis: string; coin: Coin }>(`/coins/${coinId}/analyze`)
+export const analyzeCoin = (coinId: number, side?: 'obverse' | 'reverse') => {
+  const params = side ? `?side=${side}` : ''
+  return api.post<{ analysis: string; coin: Coin }>(`/coins/${coinId}/analyze${params}`)
+}
 export const extractText = (file: File) => {
   const formData = new FormData()
   formData.append('image', file)
