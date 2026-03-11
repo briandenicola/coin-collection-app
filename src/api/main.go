@@ -136,8 +136,8 @@ func main() {
 	logger.Info("startup", "Server starting on port %s", cfg.Port)
 	logger.Info("startup", "Log level: %s", logger.GetLevel())
 
-	// Check Ollama connectivity at startup (non-blocking)
-	go func() {
+	// Check Ollama connectivity at startup (blocks until complete)
+	func() {
 		ollamaURL := services.GetSetting(services.SettingOllamaURL)
 		ollamaModel := services.GetSetting(services.SettingOllamaModel)
 		svc := services.NewOllamaService(ollamaURL)
@@ -148,6 +148,9 @@ func main() {
 			logger.Warn("startup", "Ollama: %s — AI features will be unavailable until resolved", msg)
 		}
 	}()
+
+	logger.Info("startup", "Application ready")
+	log.Println("Application ready")
 
 	if err := r.Run(":" + cfg.Port); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
