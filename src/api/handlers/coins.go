@@ -6,6 +6,7 @@ import (
 
 	"github.com/briandenicola/ancient-coins-api/database"
 	"github.com/briandenicola/ancient-coins-api/models"
+	"github.com/briandenicola/ancient-coins-api/services"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -98,10 +99,12 @@ func (h *CoinHandler) Get(c *gin.Context) {
 }
 
 func (h *CoinHandler) Create(c *gin.Context) {
+	logger := services.AppLogger
 	userID := c.GetUint("userId")
 
 	var coin models.Coin
 	if err := c.ShouldBindJSON(&coin); err != nil {
+		logger.Warn("coins", "Create failed - invalid JSON (user %d): %v", userID, err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -109,11 +112,15 @@ func (h *CoinHandler) Create(c *gin.Context) {
 	coin.UserID = userID
 	coin.ID = 0
 
+	logger.Debug("coins", "Creating coin '%s' for user %d", coin.Name, userID)
+
 	if err := database.DB.Create(&coin).Error; err != nil {
+		logger.Error("coins", "Failed to create coin: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create coin"})
 		return
 	}
 
+	logger.Info("coins", "Created coin %d '%s' for user %d", coin.ID, coin.Name, userID)
 	database.DB.Preload("Images").First(&coin, coin.ID)
 	c.JSON(http.StatusCreated, coin)
 }

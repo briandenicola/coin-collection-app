@@ -104,3 +104,9 @@ export interface AppSettings {
 export type Theme = 'dark' | 'light'
 
 export const LOG_LEVELS = ['trace', 'debug', 'info', 'warn', 'error'] as const
+
+export interface LogEntry {
+  timestamp: string
+  level: string
+  message: string
+}

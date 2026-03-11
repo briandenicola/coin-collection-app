@@ -109,6 +109,42 @@
         </form>
       </section>
 
+      <!-- Logs Tab -->
+      <section v-if="activeTab === 'logs'" class="admin-section card">
+        <h2>Application Logs</h2>
+        <div class="logs-toolbar">
+          <select v-model="logsFilter" class="form-select logs-filter" @change="loadLogs">
+            <option value="">All Levels</option>
+            <option v-for="level in ['TRACE','DEBUG','INFO','WARN','ERROR']" :key="level" :value="level">{{ level }}</option>
+          </select>
+          <button class="btn btn-secondary btn-sm" @click="loadLogs" :disabled="logsLoading">
+            {{ logsLoading ? 'Loading...' : 'Refresh' }}
+          </button>
+          <button
+            class="btn btn-sm"
+            :class="logsAutoRefresh ? 'btn-primary' : 'btn-secondary'"
+            @click="toggleAutoRefresh"
+          >
+            {{ logsAutoRefresh ? 'Auto ●' : 'Auto ○' }}
+          </button>
+        </div>
+        <div class="logs-container">
+          <div v-if="logs.length === 0 && !logsLoading" class="logs-empty">
+            No log entries. Click Refresh to load.
+          </div>
+          <div
+            v-for="(entry, i) in logs"
+            :key="i"
+            class="log-entry"
+            :class="logLevelClass(entry.level)"
+          >
+            <span class="log-time">{{ entry.timestamp.substring(11, 19) }}</span>
+            <span class="log-level-badge">{{ entry.level }}</span>
+            <span class="log-msg">{{ entry.message }}</span>
+          </div>
+        </div>
+      </section>
+
       <!-- Reset Password Modal -->
       <div v-if="resetTarget" class="modal-overlay" @click.self="resetTarget = null">
         <div class="modal card">
@@ -133,17 +169,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, type Component } from 'vue'
+import { ref, onMounted, onUnmounted, type Component } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import {
   getUsers, deleteUser, resetUserPassword,
-  getAppSettings, updateAppSettings,
+  getAppSettings, updateAppSettings, getAdminLogs,
 } from '@/api/client'
 import { LOG_LEVELS } from '@/types'
-import type { UserInfo, AppSettings } from '@/types'
-import { Users, Cpu, Wrench } from 'lucide-vue-next'
+import type { UserInfo, AppSettings, LogEntry } from '@/types'
+import { Users, Cpu, Wrench, ScrollText } from 'lucide-vue-next'
 
-const tabIcons: Record<string, Component> = { users: Users, ai: Cpu, system: Wrench }
+const tabIcons: Record<string, Component> = { users: Users, ai: Cpu, system: Wrench, logs: ScrollText }
 
 const auth = useAuthStore()
 
@@ -151,6 +187,7 @@ const tabs = [
   { id: 'users', icon: 'users', label: 'Users' },
   { id: 'ai', icon: 'cpu', label: 'AI Config' },
   { id: 'system', icon: 'wrench', label: 'System' },
+  { id: 'logs', icon: 'scroll-text', label: 'Logs' },
 ]
 const activeTab = ref('users')
 
@@ -242,6 +279,43 @@ async function saveSettings() {
   }
 }
 
+// Logs
+const logs = ref<LogEntry[]>([])
+const logsLoading = ref(false)
+const logsFilter = ref('')
+const logsAutoRefresh = ref(false)
+let logsInterval: ReturnType<typeof setInterval> | null = null
+
+async function loadLogs() {
+  logsLoading.value = true
+  try {
+    const res = await getAdminLogs(500, logsFilter.value || undefined)
+    logs.value = res.data.logs || []
+  } catch { /* ignore */ } finally {
+    logsLoading.value = false
+  }
+}
+
+function toggleAutoRefresh() {
+  logsAutoRefresh.value = !logsAutoRefresh.value
+  if (logsAutoRefresh.value) {
+    logsInterval = setInterval(loadLogs, 3000)
+  } else if (logsInterval) {
+    clearInterval(logsInterval)
+    logsInterval = null
+  }
+}
+
+function logLevelClass(level: string) {
+  switch (level) {
+    case 'ERROR': return 'log-error'
+    case 'WARN': return 'log-warn'
+    case 'DEBUG': return 'log-debug'
+    case 'TRACE': return 'log-trace'
+    default: return 'log-info'
+  }
+}
+
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString()
 }
@@ -249,6 +323,10 @@ function formatDate(dateStr: string) {
 onMounted(() => {
   loadUsers()
   loadSettings()
+})
+
+onUnmounted(() => {
+  if (logsInterval) clearInterval(logsInterval)
 })
 </script>
 
@@ -400,4 +478,72 @@ onMounted(() => {
     flex-direction: column;
   }
 }
+
+/* Logs */
+.logs-toolbar {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.logs-filter {
+  width: auto;
+  min-width: 120px;
+}
+
+.logs-container {
+  max-height: 500px;
+  overflow-y: auto;
+  background: var(--bg-body);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.logs-empty {
+  text-align: center;
+  padding: 2rem;
+  color: var(--text-muted);
+  font-family: 'Inter', sans-serif;
+}
+
+.log-entry {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.15rem 0.25rem;
+  border-radius: 2px;
+}
+
+.log-entry:hover {
+  background: var(--bg-card);
+}
+
+.log-time {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.log-level-badge {
+  flex-shrink: 0;
+  min-width: 48px;
+  text-align: center;
+  font-weight: 600;
+  border-radius: 2px;
+  padding: 0 4px;
+}
+
+.log-msg {
+  word-break: break-word;
+}
+
+.log-error .log-level-badge { color: #e74c3c; }
+.log-error .log-msg { color: #e74c3c; }
+.log-warn .log-level-badge { color: #f39c12; }
+.log-debug .log-level-badge { color: #3498db; }
+.log-trace .log-level-badge { color: #7f8c8d; }
+.log-info .log-level-badge { color: #2ecc71; }
 </style>

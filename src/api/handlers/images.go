@@ -10,6 +10,7 @@ import (
 
 	"github.com/briandenicola/ancient-coins-api/database"
 	"github.com/briandenicola/ancient-coins-api/models"
+	"github.com/briandenicola/ancient-coins-api/services"
 	"github.com/gin-gonic/gin"
 )
 
@@ -22,6 +23,7 @@ func NewImageHandler(uploadDir string) *ImageHandler {
 }
 
 func (h *ImageHandler) Upload(c *gin.Context) {
+	logger := services.AppLogger
 	userID := c.GetUint("userId")
 	coinID, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -29,18 +31,24 @@ func (h *ImageHandler) Upload(c *gin.Context) {
 		return
 	}
 
+	logger.Debug("images", "Upload request for coin %d (user %d)", coinID, userID)
+
 	// Verify ownership
 	var coin models.Coin
 	if err := database.DB.Where("id = ? AND user_id = ?", coinID, userID).First(&coin).Error; err != nil {
+		logger.Warn("images", "Coin %d not found for user %d", coinID, userID)
 		c.JSON(http.StatusNotFound, gin.H{"error": "Coin not found"})
 		return
 	}
 
 	file, err := c.FormFile("image")
 	if err != nil {
+		logger.Warn("images", "No image file in upload request: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "No image file provided"})
 		return
 	}
+
+	logger.Debug("images", "Received file: %s (%d bytes)", file.Filename, file.Size)
 
 	imageType := models.ImageType(c.DefaultPostForm("imageType", "other"))
 	isPrimary := c.DefaultPostForm("isPrimary", "false") == "true"
@@ -48,6 +56,7 @@ func (h *ImageHandler) Upload(c *gin.Context) {
 	// Create upload directory for this coin
 	coinDir := filepath.Join(h.UploadDir, fmt.Sprintf("coin-%d", coinID))
 	if err := os.MkdirAll(coinDir, 0755); err != nil {
+		logger.Error("images", "Failed to create directory %s: %v", coinDir, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create upload directory"})
 		return
 	}
@@ -58,6 +67,7 @@ func (h *ImageHandler) Upload(c *gin.Context) {
 	filePath := filepath.Join(coinDir, filename)
 
 	if err := c.SaveUploadedFile(file, filePath); err != nil {
+		logger.Error("images", "Failed to save file to %s: %v", filePath, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save image"})
 		return
 	}
@@ -75,10 +85,12 @@ func (h *ImageHandler) Upload(c *gin.Context) {
 	}
 
 	if err := database.DB.Create(&image).Error; err != nil {
+		logger.Error("images", "Failed to save image record: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save image record"})
 		return
 	}
 
+	logger.Info("images", "Uploaded %s image for coin %d: %s", imageType, coinID, image.FilePath)
 	c.JSON(http.StatusCreated, image)
 }
 

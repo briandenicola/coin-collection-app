@@ -9,6 +9,7 @@ import (
 	"github.com/briandenicola/ancient-coins-api/database"
 	"github.com/briandenicola/ancient-coins-api/handlers"
 	"github.com/briandenicola/ancient-coins-api/middleware"
+	"github.com/briandenicola/ancient-coins-api/services"
 	"github.com/gin-gonic/gin"
 )
 
@@ -17,10 +18,18 @@ func main() {
 
 	database.Connect(cfg.DBPath)
 
+	// Initialize logger from DB settings
+	services.SyncLogLevel()
+	logger := services.AppLogger
+
+	logger.Info("startup", "Application starting")
+	logger.Info("startup", "Database connected: %s", cfg.DBPath)
+
 	// Ensure upload directory exists
 	if err := os.MkdirAll(cfg.UploadDir, 0755); err != nil {
 		log.Fatalf("Failed to create upload directory: %v", err)
 	}
+	logger.Debug("startup", "Upload directory: %s", cfg.UploadDir)
 
 	r := gin.Default()
 
@@ -119,10 +128,13 @@ func main() {
 		admin.POST("/users/:id/reset-password", adminHandler.ResetPassword)
 		admin.GET("/settings", adminHandler.GetSettings)
 		admin.PUT("/settings", adminHandler.UpdateSettings)
+		admin.GET("/logs", adminHandler.GetLogs)
 	}
 
 	log.Printf("Starting server on :%s", cfg.Port)
-	log.Printf("Ollama URL: %s", cfg.OllamaURL)
+	logger.Info("startup", "Server starting on port %s", cfg.Port)
+	logger.Info("startup", "Ollama URL: %s", cfg.OllamaURL)
+	logger.Info("startup", "Log level: %s", logger.GetLevel())
 	if err := r.Run(":" + cfg.Port); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}

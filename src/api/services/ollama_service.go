@@ -41,13 +41,16 @@ func NewOllamaService(baseURL string) *OllamaService {
 }
 
 func (s *OllamaService) AnalyzeCoinImages(imagePaths []string, coin models.Coin, model string, customPrompt string) (string, error) {
+	logger := AppLogger
 	var base64Images []string
 
 	for _, path := range imagePaths {
 		data, err := os.ReadFile(path)
 		if err != nil {
+			logger.Warn("ollama", "Failed to read image %s: %v", path, err)
 			continue
 		}
+		logger.Trace("ollama", "Read image %s (%d bytes)", path, len(data))
 		base64Images = append(base64Images, base64.StdEncoding.EncodeToString(data))
 	}
 
@@ -63,9 +66,10 @@ func (s *OllamaService) AnalyzeCoinImages(imagePaths []string, coin models.Coin,
 	if prompt == "" {
 		prompt = buildPrompt(coin)
 	} else {
-		// Append coin context to custom prompt
 		prompt = prompt + "\n\n" + buildPrompt(coin)
 	}
+
+	logger.Debug("ollama", "Preparing request: model=%s, images=%d, prompt_len=%d", model, len(base64Images), len(prompt))
 
 	reqBody := ollamaRequest{
 		Model:  model,
@@ -79,18 +83,25 @@ func (s *OllamaService) AnalyzeCoinImages(imagePaths []string, coin models.Coin,
 		return "", fmt.Errorf("failed to marshal request: %w", err)
 	}
 
+	logger.Trace("ollama", "Request payload size: %d bytes", len(jsonBody))
+	logger.Debug("ollama", "Calling Ollama at %s/api/generate", s.BaseURL)
+
 	resp, err := s.Client.Post(
 		s.BaseURL+"/api/generate",
 		"application/json",
 		bytes.NewReader(jsonBody),
 	)
 	if err != nil {
+		logger.Error("ollama", "HTTP request failed: %v", err)
 		return "", fmt.Errorf("failed to call Ollama: %w", err)
 	}
 	defer resp.Body.Close()
 
+	logger.Debug("ollama", "Ollama response status: %d", resp.StatusCode)
+
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
+		logger.Error("ollama", "Ollama error response: %s", string(body))
 		return "", fmt.Errorf("Ollama returned status %d: %s", resp.StatusCode, string(body))
 	}
 
@@ -99,8 +110,11 @@ func (s *OllamaService) AnalyzeCoinImages(imagePaths []string, coin models.Coin,
 		return "", fmt.Errorf("failed to read response: %w", err)
 	}
 
+	logger.Trace("ollama", "Response body size: %d bytes", len(body))
+
 	var result ollamaResponse
 	if err := json.Unmarshal(body, &result); err != nil {
+		logger.Error("ollama", "Failed to parse response: %v", err)
 		return "", fmt.Errorf("failed to parse response: %w", err)
 	}
 

@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Coin, CoinListResponse, CoinImage, AuthResponse, StatsResponse, UserInfo, AppSettings } from '@/types'
+import type { Coin, CoinListResponse, CoinImage, AuthResponse, StatsResponse, UserInfo, AppSettings, LogEntry } from '@/types'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
@@ -102,5 +102,10 @@ export const resetUserPassword = (id: number, newPassword: string) =>
 export const getAppSettings = () => api.get<AppSettings>('/admin/settings')
 export const updateAppSettings = (settings: { key: string; value: string }[]) =>
   api.put('/admin/settings', settings)
+export const getAdminLogs = (limit = 500, level?: string) => {
+  const params: Record<string, string> = { limit: String(limit) }
+  if (level) params.level = level
+  return api.get<{ logs: LogEntry[]; count: number; logLevel: string }>('/admin/logs', { params })
+}
 
 export default api

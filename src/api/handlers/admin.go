@@ -141,7 +141,39 @@ func (h *AdminHandler) UpdateSettings(c *gin.Context) {
 		}
 	}
 
+	// Sync log level if it was updated
+	services.SyncLogLevel()
+
 	c.JSON(http.StatusOK, gin.H{"message": "Settings updated"})
+}
+
+// GetLogs returns recent application logs
+func (h *AdminHandler) GetLogs(c *gin.Context) {
+	limit := 500
+	if l := c.Query("limit"); l != "" {
+		if n, err := strconv.Atoi(l); err == nil && n > 0 {
+			limit = n
+		}
+	}
+
+	level := c.Query("level")
+	logs := services.AppLogger.GetLogs(limit)
+
+	if level != "" {
+		filtered := make([]services.LogEntry, 0)
+		for _, entry := range logs {
+			if entry.Level == level {
+				filtered = append(filtered, entry)
+			}
+		}
+		logs = filtered
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"logs":     logs,
+		"count":    len(logs),
+		"logLevel": services.AppLogger.GetLevel(),
+	})
 }
 
 // ExportCollection returns all coins for a user as JSON
