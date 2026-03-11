@@ -1,0 +1,88 @@
+version: '3'
+
+env:
+  DOCKER_REPO: bjd145
+
+tasks:
+  default:
+    cmds:
+    - task --list
+
+  build-api:
+    desc: Build the Go API
+    dir: src/api
+    cmds:
+      - go build -o ancient-coins-api .
+
+  build-web:
+    desc: Build the Vue frontend
+    dir: src/web
+    cmds:
+      - npm install
+      - npm run build
+
+  run-api:
+    desc: Run the Go API server
+    dir: src/api
+    cmds:
+      - go run .
+    env:
+      JWT_SECRET: dev-secret-key-change-in-production-min32chars
+      OLLAMA_URL: http://localhost:11434
+      DB_PATH: ./ancientcoins.db
+
+  run-web:
+    desc: Run the Vite dev server
+    dir: src/web
+    cmds:
+      - npm install
+      - npm run dev
+
+  build:
+    desc: Build both API and web
+    deps:
+      - build-api
+      - build-web
+
+  run:
+    desc: Run both API and web servers in parallel
+    deps:
+      - run-api
+      - run-web
+    silent: true
+
+  docker-build:
+    desc: Build the Docker container image
+    vars:
+      COMMIT_SHA:
+        sh: git rev-parse --short HEAD
+    cmds:
+      - docker build -t {{.DOCKER_REPO}}/ancient-coins:{{.COMMIT_SHA}} -t {{.DOCKER_REPO}}/ancient-coins:latest .
+
+  docker-run:
+    desc: Run the Docker container locally
+    dotenv: ['.env']
+    vars:
+      COMMIT_SHA:
+        sh: git rev-parse --short HEAD
+    cmds:
+      - docker stop ancient-coins && docker rm ancient-coins || true
+      - docker run -p 8080:8080 -d
+        -e JWT_SECRET=${JWT_SECRET}
+        -e OLLAMA_URL=${OLLAMA_URL:-http://host.docker.internal:11434}
+        -v ancient-coins-data:/app/data
+        -v ancient-coins-uploads:/app/uploads
+        --name ancient-coins
+        {{.DOCKER_REPO}}/ancient-coins:{{.COMMIT_SHA}}
+
+  init:
+    desc: Generate a .env file with a random JWT secret
+    status:
+      - test -f .env
+    cmds:
+      - |
+        cat > .env <<EOF
+        JWT_SECRET=$(openssl rand -base64 48)
+        OLLAMA_URL=http://localhost:11434
+        EOF
+      - echo ".env file created with a generated JWT secret."

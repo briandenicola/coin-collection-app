@@ -1,0 +1,41 @@
+# Go
+src/api/ancient-coins-api
+src/api/ancient-coins-api.exe
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# SQLite
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+# Uploads
+src/api/uploads/
+
+# Node
+src/web/node_modules/
+src/web/dist/
+
+# Environment
+.env
+*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data
+data/

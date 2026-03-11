@@ -1,0 +1,27 @@
+{
+	"name": "Ancient Coins Dev",
+	"build": {
+		"dockerfile": "Dockerfile"
+	},
+	"runArgs": ["--init"],
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"golang.go",
+				"Vue.volar",
+				"ms-azuretools.vscode-docker",
+				"ms-vscode.powershell",
+				"github.copilot",
+				"github.vscode-pull-request-github",
+				"dbaeumer.vscode-eslint"
+			]
+		}
+	},
+	"forwardPorts": [8080, 5173],
+	"remoteUser": "vscode",
+	"features": {
+		"ghcr.io/devcontainers/features/common-utils:1": {},
+		"ghcr.io/devcontainers/features/docker-from-docker:1": {}
+	},
+	"postCreateCommand": "bash .devcontainer/post-create.sh"
+}

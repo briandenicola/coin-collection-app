@@ -1,0 +1,125 @@
+<template>
+  <div class="image-gallery">
+    <div v-if="images.length" class="gallery-main">
+      <img :src="activeImageSrc" :alt="activeImage?.imageType" class="gallery-active-img" />
+      <span class="gallery-type-badge">{{ activeImage?.imageType }}</span>
+    </div>
+    <div v-else class="gallery-empty">
+      <span class="empty-icon">🪙</span>
+      <p>No images uploaded</p>
+    </div>
+    <div v-if="images.length > 1" class="gallery-thumbs">
+      <button
+        v-for="img in images"
+        :key="img.id"
+        class="thumb-btn"
+        :class="{ active: activeImage?.id === img.id }"
+        @click="activeImage = img"
+      >
+        <img :src="`/uploads/${img.filePath}`" :alt="img.imageType" class="thumb-img" />
+      </button>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, watch } from 'vue'
+import type { CoinImage } from '@/types'
+
+const props = defineProps<{ images: CoinImage[] }>()
+
+const activeImage = ref<CoinImage | null>(null)
+
+watch(
+  () => props.images,
+  (imgs) => {
+    if (imgs.length) {
+      activeImage.value = imgs.find((i) => i.isPrimary) || imgs[0] || null
+    }
+  },
+  { immediate: true },
+)
+
+const activeImageSrc = computed(() => {
+  return activeImage.value ? `/uploads/${activeImage.value.filePath}` : ''
+})
+</script>
+
+<style scoped>
+.gallery-main {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--bg-primary);
+}
+
+.gallery-active-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.gallery-type-badge {
+  position: absolute;
+  bottom: 0.5rem;
+  left: 0.5rem;
+  padding: 0.2rem 0.6rem;
+  background: rgba(0, 0, 0, 0.7);
+  color: var(--accent-gold);
+  font-size: 0.75rem;
+  border-radius: var(--radius-full);
+  text-transform: capitalize;
+}
+
+.gallery-empty {
+  width: 100%;
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-primary);
+  border-radius: var(--radius-md);
+  border: 2px dashed var(--border-subtle);
+  color: var(--text-muted);
+}
+
+.empty-icon {
+  font-size: 3rem;
+  margin-bottom: 0.5rem;
+}
+
+.gallery-thumbs {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+}
+
+.thumb-btn {
+  flex-shrink: 0;
+  width: 60px;
+  height: 60px;
+  border: 2px solid transparent;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  cursor: pointer;
+  background: var(--bg-primary);
+  padding: 0;
+  transition: border-color var(--transition-fast);
+}
+
+.thumb-btn.active,
+.thumb-btn:hover {
+  border-color: var(--accent-gold);
+}
+
+.thumb-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+</style>

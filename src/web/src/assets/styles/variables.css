@@ -1,0 +1,50 @@
+:root {
+  /* Dark museum palette */
+  --bg-primary: #0f0f1a;
+  --bg-secondary: #1a1a2e;
+  --bg-card: #16213e;
+  --bg-card-hover: #1a2747;
+  --bg-input: #1e2a4a;
+
+  /* Gold/bronze accents */
+  --accent-gold: #c9a84c;
+  --accent-bronze: #b08d57;
+  --accent-gold-dim: rgba(201, 168, 76, 0.3);
+  --accent-gold-glow: rgba(201, 168, 76, 0.15);
+
+  /* Text */
+  --text-primary: #e8e0d0;
+  --text-secondary: #a09880;
+  --text-muted: #706858;
+  --text-heading: #d4b96a;
+
+  /* Category colors */
+  --cat-roman: #9b59b6;
+  --cat-greek: #6b8e23;
+  --cat-byzantine: #c0392b;
+  --cat-modern: #4682b4;
+  --cat-other: #888888;
+
+  /* Material colors */
+  --mat-gold: #ffd700;
+  --mat-silver: #c0c0c0;
+  --mat-bronze: #cd7f32;
+  --mat-copper: #b87333;
+  --mat-electrum: #e8d876;
+
+  /* Borders & shadows */
+  --border-subtle: rgba(201, 168, 76, 0.15);
+  --border-accent: rgba(201, 168, 76, 0.4);
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.4);
+  --shadow-glow: 0 0 20px rgba(201, 168, 76, 0.1);
+
+  /* Radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-full: 9999px;
+
+  /* Transitions */
+  --transition-fast: 0.2s ease;
+  --transition-med: 0.3s ease;
+}
