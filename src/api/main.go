@@ -133,7 +133,6 @@ func main() {
 
 	log.Printf("Starting server on :%s", cfg.Port)
 	logger.Info("startup", "Server starting on port %s", cfg.Port)
-	logger.Info("startup", "Ollama URL: %s", cfg.OllamaURL)
 	logger.Info("startup", "Log level: %s", logger.GetLevel())
 	if err := r.Run(":" + cfg.Port); err != nil {
 		log.Fatalf("Failed to start server: %v", err)

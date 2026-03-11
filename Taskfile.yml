@@ -35,7 +35,6 @@ tasks:
       - go run .
     env:
       JWT_SECRET: dev-secret-key-change-in-production-min32chars
-      OLLAMA_URL: http://localhost:11434
       DB_PATH: ./ancientcoins.db
 
   run-web:
@@ -76,7 +75,6 @@ tasks:
       - docker stop ancient-coins && docker rm ancient-coins || true
       - docker run -p 8080:8080 -d
         -e JWT_SECRET=${JWT_SECRET}
-        -e OLLAMA_URL=${OLLAMA_URL:-http://host.docker.internal:11434}
         -v ancient-coins-data:/app/data
         -v ancient-coins-uploads:/app/uploads
         --name ancient-coins
@@ -90,6 +88,5 @@ tasks:
       - |
         cat > .env <<EOF
         JWT_SECRET=$(openssl rand -base64 48)
-        OLLAMA_URL=http://localhost:11434
         EOF
       - echo ".env file created with a generated JWT secret."

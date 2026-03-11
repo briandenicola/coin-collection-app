@@ -23,8 +23,9 @@ Click **Register** and create your account. The **first user** to register is au
 
 As admin, click **Admin** in the navigation bar to configure:
 
-- **AI Configuration** — Set the Ollama URL (default `http://localhost:11434`), the vision model name (default `llava`), and optionally a custom analysis prompt
+- **AI Configuration** — Set the Ollama URL, the vision model name (default `llava`), and optionally a custom analysis prompt. The Ollama URL is configured here (default `http://localhost:11434`).
 - **System** — Set the log level (`trace`, `debug`, `info`, `warn`, `error`)
+- **Logs** — View real-time application logs with level filtering and auto-refresh
 
 ### 4. Start Adding Coins
 
@@ -225,7 +226,7 @@ Upload photos of a coin and click **🤖 Analyze with AI** on the coin detail pa
    ```sh
    ollama serve
    ```
-4. In the app, go to **Admin → AI Configuration** and verify the Ollama URL is correct (default: `http://localhost:11434`)
+4. In the app, go to **Admin → AI Configuration** and set the Ollama URL to point to your Ollama instance (default: `http://localhost:11434`)
 
 ### Custom Prompts
 

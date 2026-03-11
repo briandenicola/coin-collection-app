@@ -3,7 +3,6 @@ services:
     image: ghcr.io/briandenicola/ancient-coins:latest
     environment:
       - JWT_SECRET=${JWT_SECRET:?Set JWT_SECRET in .env (min 32 chars)}
-      - OLLAMA_URL=${OLLAMA_URL:-http://host.docker.internal:11434}
       - DB_PATH=/app/data/ancientcoins.db
       - PORT=8080
     ports:
