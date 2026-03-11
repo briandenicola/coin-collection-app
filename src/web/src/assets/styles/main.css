@@ -197,6 +197,12 @@ a:hover {
   gap: 1rem;
 }
 
+.form-wrapper {
+  max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
 /* Grid */
 .coins-grid {
   display: grid;

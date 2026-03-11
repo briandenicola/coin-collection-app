@@ -1,12 +1,14 @@
 <template>
   <div class="container">
-    <div class="page-header">
-      <h1>✏️ Edit Coin</h1>
+    <div class="form-wrapper">
+      <div class="page-header">
+        <h1>✏️ Edit Coin</h1>
+      </div>
+      <div v-if="loading" class="loading-overlay">
+        <div class="spinner"></div>
+      </div>
+      <CoinForm v-else :form="form" submit-label="Save Changes" :loading="saving" @submit="handleSubmit" />
     </div>
-    <div v-if="loading" class="loading-overlay">
-      <div class="spinner"></div>
-    </div>
-    <CoinForm v-else :form="form" submit-label="Save Changes" :loading="saving" @submit="handleSubmit" />
   </div>
 </template>
 

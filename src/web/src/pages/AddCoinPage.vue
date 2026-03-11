@@ -1,9 +1,11 @@
 <template>
   <div class="container">
-    <div class="page-header">
-      <h1>➕ Add Coin</h1>
+    <div class="form-wrapper">
+      <div class="page-header">
+        <h1>➕ Add Coin</h1>
+      </div>
+      <CoinForm :form="form" submit-label="Add to Collection" :loading="saving" @submit="handleSubmit" />
     </div>
-    <CoinForm :form="form" submit-label="Add to Collection" :loading="saving" @submit="handleSubmit" />
   </div>
 </template>
 
