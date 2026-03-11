@@ -19,6 +19,40 @@ The Vue SPA communicates with the Go API exclusively via REST (`/api/*`). In pro
 
 The frontend is a Progressive Web App (PWA) and can be installed on iOS (Safari → Share → Add to Home Screen), Android, and desktop browsers for a native app-like experience with offline caching.
 
+### Development (two processes, two ports)
+
+```
+Browser → localhost:5173 (Vite dev server, serves Vue SPA)
+           └─ /api/* requests → proxied to localhost:8080 (via vite.config.ts)
+
+Browser → localhost:8080 (Go/Gin API, serves REST endpoints)
+```
+
+In development, the Vite dev server runs on `:5173` with hot-reload and proxies any `/api/*` or `/uploads/*` request to the Go API on `:8080`. The browser only talks to the Vite server.
+
+### Production (single container, single port)
+
+The Dockerfile uses a multi-stage build to combine both into one image:
+
+```
+Stage 1: node:24-alpine     → npm run build  → produces dist/ (static HTML/JS/CSS)
+Stage 2: golang:1.26-alpine → go build       → produces ancient-coins-api binary
+Stage 3: alpine:3.21        → copies both:
+           /app/ancient-coins-api    (Go binary)
+           /app/wwwroot/             (Vue dist/ output)
+```
+
+The Go binary serves the Vue SPA as static files **and** handles API routes — one process does both jobs:
+
+```
+Browser → localhost:8080 → Go binary inside container
+              ├─ /api/*      → Gin REST handlers
+              ├─ /uploads/*  → serves uploaded images from volume
+              └─ /*          → serves Vue SPA from /app/wwwroot/
+```
+
+No nginx or reverse proxy needed. Docker volumes persist the SQLite database and uploaded images across container restarts.
+
 ## Prerequisites
 
 - [Go](https://go.dev/dl/) (1.22+)
