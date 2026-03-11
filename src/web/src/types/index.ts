@@ -85,3 +85,22 @@ export interface StatsResponse {
     avgCurrentValue: number
   }
 }
+
+export interface UserInfo {
+  id: number
+  username: string
+  role: 'admin' | 'user'
+  createdAt: string
+}
+
+export interface AppSettings {
+  OllamaURL: string
+  OllamaModel: string
+  AiAnalysisPrompt: string
+  LogLevel: string
+  [key: string]: string
+}
+
+export type Theme = 'dark' | 'light'
+
+export const LOG_LEVELS = ['trace', 'debug', 'info', 'warn', 'error'] as const

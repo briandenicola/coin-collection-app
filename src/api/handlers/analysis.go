@@ -10,14 +10,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type AnalysisHandler struct {
-	OllamaService *services.OllamaService
-}
+type AnalysisHandler struct{}
 
-func NewAnalysisHandler(ollamaURL string) *AnalysisHandler {
-	return &AnalysisHandler{
-		OllamaService: services.NewOllamaService(ollamaURL),
-	}
+func NewAnalysisHandler() *AnalysisHandler {
+	return &AnalysisHandler{}
 }
 
 func (h *AnalysisHandler) Analyze(c *gin.Context) {
@@ -39,19 +35,24 @@ func (h *AnalysisHandler) Analyze(c *gin.Context) {
 		return
 	}
 
-	// Collect image paths
+	// Read Ollama settings from DB (with fallback to env/defaults)
+	ollamaURL := services.GetSetting(services.SettingOllamaURL)
+	ollamaModel := services.GetSetting(services.SettingOllamaModel)
+	customPrompt := services.GetSetting(services.SettingAIPrompt)
+
+	ollamaSvc := services.NewOllamaService(ollamaURL)
+
 	var imagePaths []string
 	for _, img := range coin.Images {
 		imagePaths = append(imagePaths, img.FilePath)
 	}
 
-	analysis, err := h.OllamaService.AnalyzeCoinImages(imagePaths, coin)
+	analysis, err := ollamaSvc.AnalyzeCoinImages(imagePaths, coin, ollamaModel, customPrompt)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "AI analysis failed: " + err.Error()})
 		return
 	}
 
-	// Save analysis to coin
 	database.DB.Model(&coin).Update("ai_analysis", analysis)
 	coin.AIAnalysis = analysis
 

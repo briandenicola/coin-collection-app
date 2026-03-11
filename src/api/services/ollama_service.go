@@ -40,7 +40,7 @@ func NewOllamaService(baseURL string) *OllamaService {
 	}
 }
 
-func (s *OllamaService) AnalyzeCoinImages(imagePaths []string, coin models.Coin) (string, error) {
+func (s *OllamaService) AnalyzeCoinImages(imagePaths []string, coin models.Coin, model string, customPrompt string) (string, error) {
 	var base64Images []string
 
 	for _, path := range imagePaths {
@@ -55,10 +55,20 @@ func (s *OllamaService) AnalyzeCoinImages(imagePaths []string, coin models.Coin)
 		return "", fmt.Errorf("no valid images found")
 	}
 
-	prompt := buildPrompt(coin)
+	if model == "" {
+		model = "llava"
+	}
+
+	prompt := customPrompt
+	if prompt == "" {
+		prompt = buildPrompt(coin)
+	} else {
+		// Append coin context to custom prompt
+		prompt = prompt + "\n\n" + buildPrompt(coin)
+	}
 
 	reqBody := ollamaRequest{
-		Model:  "llava",
+		Model:  model,
 		Prompt: prompt,
 		Images: base64Images,
 		Stream: false,

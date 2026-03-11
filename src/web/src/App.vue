@@ -24,7 +24,17 @@
             <span class="nav-label">Add</span>
           </router-link>
         </div>
-        <button class="btn-logout" @click="handleLogout">Logout</button>
+        <div class="nav-right">
+          <router-link to="/settings" class="nav-link" active-class="active">
+            <span class="nav-icon">⚙️</span>
+            <span class="nav-label">Settings</span>
+          </router-link>
+          <router-link v-if="auth.isAdmin" to="/admin" class="nav-link" active-class="active">
+            <span class="nav-icon">🛡️</span>
+            <span class="nav-label">Admin</span>
+          </router-link>
+          <button class="btn-logout" @click="handleLogout">Logout</button>
+        </div>
       </div>
     </nav>
     <main class="main-content" :class="{ 'with-nav': auth.isAuthenticated }">
@@ -120,6 +130,12 @@ function handleLogout() {
 
 .add-link {
   color: var(--accent-gold);
+}
+
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
 }
 
 .btn-logout {

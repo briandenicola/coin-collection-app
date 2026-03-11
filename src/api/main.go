@@ -95,8 +95,28 @@ func main() {
 		protected.POST("/coins/:id/images", imageHandler.Upload)
 		protected.DELETE("/coins/:id/images/:imageId", imageHandler.Delete)
 
-		analysisHandler := handlers.NewAnalysisHandler(cfg.OllamaURL)
+		analysisHandler := handlers.NewAnalysisHandler()
 		protected.POST("/coins/:id/analyze", analysisHandler.Analyze)
+
+		// User self-service routes
+		userHandler := handlers.NewUserHandler()
+		protected.GET("/auth/me", userHandler.GetMe)
+		protected.POST("/auth/change-password", userHandler.ChangePassword)
+		protected.GET("/user/export", userHandler.ExportCollection)
+		protected.POST("/user/import", userHandler.ImportCollection)
+	}
+
+	// Admin-only routes
+	admin := api.Group("/admin")
+	admin.Use(middleware.AuthRequired(cfg.JWTSecret))
+	admin.Use(handlers.AdminRequired())
+	{
+		adminHandler := handlers.NewAdminHandler()
+		admin.GET("/users", adminHandler.ListUsers)
+		admin.DELETE("/users/:id", adminHandler.DeleteUser)
+		admin.POST("/users/:id/reset-password", adminHandler.ResetPassword)
+		admin.GET("/settings", adminHandler.GetSettings)
+		admin.PUT("/settings", adminHandler.UpdateSettings)
 	}
 
 	log.Printf("Starting server on :%s", cfg.Port)

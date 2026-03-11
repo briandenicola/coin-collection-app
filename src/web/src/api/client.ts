@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Coin, CoinListResponse, CoinImage, AuthResponse, StatsResponse } from '@/types'
+import type { Coin, CoinListResponse, CoinImage, AuthResponse, StatsResponse, UserInfo, AppSettings } from '@/types'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
@@ -65,5 +65,21 @@ export const analyzeCoin = (coinId: number) =>
 
 // Stats
 export const getStats = () => api.get<StatsResponse>('/stats')
+
+// User self-service
+export const getMe = () => api.get<UserInfo>('/auth/me')
+export const changePassword = (currentPassword: string, newPassword: string) =>
+  api.post('/auth/change-password', { currentPassword, newPassword })
+export const exportCollection = () => api.get<Coin[]>('/user/export')
+export const importCollection = (coins: Coin[]) => api.post('/user/import', coins)
+
+// Admin
+export const getUsers = () => api.get<UserInfo[]>('/admin/users')
+export const deleteUser = (id: number) => api.delete(`/admin/users/${id}`)
+export const resetUserPassword = (id: number, newPassword: string) =>
+  api.post(`/admin/users/${id}/reset-password`, { newPassword })
+export const getAppSettings = () => api.get<AppSettings>('/admin/settings')
+export const updateAppSettings = (settings: { key: string; value: string }[]) =>
+  api.put('/admin/settings', settings)
 
 export default api

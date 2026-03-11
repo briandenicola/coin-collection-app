@@ -1,5 +1,5 @@
 :root {
-  /* Dark museum palette */
+  /* Dark museum palette (default) */
   --bg-primary: #0f0f1a;
   --bg-secondary: #1a1a2e;
   --bg-card: #16213e;
@@ -47,4 +47,28 @@
   /* Transitions */
   --transition-fast: 0.2s ease;
   --transition-med: 0.3s ease;
+}
+
+/* Light theme */
+[data-theme="light"] {
+  --bg-primary: #f5f0e8;
+  --bg-secondary: #ede5d8;
+  --bg-card: #ffffff;
+  --bg-card-hover: #faf7f2;
+  --bg-input: #f0ebe3;
+
+  --accent-gold: #9a7b2e;
+  --accent-bronze: #8a6d3b;
+  --accent-gold-dim: rgba(154, 123, 46, 0.2);
+  --accent-gold-glow: rgba(154, 123, 46, 0.1);
+
+  --text-primary: #2c2416;
+  --text-secondary: #5c5040;
+  --text-muted: #8a7e6c;
+  --text-heading: #6b5520;
+
+  --border-subtle: rgba(154, 123, 46, 0.2);
+  --border-accent: rgba(154, 123, 46, 0.5);
+  --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.08);
+  --shadow-glow: 0 0 12px rgba(154, 123, 46, 0.08);
 }

@@ -24,7 +24,7 @@ func Connect(dbPath string) {
 	DB.Exec("PRAGMA journal_mode=WAL")
 	DB.Exec("PRAGMA foreign_keys=ON")
 
-	err = DB.AutoMigrate(&models.User{}, &models.Coin{}, &models.CoinImage{})
+	err = DB.AutoMigrate(&models.User{}, &models.Coin{}, &models.CoinImage{}, &models.AppSetting{})
 	if err != nil {
 		log.Fatalf("Failed to migrate database: %v", err)
 	}
