@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"io"
 	"net/http"
 	"strconv"
 
@@ -60,4 +61,38 @@ func (h *AnalysisHandler) Analyze(c *gin.Context) {
 		"analysis": analysis,
 		"coin":     coin,
 	})
+}
+
+// ExtractText accepts an image upload and returns extracted text via Ollama
+func (h *AnalysisHandler) ExtractText(c *gin.Context) {
+	file, err := c.FormFile("image")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No image file provided"})
+		return
+	}
+
+	f, err := file.Open()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read image"})
+		return
+	}
+	defer f.Close()
+
+	imageData, err := io.ReadAll(f)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read image data"})
+		return
+	}
+
+	ollamaURL := services.GetSetting(services.SettingOllamaURL)
+	ollamaModel := services.GetSetting(services.SettingOllamaModel)
+
+	ollamaSvc := services.NewOllamaService(ollamaURL)
+	text, err := ollamaSvc.ExtractTextFromImage(imageData, ollamaModel)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Text extraction failed: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"text": text})
 }

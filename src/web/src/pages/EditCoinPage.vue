@@ -16,7 +16,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import CoinForm from '@/components/CoinForm.vue'
-import { getCoin, updateCoin, uploadImage, deleteImage } from '@/api/client'
+import { getCoin, updateCoin, uploadImage, deleteImage, extractText } from '@/api/client'
 import type { Coin } from '@/types'
 
 const route = useRoute()
@@ -74,6 +74,23 @@ async function handleSubmit() {
         await deleteImage(coinId, existingReverse.id)
       }
       await uploadImage(coinId, formComp.reverseFile, 'reverse', false)
+    }
+
+    // Extract text from store card if uploaded
+    if (formComp?.cardFile) {
+      try {
+        const res = await extractText(formComp.cardFile)
+        const extractedText = res.data.text
+        if (extractedText) {
+          const existingNotes = form.notes || ''
+          const updatedNotes = existingNotes
+            ? `${existingNotes}\n\n--- Store Card ---\n${extractedText}`
+            : `--- Store Card ---\n${extractedText}`
+          await updateCoin(coinId, { notes: updatedNotes })
+        }
+      } catch {
+        console.warn('Card text extraction failed – coin saved without card notes')
+      }
     }
 
     router.push(`/coin/${coinId}`)

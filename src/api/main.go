@@ -98,6 +98,7 @@ func main() {
 
 		analysisHandler := handlers.NewAnalysisHandler()
 		protected.POST("/coins/:id/analyze", analysisHandler.Analyze)
+		protected.POST("/extract-text", analysisHandler.ExtractText)
 
 		// User self-service routes
 		userHandler := handlers.NewUserHandler()

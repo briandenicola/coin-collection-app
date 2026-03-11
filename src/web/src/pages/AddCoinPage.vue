@@ -13,7 +13,7 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCoinsStore } from '@/stores/coins'
-import { uploadImage, deleteImage } from '@/api/client'
+import { uploadImage, deleteImage, extractText, updateCoin } from '@/api/client'
 import CoinForm from '@/components/CoinForm.vue'
 import type { Coin } from '@/types'
 
@@ -50,14 +50,33 @@ async function handleSubmit() {
   saving.value = true
   try {
     const coin = await store.addCoin(form)
-    // Upload images if selected
     const formComp = coinFormRef.value
+
+    // Upload images if selected
     if (formComp?.obverseFile) {
       await uploadImage(coin.id, formComp.obverseFile, 'obverse', true)
     }
     if (formComp?.reverseFile) {
       await uploadImage(coin.id, formComp.reverseFile, 'reverse', false)
     }
+
+    // Extract text from store card if uploaded
+    if (formComp?.cardFile) {
+      try {
+        const res = await extractText(formComp.cardFile)
+        const extractedText = res.data.text
+        if (extractedText) {
+          const existingNotes = form.notes || ''
+          const updatedNotes = existingNotes
+            ? `${existingNotes}\n\n--- Store Card ---\n${extractedText}`
+            : `--- Store Card ---\n${extractedText}`
+          await updateCoin(coin.id, { notes: updatedNotes })
+        }
+      } catch {
+        console.warn('Card text extraction failed – coin saved without card notes')
+      }
+    }
+
     router.push(`/coin/${coin.id}`)
   } catch {
     alert('Failed to add coin')

@@ -146,6 +146,15 @@
           </div>
         </div>
         <div class="form-group">
+          <label class="form-label">Store Card Image</label>
+          <p class="form-hint">Upload a photo of the store card. Text will be extracted automatically and saved to Notes.</p>
+          <div v-if="cardPreview" class="image-preview-box">
+            <img :src="cardPreview" alt="Store card" class="image-preview" />
+            <button type="button" class="image-remove-btn" @click="clearCard" title="Remove"><X :size="12" /></button>
+          </div>
+          <input type="file" accept=".jpg,.jpeg,.png" class="form-input file-input" @change="onCardFile" ref="cardInput" />
+        </div>
+        <div class="form-group">
           <label class="form-label">Notes</label>
           <textarea v-model="form.notes" class="form-textarea" rows="3" placeholder="Any additional notes..." />
         </div>
@@ -185,10 +194,13 @@ defineEmits<{ submit: [] }>()
 
 const obverseFile = ref<File | null>(null)
 const reverseFile = ref<File | null>(null)
+const cardFile = ref<File | null>(null)
 const obversePreview = ref<string | null>(null)
 const reversePreview = ref<string | null>(null)
+const cardPreview = ref<string | null>(null)
 const obverseInput = ref<HTMLInputElement | null>(null)
 const reverseInput = ref<HTMLInputElement | null>(null)
+const cardInput = ref<HTMLInputElement | null>(null)
 const removedObverseId = ref<number | null>(null)
 const removedReverseId = ref<number | null>(null)
 
@@ -234,10 +246,24 @@ function clearReverse() {
   if (reverseInput.value) reverseInput.value.value = ''
 }
 
+function onCardFile(e: Event) {
+  const file = (e.target as HTMLInputElement).files?.[0]
+  if (!file) return
+  cardFile.value = file
+  cardPreview.value = URL.createObjectURL(file)
+}
+
+function clearCard() {
+  cardFile.value = null
+  cardPreview.value = null
+  if (cardInput.value) cardInput.value.value = ''
+}
+
 // Expose pending images for parent to upload after save
 defineExpose({
   obverseFile,
   reverseFile,
+  cardFile,
   removedObverseId,
   removedReverseId,
 })
@@ -340,6 +366,12 @@ legend {
   align-items: center;
   justify-content: center;
   line-height: 1;
+}
+
+.form-hint {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
 }
 
 @media (max-width: 768px) {

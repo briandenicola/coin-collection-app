@@ -107,6 +107,60 @@ func (s *OllamaService) AnalyzeCoinImages(imagePaths []string, coin models.Coin,
 	return result.Response, nil
 }
 
+// ExtractTextFromImage sends an image to Ollama and asks it to extract all visible text
+func (s *OllamaService) ExtractTextFromImage(imageData []byte, model string) (string, error) {
+	if model == "" {
+		model = "llava"
+	}
+
+	base64Image := base64.StdEncoding.EncodeToString(imageData)
+
+	prompt := `Extract ALL text visible in this image exactly as written. 
+This is a store card or certificate that accompanies a coin purchase. 
+Preserve the original layout and formatting as much as possible.
+Include store name, coin description, price, grade, reference numbers, dates, and any other text.
+Return ONLY the extracted text, no commentary.`
+
+	reqBody := ollamaRequest{
+		Model:  model,
+		Prompt: prompt,
+		Images: []string{base64Image},
+		Stream: false,
+	}
+
+	jsonBody, err := json.Marshal(reqBody)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	resp, err := s.Client.Post(
+		s.BaseURL+"/api/generate",
+		"application/json",
+		bytes.NewReader(jsonBody),
+	)
+	if err != nil {
+		return "", fmt.Errorf("failed to call Ollama: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("Ollama returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read response: %w", err)
+	}
+
+	var result ollamaResponse
+	if err := json.Unmarshal(body, &result); err != nil {
+		return "", fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return result.Response, nil
+}
+
 func buildPrompt(coin models.Coin) string {
 	var sb strings.Builder
 	sb.WriteString("You are an expert numismatist specializing in ancient and modern coins. ")
