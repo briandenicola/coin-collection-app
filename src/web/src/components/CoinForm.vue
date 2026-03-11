@@ -59,7 +59,7 @@
         </div>
       </fieldset>
 
-      <!-- Inscriptions -->
+      <!-- Inscriptions, Images & Descriptions -->
       <fieldset class="form-section full-width">
         <legend>Inscriptions & Descriptions</legend>
         <div class="form-row">
@@ -72,21 +72,6 @@
             <input v-model="form.reverseInscription" class="form-input" placeholder="Reverse legend text" />
           </div>
         </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">Obverse Description</label>
-            <textarea v-model="form.obverseDescription" class="form-textarea" placeholder="Describe the obverse design" />
-          </div>
-          <div class="form-group">
-            <label class="form-label">Reverse Description</label>
-            <textarea v-model="form.reverseDescription" class="form-textarea" placeholder="Describe the reverse design" />
-          </div>
-        </div>
-      </fieldset>
-
-      <!-- Images -->
-      <fieldset class="form-section full-width">
-        <legend>Images</legend>
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">Obverse Image</label>
@@ -103,6 +88,16 @@
               <button type="button" class="image-remove-btn" @click="clearReverse" title="Remove"><X :size="12" /></button>
             </div>
             <input type="file" accept=".jpg,.jpeg,.png" class="form-input file-input" @change="onReverseFile" ref="reverseInput" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Obverse Description</label>
+            <textarea v-model="form.obverseDescription" class="form-textarea" placeholder="Describe the obverse design" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Reverse Description</label>
+            <textarea v-model="form.reverseDescription" class="form-textarea" placeholder="Describe the reverse design" />
           </div>
         </div>
       </fieldset>
@@ -332,8 +327,8 @@ legend {
 }
 
 .file-input {
-  font-size: 0.85rem;
-  padding: 0.4rem;
+  font-size: 0.9rem;
+  padding: 0.6rem 0.8rem;
 }
 
 .image-preview-box {
@@ -369,7 +364,7 @@ legend {
 }
 
 .form-hint {
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   color: var(--text-muted);
   margin-bottom: 0.5rem;
 }
