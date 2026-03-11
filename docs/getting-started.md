@@ -63,7 +63,7 @@ After saving, you can upload images (obverse, reverse, detail) from the coin det
 | Purchase Price | Amount paid in USD | `450.00` |
 | Current Value | Estimated value in USD | `600.00` |
 | Purchase Date | Date acquired | `2024-03-15` |
-| Purchase Location | Dealer or auction | `Heritage Auctions` |
+| Store | Dealer or auction | `Heritage Auctions` |
 | Reference URL | External link | `https://www.acsearch.info/...` |
 | Reference Text | Link display label | `ACSearch Listing` |
 | Notes | Free-text notes (Markdown supported) | Any additional info |

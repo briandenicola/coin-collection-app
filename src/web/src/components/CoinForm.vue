@@ -121,7 +121,7 @@
             <input v-model="form.purchaseDate" class="form-input" type="date" />
           </div>
           <div class="form-group">
-            <label class="form-label">Purchase Location</label>
+            <label class="form-label">Store</label>
             <AutocompleteInput v-model="form.purchaseLocation!" field="purchaseLocation" placeholder="e.g. Heritage Auctions" />
           </div>
         </div>
