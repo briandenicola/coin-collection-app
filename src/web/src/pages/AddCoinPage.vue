@@ -42,7 +42,7 @@ const form = reactive<Partial<Coin>>({
   purchaseLocation: '',
   notes: '',
   referenceUrl: '',
-  referenceText: '',
+  referenceText: 'Store Link',
   isWishlist: false,
 })
 
