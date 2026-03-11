@@ -108,6 +108,7 @@ func main() {
 		analysisHandler := handlers.NewAnalysisHandler()
 		protected.POST("/coins/:id/analyze", analysisHandler.Analyze)
 		protected.POST("/extract-text", analysisHandler.ExtractText)
+		protected.GET("/ollama-status", analysisHandler.OllamaStatus)
 
 		// User self-service routes
 		userHandler := handlers.NewUserHandler()
@@ -134,6 +135,20 @@ func main() {
 	log.Printf("Starting server on :%s", cfg.Port)
 	logger.Info("startup", "Server starting on port %s", cfg.Port)
 	logger.Info("startup", "Log level: %s", logger.GetLevel())
+
+	// Check Ollama connectivity at startup (non-blocking)
+	go func() {
+		ollamaURL := services.GetSetting(services.SettingOllamaURL)
+		ollamaModel := services.GetSetting(services.SettingOllamaModel)
+		svc := services.NewOllamaService(ollamaURL)
+		available, msg := svc.CheckModel(ollamaModel)
+		if available {
+			logger.Info("startup", "Ollama: %s", msg)
+		} else {
+			logger.Warn("startup", "Ollama: %s — AI features will be unavailable until resolved", msg)
+		}
+	}()
+
 	if err := r.Run(":" + cfg.Port); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}

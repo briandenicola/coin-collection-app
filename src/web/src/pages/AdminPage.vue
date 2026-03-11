@@ -86,9 +86,18 @@
             <span class="form-hint">Override the default coin analysis prompt. Coin context is appended automatically.</span>
           </div>
           <p v-if="settingsMsg" class="msg" :class="{ error: settingsError }">{{ settingsMsg }}</p>
-          <button type="submit" class="btn btn-primary btn-sm" :disabled="settingsSaving">
-            {{ settingsSaving ? 'Saving...' : 'Save AI Settings' }}
-          </button>
+          <div class="ai-actions">
+            <button type="submit" class="btn btn-primary btn-sm" :disabled="settingsSaving">
+              {{ settingsSaving ? 'Saving...' : 'Save AI Settings' }}
+            </button>
+            <button type="button" class="btn btn-secondary btn-sm" :disabled="ollamaTesting" @click="testOllamaConnection">
+              {{ ollamaTesting ? 'Testing...' : 'Test Connectivity' }}
+            </button>
+          </div>
+          <div v-if="ollamaTestResult" class="connectivity-result" :class="{ success: ollamaTestOk, error: !ollamaTestOk }">
+            <span class="connectivity-icon">{{ ollamaTestOk ? '●' : '●' }}</span>
+            {{ ollamaTestResult }}
+          </div>
         </form>
       </section>
 
@@ -173,7 +182,7 @@ import { ref, onMounted, onUnmounted, type Component } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import {
   getUsers, deleteUser, resetUserPassword,
-  getAppSettings, updateAppSettings, getAdminLogs,
+  getAppSettings, updateAppSettings, getAdminLogs, getOllamaStatus,
 } from '@/api/client'
 import { LOG_LEVELS } from '@/types'
 import type { UserInfo, AppSettings, LogEntry } from '@/types'
@@ -255,6 +264,9 @@ const settings = ref<AppSettings>({
 const settingsMsg = ref('')
 const settingsError = ref(false)
 const settingsSaving = ref(false)
+const ollamaTesting = ref(false)
+const ollamaTestResult = ref('')
+const ollamaTestOk = ref(false)
 
 async function loadSettings() {
   try {
@@ -276,6 +288,21 @@ async function saveSettings() {
     settingsError.value = true
   } finally {
     settingsSaving.value = false
+  }
+}
+
+async function testOllamaConnection() {
+  ollamaTesting.value = true
+  ollamaTestResult.value = ''
+  try {
+    const res = await getOllamaStatus()
+    ollamaTestOk.value = res.data.available
+    ollamaTestResult.value = res.data.message
+  } catch {
+    ollamaTestOk.value = false
+    ollamaTestResult.value = 'Failed to check Ollama status'
+  } finally {
+    ollamaTesting.value = false
   }
 }
 
@@ -437,6 +464,38 @@ onUnmounted(() => {
 
 .msg.error {
   color: #e74c3c;
+}
+
+.ai-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.connectivity-result {
+  margin-top: 0.75rem;
+  padding: 0.6rem 0.8rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.connectivity-result.success {
+  background: rgba(46, 204, 113, 0.1);
+  border: 1px solid rgba(46, 204, 113, 0.3);
+  color: #2ecc71;
+}
+
+.connectivity-result.error {
+  background: rgba(231, 76, 60, 0.1);
+  border: 1px solid rgba(231, 76, 60, 0.3);
+  color: #e74c3c;
+}
+
+.connectivity-icon {
+  font-size: 0.7rem;
 }
 
 /* Modal */

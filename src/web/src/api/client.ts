@@ -79,6 +79,8 @@ export const extractText = (file: File) => {
   formData.append('image', file)
   return api.post<{ text: string }>('/extract-text', formData)
 }
+export const getOllamaStatus = () =>
+  api.get<{ available: boolean; model: string; url: string; message: string }>('/ollama-status')
 
 // Stats
 export const getStats = () => api.get<StatsResponse>('/stats')

@@ -41,14 +41,16 @@
               <h4>AI Analysis</h4>
               <button
                 class="btn btn-primary btn-sm"
-                :disabled="analyzing || !coin.images?.length"
+                :disabled="analyzing || !coin.images?.length || !ollamaAvailable"
+                :title="!ollamaAvailable ? ollamaMessage : ''"
                 @click="handleAnalyze"
               >
                 {{ analyzing ? 'Analyzing...' : 'Analyze with AI' }}
               </button>
             </div>
+            <p v-if="!ollamaAvailable" class="ai-unavailable">AI unavailable — configure Ollama in Admin → AI Configuration</p>
             <div v-if="coin.aiAnalysis" class="ai-content" v-html="renderedAnalysis"></div>
-            <p v-else class="ai-empty">Upload images and click "Analyze with AI" to get an expert assessment.</p>
+            <p v-else-if="ollamaAvailable" class="ai-empty">Upload images and click "Analyze with AI" to get an expert assessment.</p>
           </div>
         </div>
 
@@ -152,7 +154,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useCoinsStore } from '@/stores/coins'
 import ImageGallery from '@/components/ImageGallery.vue'
-import { uploadImage, analyzeCoin, deleteCoin } from '@/api/client'
+import { uploadImage, analyzeCoin, deleteCoin, getOllamaStatus } from '@/api/client'
 import MarkdownIt from 'markdown-it'
 
 const route = useRoute()
@@ -163,15 +165,25 @@ const uploadType = ref('obverse')
 const uploadStatus = ref('')
 const uploadError = ref(false)
 const analyzing = ref(false)
+const ollamaAvailable = ref(true)
+const ollamaMessage = ref('')
 
 const md = new MarkdownIt()
 
 const coin = computed(() => store.currentCoin)
 const renderedAnalysis = computed(() => (coin.value?.aiAnalysis ? md.render(coin.value.aiAnalysis) : ''))
 
-onMounted(() => {
+onMounted(async () => {
   const id = Number(route.params['id'])
   store.fetchCoin(id)
+  try {
+    const res = await getOllamaStatus()
+    ollamaAvailable.value = res.data.available
+    ollamaMessage.value = res.data.message
+  } catch {
+    ollamaAvailable.value = false
+    ollamaMessage.value = 'Unable to check Ollama status'
+  }
 })
 
 async function handleImageUpload(e: Event) {
@@ -446,6 +458,13 @@ function formatCurrency(value: number) {
   font-size: 0.85rem;
   color: var(--text-muted);
   font-style: italic;
+}
+
+.ai-unavailable {
+  font-size: 0.85rem;
+  color: #e67e22;
+  font-style: italic;
+  margin-bottom: 0.5rem;
 }
 
 @media (max-width: 768px) {

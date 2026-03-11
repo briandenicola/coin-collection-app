@@ -129,3 +129,24 @@ func (h *AnalysisHandler) ExtractText(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"text": text})
 }
+
+// OllamaStatus checks Ollama connectivity and model availability
+func (h *AnalysisHandler) OllamaStatus(c *gin.Context) {
+	logger := services.AppLogger
+	logger.Debug("ollama-status", "Checking Ollama status")
+
+	ollamaURL := services.GetSetting(services.SettingOllamaURL)
+	ollamaModel := services.GetSetting(services.SettingOllamaModel)
+
+	ollamaSvc := services.NewOllamaService(ollamaURL)
+	available, message := ollamaSvc.CheckModel(ollamaModel)
+
+	logger.Info("ollama-status", "Ollama available=%v, model=%s, message=%s", available, ollamaModel, message)
+
+	c.JSON(http.StatusOK, gin.H{
+		"available": available,
+		"model":     ollamaModel,
+		"url":       ollamaURL,
+		"message":   message,
+	})
+}
