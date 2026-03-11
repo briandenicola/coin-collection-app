@@ -5,6 +5,10 @@ env:
 
 tasks:
   default:
+  cmds:
+    - task --list
+  
+  up:
     desc: Run both API and web servers in parallel
     deps:
       - run-api

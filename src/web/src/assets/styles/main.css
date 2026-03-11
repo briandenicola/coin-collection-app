@@ -182,8 +182,10 @@ a:hover {
 /* Layout */
 .container {
   max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 1rem;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 0 2rem;
+  width: 100%;
 }
 
 .page-header {
@@ -257,6 +259,9 @@ a:hover {
 /* Responsive */
 @media (max-width: 768px) {
   h1 { font-size: 1.5rem; }
+  .container {
+    padding: 0 1rem;
+  }
   .coins-grid {
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   }
@@ -267,6 +272,9 @@ a:hover {
 }
 
 @media (max-width: 480px) {
+  .container {
+    padding: 0 0.75rem;
+  }
   .coins-grid {
     grid-template-columns: 1fr;
   }

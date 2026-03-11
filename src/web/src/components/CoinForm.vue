@@ -170,6 +170,8 @@ defineEmits<{ submit: [] }>()
 <style scoped>
 .coin-form {
   max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .form-grid {

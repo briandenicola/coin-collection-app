@@ -233,6 +233,9 @@ function formatCurrency(value: number) {
   grid-template-columns: 1fr 1fr;
   gap: 2rem;
   align-items: start;
+  max-width: 1000px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .detail-title-section {
