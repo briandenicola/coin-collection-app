@@ -52,6 +52,10 @@ function sanitizeCoin(coin: Partial<Coin>): Partial<Coin> {
       ;(clean as any)[field] = null
     }
   }
+  // Default currentValue to purchasePrice if not set
+  if (!clean.currentValue && clean.purchasePrice) {
+    clean.currentValue = clean.purchasePrice
+  }
   // Convert date-only strings (YYYY-MM-DD) to RFC3339 for Go
   if (typeof clean.purchaseDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(clean.purchaseDate)) {
     clean.purchaseDate = clean.purchaseDate + 'T00:00:00Z'
