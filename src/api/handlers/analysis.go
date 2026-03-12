@@ -67,8 +67,18 @@ func (h *AnalysisHandler) Analyze(c *gin.Context) {
 	// Read Ollama settings from DB (with fallback to env/defaults)
 	ollamaURL := services.GetSetting(services.SettingOllamaURL)
 	ollamaModel := services.GetSetting(services.SettingOllamaModel)
-	customPrompt := services.GetSetting(services.SettingAIPrompt)
 	ollamaTimeout, _ := strconv.Atoi(services.GetSetting(services.SettingOllamaTimeout))
+
+	// Pick the prompt based on which side is being analyzed
+	var customPrompt string
+	switch side {
+	case "obverse":
+		customPrompt = services.GetSetting(services.SettingObversePrompt)
+	case "reverse":
+		customPrompt = services.GetSetting(services.SettingReversePrompt)
+	default:
+		customPrompt = services.GetSetting(services.SettingObversePrompt)
+	}
 
 	logger.Debug("analysis", "Ollama URL: %s, Model: %s, Timeout: %ds", ollamaURL, ollamaModel, ollamaTimeout)
 	logger.Trace("analysis", "Custom prompt length: %d", len(customPrompt))
@@ -145,11 +155,12 @@ func (h *AnalysisHandler) ExtractText(c *gin.Context) {
 	ollamaURL := services.GetSetting(services.SettingOllamaURL)
 	ollamaModel := services.GetSetting(services.SettingOllamaModel)
 	ollamaTimeout, _ := strconv.Atoi(services.GetSetting(services.SettingOllamaTimeout))
+	customPrompt := services.GetSetting(services.SettingTextExtractionPrompt)
 
 	logger.Debug("extract-text", "Sending to Ollama: URL=%s, Model=%s, Timeout=%ds", ollamaURL, ollamaModel, ollamaTimeout)
 
 	ollamaSvc := services.NewOllamaService(ollamaURL, ollamaTimeout)
-	text, err := ollamaSvc.ExtractTextFromImage(imageData, ollamaModel)
+	text, err := ollamaSvc.ExtractTextFromImage(imageData, ollamaModel, customPrompt)
 	if err != nil {
 		logger.Error("extract-text", "Text extraction failed: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Text extraction failed: " + err.Error()})

@@ -98,7 +98,9 @@ export interface UserInfo {
 export interface AppSettings {
   OllamaURL: string
   OllamaModel: string
-  AiAnalysisPrompt: string
+  ObversePrompt: string
+  ReversePrompt: string
+  TextExtractionPrompt: string
   OllamaTimeout: string
   LogLevel: string
   [key: string]: string

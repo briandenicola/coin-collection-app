@@ -81,14 +81,34 @@
             <span class="form-hint">Time limit for AI analysis calls. Default: 300 (5 minutes)</span>
           </div>
           <div class="form-group">
-            <label class="form-label">Custom Analysis Prompt</label>
+            <label class="form-label">Obverse Analysis Prompt</label>
             <textarea
-              v-model="settings.AiAnalysisPrompt"
+              v-model="settings.ObversePrompt"
               class="form-textarea"
-              rows="6"
-              placeholder="Leave empty for default numismatic analysis prompt..."
+              rows="4"
+              placeholder="Leave empty for default obverse analysis prompt..."
             />
-            <span class="form-hint">Override the default coin analysis prompt. Coin context is appended automatically.</span>
+            <span class="form-hint">Custom prompt for obverse image analysis. Coin context is appended automatically.</span>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Reverse Analysis Prompt</label>
+            <textarea
+              v-model="settings.ReversePrompt"
+              class="form-textarea"
+              rows="4"
+              placeholder="Leave empty for default reverse analysis prompt..."
+            />
+            <span class="form-hint">Custom prompt for reverse image analysis. Coin context is appended automatically.</span>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Text Extraction Prompt</label>
+            <textarea
+              v-model="settings.TextExtractionPrompt"
+              class="form-textarea"
+              rows="4"
+              placeholder="Leave empty for default store card text extraction prompt..."
+            />
+            <span class="form-hint">Custom prompt for extracting text from store card images.</span>
           </div>
           <p v-if="settingsMsg" class="msg" :class="{ error: settingsError }">{{ settingsMsg }}</p>
           <div class="ai-actions">
@@ -263,7 +283,9 @@ async function handleResetPassword() {
 const settings = ref<AppSettings>({
   OllamaURL: 'http://localhost:11434',
   OllamaModel: 'llava',
-  AiAnalysisPrompt: '',
+  ObversePrompt: '',
+  ReversePrompt: '',
+  TextExtractionPrompt: '',
   OllamaTimeout: '300',
   LogLevel: 'info',
 })

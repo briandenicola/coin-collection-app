@@ -6,19 +6,23 @@ import (
 )
 
 const (
-	SettingOllamaURL     = "OllamaURL"
-	SettingOllamaModel   = "OllamaModel"
-	SettingAIPrompt      = "AiAnalysisPrompt"
-	SettingOllamaTimeout = "OllamaTimeout"
-	SettingLogLevel      = "LogLevel"
+	SettingOllamaURL           = "OllamaURL"
+	SettingOllamaModel         = "OllamaModel"
+	SettingObversePrompt       = "ObversePrompt"
+	SettingReversePrompt       = "ReversePrompt"
+	SettingTextExtractionPrompt = "TextExtractionPrompt"
+	SettingOllamaTimeout       = "OllamaTimeout"
+	SettingLogLevel            = "LogLevel"
 )
 
 var settingDefaults = map[string]string{
-	SettingOllamaURL:     "http://localhost:11434",
-	SettingOllamaModel:   "llava",
-	SettingAIPrompt:      "",
-	SettingOllamaTimeout: "300",
-	SettingLogLevel:      "info",
+	SettingOllamaURL:           "http://localhost:11434",
+	SettingOllamaModel:         "llava",
+	SettingObversePrompt:       "",
+	SettingReversePrompt:       "",
+	SettingTextExtractionPrompt: "",
+	SettingOllamaTimeout:       "300",
+	SettingLogLevel:            "info",
 }
 
 func GetSetting(key string) string {

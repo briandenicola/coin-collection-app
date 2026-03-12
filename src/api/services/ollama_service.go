@@ -125,7 +125,7 @@ func (s *OllamaService) AnalyzeCoinImages(imagePaths []string, coin models.Coin,
 }
 
 // ExtractTextFromImage sends an image to Ollama and asks it to extract all visible text
-func (s *OllamaService) ExtractTextFromImage(imageData []byte, model string) (string, error) {
+func (s *OllamaService) ExtractTextFromImage(imageData []byte, model string, customPrompt string) (string, error) {
 	logger := AppLogger
 	if model == "" {
 		model = "llava"
@@ -135,11 +135,14 @@ func (s *OllamaService) ExtractTextFromImage(imageData []byte, model string) (st
 
 	base64Image := base64.StdEncoding.EncodeToString(imageData)
 
-	prompt := `Extract ALL text visible in this image exactly as written. 
+	prompt := customPrompt
+	if prompt == "" {
+		prompt = `Extract ALL text visible in this image exactly as written. 
 This is a store card or certificate that accompanies a coin purchase. 
 Preserve the original layout and formatting as much as possible.
 Include store name, coin description, price, grade, reference numbers, dates, and any other text.
 Return ONLY the extracted text, no commentary.`
+	}
 
 	logger.Trace("ollama", "ExtractText prompt: %s", prompt)
 
