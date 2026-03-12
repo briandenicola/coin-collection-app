@@ -93,7 +93,7 @@ async function handleSubmit() {
       }
     }
 
-    router.push(`/coin/${coinId}`)
+    router.replace(`/coin/${coinId}`)
   } catch {
     alert('Failed to update coin')
   } finally {
