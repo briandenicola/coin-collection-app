@@ -62,6 +62,12 @@ const router = createRouter({
       component: () => import('@/pages/AdminPage.vue'),
       meta: { requiresAuth: true },
     },
+    {
+      path: '/process-image',
+      name: 'process-image',
+      component: () => import('@/pages/ImageProcessorPage.vue'),
+      meta: { requiresAuth: true },
+    },
   ],
 })
 

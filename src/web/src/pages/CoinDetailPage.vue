@@ -32,6 +32,9 @@
                 <input type="file" accept="image/*" hidden @change="handleImageUpload" />
               </label>
             </div>
+            <router-link :to="`/process-image?coinId=${coin.id}`" class="btn btn-secondary btn-sm process-btn">
+              ✨ Process Image
+            </router-link>
             <p v-if="uploadStatus" class="upload-status" :class="{ error: uploadError }">{{ uploadStatus }}</p>
           </div>
         </div>
@@ -454,6 +457,12 @@ function formatCurrency(value: number) {
 .upload-btn {
   white-space: nowrap;
   cursor: pointer;
+}
+
+.process-btn {
+  display: inline-block;
+  margin-top: 0.5rem;
+  text-decoration: none;
 }
 
 .upload-status {

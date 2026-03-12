@@ -106,6 +106,8 @@ export const getMe = () => api.get<UserInfo>('/auth/me')
 export const changePassword = (currentPassword: string, newPassword: string) =>
   api.post('/auth/change-password', { currentPassword, newPassword })
 export const exportCollection = () => api.get('/user/export', { responseType: 'blob' })
+export const proxyImage = (url: string) =>
+  api.get('/proxy-image', { params: { url }, responseType: 'blob' })
 export const importCollection = (coins: Coin[]) => api.post('/user/import', coins)
 
 // Admin

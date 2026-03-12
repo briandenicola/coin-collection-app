@@ -2,10 +2,12 @@ package handlers
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/briandenicola/ancient-coins-api/database"
@@ -125,4 +127,48 @@ func (h *ImageHandler) Delete(c *gin.Context) {
 
 	database.DB.Delete(&image)
 	c.JSON(http.StatusOK, gin.H{"message": "Image deleted"})
+}
+
+// ProxyImage fetches an external image URL and streams it back to the client.
+func (h *ImageHandler) ProxyImage(c *gin.Context) {
+	logger := services.AppLogger
+
+	imageURL := c.Query("url")
+	if imageURL == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "url parameter is required"})
+		return
+	}
+
+	if !strings.HasPrefix(imageURL, "http://") && !strings.HasPrefix(imageURL, "https://") {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "URL must start with http:// or https://"})
+		return
+	}
+
+	logger.Debug("images", "Proxying image from %s", imageURL)
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Get(imageURL)
+	if err != nil {
+		logger.Warn("images", "Failed to fetch image from %s: %v", imageURL, err)
+		c.JSON(http.StatusBadGateway, gin.H{"error": "Failed to fetch image"})
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		c.JSON(http.StatusBadGateway, gin.H{"error": fmt.Sprintf("Remote server returned %d", resp.StatusCode)})
+		return
+	}
+
+	contentType := resp.Header.Get("Content-Type")
+	if !strings.HasPrefix(contentType, "image/") {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "URL does not point to an image"})
+		return
+	}
+
+	// Limit to 20MB
+	const maxSize = 20 * 1024 * 1024
+	c.Header("Content-Type", contentType)
+	c.Status(http.StatusOK)
+	io.Copy(c.Writer, io.LimitReader(resp.Body, maxSize))
 }

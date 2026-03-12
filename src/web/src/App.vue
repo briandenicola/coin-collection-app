@@ -23,6 +23,10 @@
             <CirclePlus :size="18" />
             <span class="nav-label">Add</span>
           </router-link>
+          <router-link to="/process-image" class="nav-link" active-class="active">
+            <Scissors :size="18" />
+            <span class="nav-label">Process</span>
+          </router-link>
         </div>
         <div class="nav-right">
           <router-link to="/settings" class="nav-link" active-class="active">
@@ -48,7 +52,7 @@
 <script setup lang="ts">
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
-import { Landmark, Bookmark, BarChart3, CirclePlus, Settings, ShieldCheck, LogOut } from 'lucide-vue-next'
+import { Landmark, Bookmark, BarChart3, CirclePlus, Scissors, Settings, ShieldCheck, LogOut } from 'lucide-vue-next'
 
 const auth = useAuthStore()
 const router = useRouter()

@@ -104,6 +104,7 @@ func main() {
 		imageHandler := handlers.NewImageHandler(cfg.UploadDir)
 		protected.POST("/coins/:id/images", imageHandler.Upload)
 		protected.DELETE("/coins/:id/images/:imageId", imageHandler.Delete)
+		protected.GET("/proxy-image", imageHandler.ProxyImage)
 
 		analysisHandler := handlers.NewAnalysisHandler()
 		protected.POST("/coins/:id/analyze", analysisHandler.Analyze)
