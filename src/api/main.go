@@ -112,7 +112,7 @@ func main() {
 		protected.GET("/ollama-status", analysisHandler.OllamaStatus)
 
 		// User self-service routes
-		userHandler := handlers.NewUserHandler()
+		userHandler := handlers.NewUserHandler(cfg.UploadDir)
 		protected.GET("/auth/me", userHandler.GetMe)
 		protected.POST("/auth/change-password", userHandler.ChangePassword)
 		protected.GET("/user/export", userHandler.ExportCollection)
@@ -124,7 +124,7 @@ func main() {
 	admin.Use(middleware.AuthRequired(cfg.JWTSecret))
 	admin.Use(handlers.AdminRequired())
 	{
-		adminHandler := handlers.NewAdminHandler()
+		adminHandler := handlers.NewAdminHandler(cfg.UploadDir)
 		admin.GET("/users", adminHandler.ListUsers)
 		admin.DELETE("/users/:id", adminHandler.DeleteUser)
 		admin.POST("/users/:id/reset-password", adminHandler.ResetPassword)

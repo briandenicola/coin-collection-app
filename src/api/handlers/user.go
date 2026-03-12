@@ -2,7 +2,9 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/briandenicola/ancient-coins-api/database"
 	"github.com/briandenicola/ancient-coins-api/models"
@@ -10,10 +12,12 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-type UserHandler struct{}
+type UserHandler struct {
+	UploadDir string
+}
 
-func NewUserHandler() *UserHandler {
-	return &UserHandler{}
+func NewUserHandler(uploadDir string) *UserHandler {
+	return &UserHandler{UploadDir: uploadDir}
 }
 
 // ChangePassword allows a user to change their own password
@@ -68,15 +72,15 @@ func (h *UserHandler) GetMe(c *gin.Context) {
 	})
 }
 
-// ExportCollection exports the current user's coins as JSON
+// ExportCollection exports the current user's coins and images as a zip archive
 func (h *UserHandler) ExportCollection(c *gin.Context) {
 	userID := c.GetUint("userId")
 
 	var coins []models.Coin
 	database.DB.Where("user_id = ?", userID).Preload("Images").Find(&coins)
 
-	c.Header("Content-Disposition", "attachment; filename=my-coins-export.json")
-	c.JSON(http.StatusOK, coins)
+	filename := fmt.Sprintf("my-coins-export-%s.zip", time.Now().Format("2006-01-02"))
+	writeCollectionZip(c, coins, h.UploadDir, filename)
 }
 
 // ImportCollection imports coins from JSON for the current user

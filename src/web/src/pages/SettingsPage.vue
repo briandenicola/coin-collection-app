@@ -83,7 +83,7 @@
         <div class="setting-item">
           <div class="setting-info">
             <span class="setting-label">Export Collection</span>
-            <span class="setting-desc">Download your entire collection as JSON</span>
+            <span class="setting-desc">Download your collection data and photos as a zip archive</span>
           </div>
           <button class="btn btn-secondary btn-sm" :disabled="exporting" @click="handleExport">
             {{ exporting ? 'Exporting...' : '📥 Export' }}
@@ -110,6 +110,7 @@ import { ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { changePassword, exportCollection, importCollection } from '@/api/client'
 import type { Coin, Theme } from '@/types'
+
 
 const auth = useAuthStore()
 
@@ -173,11 +174,11 @@ async function handleExport() {
   dataMsg.value = ''
   try {
     const res = await exportCollection()
-    const blob = new Blob([JSON.stringify(res.data, null, 2)], { type: 'application/json' })
+    const blob = new Blob([res.data], { type: 'application/zip' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `ancient-coins-export-${new Date().toISOString().slice(0, 10)}.json`
+    a.download = `ancient-coins-export-${new Date().toISOString().slice(0, 10)}.zip`
     a.click()
     URL.revokeObjectURL(url)
     dataMsg.value = 'Export downloaded'

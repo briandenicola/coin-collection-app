@@ -2,8 +2,10 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/briandenicola/ancient-coins-api/database"
 	"github.com/briandenicola/ancient-coins-api/models"
@@ -12,10 +14,12 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-type AdminHandler struct{}
+type AdminHandler struct {
+	UploadDir string
+}
 
-func NewAdminHandler() *AdminHandler {
-	return &AdminHandler{}
+func NewAdminHandler(uploadDir string) *AdminHandler {
+	return &AdminHandler{UploadDir: uploadDir}
 }
 
 // AdminRequired middleware ensures only admin users can access
@@ -181,13 +185,13 @@ func (h *AdminHandler) GetLogs(c *gin.Context) {
 	})
 }
 
-// ExportCollection returns all coins for a user as JSON
+// ExportAllData exports all coins and images as a zip archive
 func (h *AdminHandler) ExportAllData(c *gin.Context) {
 	var coins []models.Coin
 	database.DB.Preload("Images").Find(&coins)
 
-	c.Header("Content-Disposition", "attachment; filename=ancient-coins-export.json")
-	c.JSON(http.StatusOK, coins)
+	filename := fmt.Sprintf("ancient-coins-export-%s.zip", time.Now().Format("2006-01-02"))
+	writeCollectionZip(c, coins, h.UploadDir, filename)
 }
 
 // ImportCollection imports coins from JSON for a specific user (admin)
