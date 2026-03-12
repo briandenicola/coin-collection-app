@@ -76,29 +76,56 @@
             <canvas ref="resultCanvas" class="result-canvas" />
           </div>
           <div class="save-controls">
-            <div v-if="coinId" class="save-to-coin">
-              <h4>Save to Coin</h4>
-              <div class="save-options">
-                <label class="type-select-label">Image Type</label>
-                <select v-model="saveImageType" class="form-select">
-                  <option value="obverse">Obverse</option>
-                  <option value="reverse">Reverse</option>
-                  <option value="detail">Detail</option>
-                  <option value="other">Other</option>
-                </select>
-                <label class="checkbox-label">
-                  <input v-model="savePrimary" type="checkbox" />
-                  Set as primary image
-                </label>
-                <button class="btn btn-primary" :disabled="saving" @click="saveToCoIn">
-                  {{ saving ? 'Saving...' : 'Upload to Coin' }}
+            <div class="save-tabs">
+              <button class="save-tab" :class="{ active: saveTab === 'existing' }" @click="saveTab = 'existing'">Existing Coin</button>
+              <button class="save-tab" :class="{ active: saveTab === 'new' }" @click="saveTab = 'new'">New Coin</button>
+              <button class="save-tab" :class="{ active: saveTab === 'download' }" @click="saveTab = 'download'">Download</button>
+            </div>
+
+            <!-- Assign to existing coin -->
+            <div v-if="saveTab === 'existing'" class="save-panel">
+              <div class="coin-search">
+                <input v-model="coinSearch" type="text" class="form-input" placeholder="Search coins..." @input="searchCoins" />
+              </div>
+              <div v-if="coinOptions.length" class="coin-list">
+                <button v-for="c in coinOptions" :key="c.id" class="coin-option" :class="{ selected: selectedCoinId === c.id }" @click="selectedCoinId = c.id">
+                  <span class="coin-option-name">{{ c.name }}</span>
+                  <span class="coin-option-meta">{{ [c.ruler, c.era].filter(Boolean).join(' · ') }}</span>
                 </button>
               </div>
+              <p v-else-if="coinSearch && !coinsLoading" class="hint">No coins found</p>
+              <p v-else-if="coinsLoading" class="hint">Searching...</p>
+              <p v-else class="hint">Type to search your collection</p>
+              <div v-if="selectedCoinId" class="type-row">
+                <label class="radio-label">
+                  <input v-model="saveImageType" type="radio" value="obverse" name="imgType" />
+                  <span>Obverse</span>
+                </label>
+                <label class="radio-label">
+                  <input v-model="saveImageType" type="radio" value="reverse" name="imgType" />
+                  <span>Reverse</span>
+                </label>
+              </div>
+              <button class="btn btn-primary" :disabled="!selectedCoinId || saving" @click="saveToExisting">
+                {{ saving ? 'Saving...' : 'Upload to Coin' }}
+              </button>
             </div>
-            <div class="download-section">
-              <h4>Download</h4>
+
+            <!-- Create new coin -->
+            <div v-if="saveTab === 'new'" class="save-panel">
+              <label class="field-label">Coin Name</label>
+              <input v-model="newCoinName" type="text" class="form-input" placeholder="e.g. Augustus Denarius" />
+              <button class="btn btn-primary" :disabled="!newCoinName.trim() || saving" @click="saveToNewCoin">
+                {{ saving ? 'Creating...' : 'Create Coin & Upload' }}
+              </button>
+              <p class="hint">Image will be saved as the obverse</p>
+            </div>
+
+            <!-- Download -->
+            <div v-if="saveTab === 'download'" class="save-panel">
               <button class="btn btn-secondary" @click="downloadResult">💾 Download PNG</button>
             </div>
+
             <p v-if="saveMsg" class="msg" :class="{ error: saveError }">{{ saveMsg }}</p>
           </div>
         </div>
@@ -108,10 +135,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick, onUnmounted } from 'vue'
+import { ref, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { removeBackground as removeBg } from '@imgly/background-removal'
 import { Upload } from 'lucide-vue-next'
-import { proxyImage, uploadImage } from '@/api/client'
+import { proxyImage, uploadImage, createCoin, getCoins } from '@/api/client'
+import { getCoin } from '@/api/client'
+import type { Coin } from '@/types'
 
 const props = defineProps<{
   coinId?: number
@@ -145,11 +174,32 @@ const cropDragStart = ref({ x: 0, y: 0, rx: 0, ry: 0, rw: 0, rh: 0 })
 let canvasScale = 1
 
 // Save state
+const saveTab = ref<'existing' | 'new' | 'download'>('existing')
 const saveImageType = ref('obverse')
-const savePrimary = ref(false)
 const saving = ref(false)
 const saveMsg = ref('')
 const saveError = ref(false)
+
+// Existing coin selection
+const coinSearch = ref('')
+const coinOptions = ref<Coin[]>([])
+const coinsLoading = ref(false)
+const selectedCoinId = ref<number | null>(null)
+let searchTimeout: ReturnType<typeof setTimeout> | null = null
+
+// New coin
+const newCoinName = ref('')
+
+// Pre-select coin if coinId prop provided
+onMounted(async () => {
+  if (props.coinId) {
+    try {
+      const res = await getCoin(props.coinId)
+      coinOptions.value = [res.data]
+      selectedCoinId.value = res.data.id
+    } catch { /* ignore */ }
+  }
+})
 
 // --- Input Methods ---
 
@@ -453,6 +503,28 @@ watch(cropPadding, () => {
   }
 })
 
+// --- Coin Search ---
+
+function searchCoins() {
+  if (searchTimeout) clearTimeout(searchTimeout)
+  selectedCoinId.value = null
+  if (!coinSearch.value.trim()) {
+    coinOptions.value = []
+    return
+  }
+  searchTimeout = setTimeout(async () => {
+    coinsLoading.value = true
+    try {
+      const res = await getCoins({ search: coinSearch.value.trim(), limit: 20 })
+      coinOptions.value = res.data.coins || []
+    } catch {
+      coinOptions.value = []
+    } finally {
+      coinsLoading.value = false
+    }
+  }, 300)
+}
+
 // --- Save / Download ---
 
 function getResultBlob(): Promise<Blob> {
@@ -468,19 +540,42 @@ function getResultBlob(): Promise<Blob> {
   })
 }
 
-async function saveToCoIn() {
-  if (!props.coinId) return
+async function saveToExisting() {
+  if (!selectedCoinId.value) return
   saving.value = true
   saveMsg.value = ''
   saveError.value = false
   try {
     const blob = await getResultBlob()
     const file = new File([blob], `${saveImageType.value}.png`, { type: 'image/png' })
-    await uploadImage(props.coinId, file, saveImageType.value, savePrimary.value)
-    saveMsg.value = `Saved as ${saveImageType.value} image!`
+    const isPrimary = saveImageType.value === 'obverse'
+    await uploadImage(selectedCoinId.value, file, saveImageType.value, isPrimary)
+    const coin = coinOptions.value.find(c => c.id === selectedCoinId.value)
+    saveMsg.value = `Saved as ${saveImageType.value} to "${coin?.name || 'coin'}"!`
     emit('saved')
   } catch {
     saveMsg.value = 'Failed to save image'
+    saveError.value = true
+  } finally {
+    saving.value = false
+  }
+}
+
+async function saveToNewCoin() {
+  if (!newCoinName.value.trim()) return
+  saving.value = true
+  saveMsg.value = ''
+  saveError.value = false
+  try {
+    const res = await createCoin({ name: newCoinName.value.trim() })
+    const coin = res.data
+    const blob = await getResultBlob()
+    const file = new File([blob], 'obverse.png', { type: 'image/png' })
+    await uploadImage(coin.id, file, 'obverse', true)
+    saveMsg.value = `Created "${coin.name}" with obverse image!`
+    emit('saved')
+  } catch {
+    saveMsg.value = 'Failed to create coin'
     saveError.value = true
   } finally {
     saving.value = false
@@ -722,33 +817,121 @@ onUnmounted(() => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.75rem;
+  min-width: 0;
 }
 
-.save-options {
+.save-tabs {
+  display: flex;
+  gap: 2px;
+  background: var(--bg-primary);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+}
+
+.save-tab {
+  flex: 1;
+  padding: 0.4rem 0.5rem;
+  font-size: 0.75rem;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.save-tab:hover {
+  color: var(--text-secondary);
+}
+
+.save-tab.active {
+  background: var(--bg-card);
+  color: var(--accent-gold);
+}
+
+.save-panel {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
 
-.type-select-label {
+.coin-search .form-input {
+  width: 100%;
+  font-size: 0.85rem;
+}
+
+.coin-list {
+  max-height: 140px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+}
+
+.coin-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+  padding: 0.4rem 0.6rem;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-align: left;
+  transition: all var(--transition-fast);
+}
+
+.coin-option:hover {
+  background: var(--accent-gold-glow);
+}
+
+.coin-option.selected {
+  background: var(--accent-gold-glow);
+  outline: 1px solid var(--accent-gold-dim);
+}
+
+.coin-option-name {
   font-size: 0.8rem;
+  color: var(--text-primary);
+}
+
+.coin-option-meta {
+  font-size: 0.7rem;
   color: var(--text-muted);
 }
 
-.checkbox-label {
+.type-row {
+  display: flex;
+  gap: 1rem;
+}
+
+.radio-label {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.3rem;
   font-size: 0.85rem;
   color: var(--text-secondary);
   cursor: pointer;
 }
 
-.download-section {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+.radio-label input[type="radio"] {
+  accent-color: var(--accent-gold);
+}
+
+.field-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
 }
 
 .msg {
