@@ -60,8 +60,8 @@ import SearchBar from '@/components/SearchBar.vue'
 import { Layers, LayoutGrid, CirclePlus } from 'lucide-vue-next'
 
 const store = useCoinsStore()
-const selectedCategory = ref('')
-const search = ref('')
+const selectedCategory = store.selectedCategory !== undefined ? ref(store.selectedCategory) : ref('')
+const search = ref(store.searchQuery)
 const page = ref(1)
 
 // Default to swipe in standalone PWA mode, grid otherwise
@@ -72,6 +72,8 @@ const viewMode = ref<'grid' | 'swipe'>(isPwa ? 'swipe' : 'grid')
 let debounceTimer: ReturnType<typeof setTimeout>
 
 function loadCoins() {
+  store.selectedCategory = selectedCategory.value
+  store.searchQuery = search.value
   store.fetchCoins({
     category: selectedCategory.value || undefined,
     search: search.value || undefined,

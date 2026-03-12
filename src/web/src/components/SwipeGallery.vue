@@ -59,10 +59,10 @@
 
     <!-- Arrow navigation -->
     <div v-if="coins.length > 1" class="swipe-nav">
-      <button class="nav-btn" @click="goPrev" :disabled="currentIndex === 0">
+      <button class="nav-btn" @click="goPrev">
         <ChevronLeft :size="16" /> Prev
       </button>
-      <button class="nav-btn" @click="goNext" :disabled="currentIndex >= coins.length - 1">
+      <button class="nav-btn" @click="goNext">
         Next <ChevronRight :size="16" />
       </button>
     </div>
@@ -96,7 +96,11 @@ const SWIPE_THRESHOLD = 100
 const FLY_DISTANCE = 600
 
 const currentCoin = computed(() => props.coins[currentIndex.value] ?? null)
-const nextCoin = computed(() => props.coins[currentIndex.value + 1] ?? null)
+const nextCoin = computed(() => {
+  if (!props.coins.length) return null
+  const nextIdx = (currentIndex.value + 1) % props.coins.length
+  return props.coins[nextIdx] ?? null
+})
 
 const leftHintOpacity = computed(() => Math.min(1, Math.max(0, -dragX.value / SWIPE_THRESHOLD)))
 const rightHintOpacity = computed(() => Math.min(1, Math.max(0, dragX.value / SWIPE_THRESHOLD)))
@@ -179,10 +183,12 @@ function flyAway(direction: 1 | -1) {
     dragX.value = 0
     dragY.value = 0
 
-    if (direction > 0 && currentIndex.value < props.coins.length - 1) {
-      currentIndex.value++
-    } else if (direction < 0 && currentIndex.value > 0) {
-      currentIndex.value--
+    const len = props.coins.length
+    if (len === 0) return
+    if (direction > 0) {
+      currentIndex.value = (currentIndex.value + 1) % len
+    } else {
+      currentIndex.value = (currentIndex.value - 1 + len) % len
     }
   }, 300)
 }
@@ -193,13 +199,13 @@ function onCardTap() {
 }
 
 function goNext() {
-  if (currentIndex.value < props.coins.length - 1 && !isAnimating.value) {
+  if (props.coins.length > 1 && !isAnimating.value) {
     flyAway(1)
   }
 }
 
 function goPrev() {
-  if (currentIndex.value > 0 && !isAnimating.value) {
+  if (props.coins.length > 1 && !isAnimating.value) {
     flyAway(-1)
   }
 }

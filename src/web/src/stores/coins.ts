@@ -9,6 +9,8 @@ export const useCoinsStore = defineStore('coins', () => {
   const total = ref(0)
   const loading = ref(false)
   const stats = ref<StatsResponse | null>(null)
+  const selectedCategory = ref('')
+  const searchQuery = ref('')
 
   async function fetchCoins(params?: {
     category?: string
@@ -62,6 +64,8 @@ export const useCoinsStore = defineStore('coins', () => {
     total,
     loading,
     stats,
+    selectedCategory,
+    searchQuery,
     fetchCoins,
     fetchCoin,
     addCoin,
