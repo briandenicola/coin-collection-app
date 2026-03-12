@@ -147,7 +147,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  saved: []
+  saved: [coinId: number]
 }>()
 
 // Input state
@@ -552,7 +552,7 @@ async function saveToExisting() {
     await uploadImage(selectedCoinId.value, file, saveImageType.value, isPrimary)
     const coin = coinOptions.value.find(c => c.id === selectedCoinId.value)
     saveMsg.value = `Saved as ${saveImageType.value} to "${coin?.name || 'coin'}"!`
-    emit('saved')
+    emit('saved', selectedCoinId.value)
   } catch {
     saveMsg.value = 'Failed to save image'
     saveError.value = true
@@ -573,7 +573,7 @@ async function saveToNewCoin() {
     const file = new File([blob], 'obverse.png', { type: 'image/png' })
     await uploadImage(coin.id, file, 'obverse', true)
     saveMsg.value = `Created "${coin.name}" with obverse image!`
-    emit('saved')
+    emit('saved', coin.id)
   } catch {
     saveMsg.value = 'Failed to create coin'
     saveError.value = true

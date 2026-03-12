@@ -27,10 +27,8 @@ const coinId = computed(() => {
   return id ? Number(id) : undefined
 })
 
-function handleSaved() {
-  if (coinId.value) {
-    router.push(`/coin/${coinId.value}`)
-  }
+function handleSaved(savedCoinId: number) {
+  router.push(`/edit/${savedCoinId}`)
 }
 </script>
 
