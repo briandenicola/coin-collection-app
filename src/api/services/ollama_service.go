@@ -65,14 +65,15 @@ func (s *OllamaService) AnalyzeCoinImages(imagePaths []string, coin models.Coin,
 		model = "llava"
 	}
 
-	prompt := customPrompt
-	if prompt == "" {
-		prompt = buildPrompt(coin)
+	var prompt string
+	if customPrompt != "" {
+		prompt = customPrompt + "\n\n" + buildCoinContext(coin)
 	} else {
-		prompt = prompt + "\n\n" + buildPrompt(coin)
+		prompt = buildPrompt(coin)
 	}
 
-	logger.Debug("ollama", "Preparing request: model=%s, images=%d, prompt_len=%d", model, len(base64Images), len(prompt))
+	logger.Debug("ollama", "Preparing request: model=%s, images=%d, prompt_len=%d, custom=%v", model, len(base64Images), len(prompt), customPrompt != "")
+	logger.Debug("ollama", "Prompt: %s", prompt)
 
 	reqBody := ollamaRequest{
 		Model:  model,
@@ -144,7 +145,7 @@ Include store name, coin description, price, grade, reference numbers, dates, an
 Return ONLY the extracted text, no commentary.`
 	}
 
-	logger.Trace("ollama", "ExtractText prompt: %s", prompt)
+	logger.Debug("ollama", "ExtractText prompt: %s", prompt)
 
 	reqBody := ollamaRequest{
 		Model:  model,
@@ -240,11 +241,8 @@ func (s *OllamaService) CheckModel(model string) (bool, string) {
 	return true, fmt.Sprintf("Model '%s' is available and ready", model)
 }
 
-func buildPrompt(coin models.Coin) string {
+func buildCoinContext(coin models.Coin) string {
 	var sb strings.Builder
-	sb.WriteString("You are an expert numismatist specializing in ancient and modern coins. ")
-	sb.WriteString("Analyze the coin image(s) provided and give a detailed assessment.\n\n")
-
 	if coin.Name != "" {
 		sb.WriteString(fmt.Sprintf("The coin is cataloged as: %s\n", coin.Name))
 	}
@@ -257,6 +255,15 @@ func buildPrompt(coin models.Coin) string {
 	if coin.Ruler != "" {
 		sb.WriteString(fmt.Sprintf("Ruler: %s\n", coin.Ruler))
 	}
+	return sb.String()
+}
+
+func buildPrompt(coin models.Coin) string {
+	var sb strings.Builder
+	sb.WriteString("You are an expert numismatist specializing in ancient and modern coins. ")
+	sb.WriteString("Analyze the coin image(s) provided and give a detailed assessment.\n\n")
+
+	sb.WriteString(buildCoinContext(coin))
 
 	sb.WriteString("\nPlease provide:\n")
 	sb.WriteString("1. **Identification**: Confirm or correct the identification of the coin\n")

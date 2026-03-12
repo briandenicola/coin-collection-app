@@ -81,7 +81,7 @@ func (h *AnalysisHandler) Analyze(c *gin.Context) {
 	}
 
 	logger.Debug("analysis", "Ollama URL: %s, Model: %s, Timeout: %ds", ollamaURL, ollamaModel, ollamaTimeout)
-	logger.Trace("analysis", "Custom prompt length: %d", len(customPrompt))
+	logger.Debug("analysis", "Side: %s, Custom prompt: [%s]", side, customPrompt)
 
 	ollamaSvc := services.NewOllamaService(ollamaURL, ollamaTimeout)
 
@@ -158,6 +158,7 @@ func (h *AnalysisHandler) ExtractText(c *gin.Context) {
 	customPrompt := services.GetSetting(services.SettingTextExtractionPrompt)
 
 	logger.Debug("extract-text", "Sending to Ollama: URL=%s, Model=%s, Timeout=%ds", ollamaURL, ollamaModel, ollamaTimeout)
+	logger.Debug("extract-text", "Custom extraction prompt: [%s]", customPrompt)
 
 	ollamaSvc := services.NewOllamaService(ollamaURL, ollamaTimeout)
 	text, err := ollamaSvc.ExtractTextFromImage(imageData, ollamaModel, customPrompt)
