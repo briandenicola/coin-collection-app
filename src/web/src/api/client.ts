@@ -76,6 +76,8 @@ export const analyzeCoin = (coinId: number, side?: 'obverse' | 'reverse') => {
   const params = side ? `?side=${side}` : ''
   return api.post<{ analysis: string; coin: Coin }>(`/coins/${coinId}/analyze${params}`)
 }
+export const deleteAnalysis = (coinId: number, side: 'obverse' | 'reverse') =>
+  api.delete<{ coin: Coin }>(`/coins/${coinId}/analyze?side=${side}`)
 export const extractText = (file: File) => {
   const formData = new FormData()
   formData.append('image', file)

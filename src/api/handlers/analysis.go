@@ -123,6 +123,37 @@ func (h *AnalysisHandler) Analyze(c *gin.Context) {
 	})
 }
 
+// DeleteAnalysis clears obverse or reverse analysis for a coin
+func (h *AnalysisHandler) DeleteAnalysis(c *gin.Context) {
+	logger := services.AppLogger
+	userID := c.GetUint("userId")
+	coinID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid coin ID"})
+		return
+	}
+
+	side := c.Query("side")
+	if side != "obverse" && side != "reverse" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "side query param must be 'obverse' or 'reverse'"})
+		return
+	}
+
+	var coin models.Coin
+	if err := database.DB.Where("id = ? AND user_id = ?", coinID, userID).First(&coin).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Coin not found"})
+		return
+	}
+
+	column := side + "_analysis"
+	database.DB.Model(&coin).Update(column, "")
+	logger.Info("analysis", "Cleared %s analysis for coin %d", side, coinID)
+
+	// Reload to return updated coin
+	database.DB.Where("id = ?", coinID).Preload("Images").First(&coin)
+	c.JSON(http.StatusOK, gin.H{"coin": coin})
+}
+
 // ExtractText accepts an image upload and returns extracted text via Ollama
 func (h *AnalysisHandler) ExtractText(c *gin.Context) {
 	logger := services.AppLogger

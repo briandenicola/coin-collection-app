@@ -107,6 +107,7 @@ func main() {
 
 		analysisHandler := handlers.NewAnalysisHandler()
 		protected.POST("/coins/:id/analyze", analysisHandler.Analyze)
+		protected.DELETE("/coins/:id/analyze", analysisHandler.DeleteAnalysis)
 		protected.POST("/extract-text", analysisHandler.ExtractText)
 		protected.GET("/ollama-status", analysisHandler.OllamaStatus)
 

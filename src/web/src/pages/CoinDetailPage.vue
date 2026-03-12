@@ -61,12 +61,18 @@
             <p v-if="!ollamaAvailable" class="ai-unavailable">AI unavailable — configure Ollama in Admin → AI Configuration</p>
 
             <div v-if="coin.obverseAnalysis" class="ai-result-section">
-              <h5 class="ai-result-heading">Obverse Analysis</h5>
+              <div class="ai-result-header">
+                <h5 class="ai-result-heading">Obverse Analysis</h5>
+                <button class="btn btn-ghost btn-xs" @click="handleDeleteAnalysis('obverse')">Remove</button>
+              </div>
               <div class="ai-content" v-html="renderedObverse"></div>
             </div>
 
             <div v-if="coin.reverseAnalysis" class="ai-result-section">
-              <h5 class="ai-result-heading">Reverse Analysis</h5>
+              <div class="ai-result-header">
+                <h5 class="ai-result-heading">Reverse Analysis</h5>
+                <button class="btn btn-ghost btn-xs" @click="handleDeleteAnalysis('reverse')">Remove</button>
+              </div>
               <div class="ai-content" v-html="renderedReverse"></div>
             </div>
 
@@ -180,7 +186,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useCoinsStore } from '@/stores/coins'
 import ImageGallery from '@/components/ImageGallery.vue'
-import { uploadImage, analyzeCoin, deleteCoin, getOllamaStatus } from '@/api/client'
+import { uploadImage, analyzeCoin, deleteAnalysis, deleteCoin, getOllamaStatus } from '@/api/client'
 import MarkdownIt from 'markdown-it'
 
 const route = useRoute()
@@ -253,6 +259,16 @@ async function handleDelete() {
   if (!coin.value || !confirm('Delete this coin from your collection?')) return
   await deleteCoin(coin.value.id)
   router.push('/')
+}
+
+async function handleDeleteAnalysis(side: 'obverse' | 'reverse') {
+  if (!coin.value || !confirm(`Delete the ${side} analysis?`)) return
+  try {
+    await deleteAnalysis(coin.value.id, side)
+    store.fetchCoin(coin.value.id)
+  } catch {
+    alert(`Failed to delete ${side} analysis`)
+  }
 }
 
 function formatCurrency(value: number) {
@@ -488,6 +504,35 @@ function formatCurrency(value: number) {
   letter-spacing: 0.05em;
   color: var(--accent-gold);
   margin-bottom: 0.5rem;
+}
+
+.ai-result-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ai-result-header .ai-result-heading {
+  margin-bottom: 0;
+}
+
+.btn-ghost {
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-ghost:hover {
+  color: #e74c3c;
+  border-color: #e74c3c;
+}
+
+.btn-xs {
+  padding: 0.15rem 0.45rem;
+  font-size: 0.7rem;
+  border-radius: var(--radius-sm);
 }
 
 .ai-content {
