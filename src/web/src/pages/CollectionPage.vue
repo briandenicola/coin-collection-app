@@ -28,8 +28,23 @@
       <SwipeGallery v-if="viewMode === 'swipe'" :coins="store.coins" />
 
       <!-- Grid view -->
-      <div v-else class="coins-grid" style="margin-top: 1.5rem">
-        <CoinCard v-for="coin in store.coins" :key="coin.id" :coin="coin" />
+      <div v-else>
+        <div class="grid-toolbar">
+          <div class="side-toggle">
+            <button class="toggle-btn" :class="{ active: gridSide === null }" @click="gridSide = null">
+              Primary
+            </button>
+            <button class="toggle-btn" :class="{ active: gridSide === 'obverse' }" @click="gridSide = 'obverse'">
+              Obverse
+            </button>
+            <button class="toggle-btn" :class="{ active: gridSide === 'reverse' }" @click="gridSide = 'reverse'">
+              Reverse
+            </button>
+          </div>
+        </div>
+        <div class="coins-grid">
+          <CoinCard v-for="coin in store.coins" :key="coin.id" :coin="coin" :image-side="gridSide" />
+        </div>
       </div>
     </template>
 
@@ -52,6 +67,7 @@
 <script setup lang="ts">
 import { ref, watch, onMounted } from 'vue'
 import { useCoinsStore } from '@/stores/coins'
+import type { ImageType } from '@/types'
 import CoinCard from '@/components/CoinCard.vue'
 import SwipeGallery from '@/components/SwipeGallery.vue'
 import CategoryFilter from '@/components/CategoryFilter.vue'
@@ -68,6 +84,7 @@ const page = ref(1)
 const isPwa = window.matchMedia('(display-mode: standalone)').matches
   || (window.navigator as any).standalone === true
 const viewMode = ref<'grid' | 'swipe'>(isPwa ? 'swipe' : 'grid')
+const gridSide = ref<ImageType | null>(null)
 
 let debounceTimer: ReturnType<typeof setTimeout>
 
@@ -132,6 +149,39 @@ loadCoins()
 }
 
 .view-btn:hover:not(.active) {
+  background: var(--bg-card-hover);
+}
+
+.grid-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+}
+
+.side-toggle {
+  display: flex;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.toggle-btn {
+  padding: 0.35rem 0.75rem;
+  border: none;
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.toggle-btn.active {
+  background: var(--accent-gold-dim);
+  color: var(--accent-gold);
+}
+
+.toggle-btn:hover:not(.active) {
   background: var(--bg-card-hover);
 }
 

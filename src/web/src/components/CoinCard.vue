@@ -26,13 +26,19 @@
 </template>
 
 <script setup lang="ts">
-import type { Coin } from '@/types'
+import type { Coin, ImageType } from '@/types'
 import { computed } from 'vue'
 import { Coins } from 'lucide-vue-next'
 
-const props = defineProps<{ coin: Coin }>()
+const props = withDefaults(defineProps<{ coin: Coin; imageSide?: ImageType | null }>(), {
+  imageSide: null,
+})
 
 const primaryImage = computed(() => {
+  if (props.imageSide) {
+    const byType = props.coin.images?.find((img) => img.imageType === props.imageSide)
+    if (byType) return `/uploads/${byType.filePath}`
+  }
   const primary = props.coin.images?.find((img) => img.isPrimary)
   const first = props.coin.images?.[0]
   const img = primary || first
