@@ -34,56 +34,6 @@
             </div>
             <p v-if="uploadStatus" class="upload-status" :class="{ error: uploadError }">{{ uploadStatus }}</p>
           </div>
-
-          <!-- AI Analysis -->
-          <div class="ai-section">
-            <div class="ai-header">
-              <h4>AI Analysis</h4>
-              <div class="ai-buttons">
-                <button
-                  class="btn btn-primary btn-sm"
-                  :disabled="analyzing || !hasObverse || !ollamaAvailable"
-                  :title="!ollamaAvailable ? ollamaMessage : !hasObverse ? 'No obverse image' : ''"
-                  @click="handleAnalyze('obverse')"
-                >
-                  {{ analyzingSide === 'obverse' ? 'Analyzing...' : 'Analyze Obverse' }}
-                </button>
-                <button
-                  class="btn btn-primary btn-sm"
-                  :disabled="analyzing || !hasReverse || !ollamaAvailable"
-                  :title="!ollamaAvailable ? ollamaMessage : !hasReverse ? 'No reverse image' : ''"
-                  @click="handleAnalyze('reverse')"
-                >
-                  {{ analyzingSide === 'reverse' ? 'Analyzing...' : 'Analyze Reverse' }}
-                </button>
-              </div>
-            </div>
-            <p v-if="!ollamaAvailable" class="ai-unavailable">AI unavailable — configure Ollama in Admin → AI Configuration</p>
-
-            <div v-if="coin.obverseAnalysis" class="ai-result-section">
-              <div class="ai-result-header">
-                <h5 class="ai-result-heading">Obverse Analysis</h5>
-                <button class="btn btn-ghost btn-xs" @click="handleDeleteAnalysis('obverse')">Remove</button>
-              </div>
-              <div class="ai-content" v-html="renderedObverse"></div>
-            </div>
-
-            <div v-if="coin.reverseAnalysis" class="ai-result-section">
-              <div class="ai-result-header">
-                <h5 class="ai-result-heading">Reverse Analysis</h5>
-                <button class="btn btn-ghost btn-xs" @click="handleDeleteAnalysis('reverse')">Remove</button>
-              </div>
-              <div class="ai-content" v-html="renderedReverse"></div>
-            </div>
-
-            <div v-if="coin.aiAnalysis && !coin.obverseAnalysis && !coin.reverseAnalysis" class="ai-result-section">
-              <div class="ai-content" v-html="renderedLegacy"></div>
-            </div>
-
-            <p v-if="!coin.obverseAnalysis && !coin.reverseAnalysis && !coin.aiAnalysis && ollamaAvailable" class="ai-empty">
-              Upload images and click an analyze button to get an expert assessment.
-            </p>
-          </div>
         </div>
 
         <!-- Info -->
@@ -174,6 +124,58 @@
             <a :href="coin.referenceUrl" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">
               🔗 {{ coin.referenceText || 'Reference Link' }}
             </a>
+          </div>
+        </div>
+
+        <!-- AI Analysis -->
+        <div class="detail-ai">
+          <div class="ai-section">
+            <div class="ai-header">
+              <h4>AI Analysis</h4>
+              <div class="ai-buttons">
+                <button
+                  class="btn btn-primary btn-sm"
+                  :disabled="analyzing || !hasObverse || !ollamaAvailable"
+                  :title="!ollamaAvailable ? ollamaMessage : !hasObverse ? 'No obverse image' : ''"
+                  @click="handleAnalyze('obverse')"
+                >
+                  {{ analyzingSide === 'obverse' ? 'Analyzing...' : 'Analyze Obverse' }}
+                </button>
+                <button
+                  class="btn btn-primary btn-sm"
+                  :disabled="analyzing || !hasReverse || !ollamaAvailable"
+                  :title="!ollamaAvailable ? ollamaMessage : !hasReverse ? 'No reverse image' : ''"
+                  @click="handleAnalyze('reverse')"
+                >
+                  {{ analyzingSide === 'reverse' ? 'Analyzing...' : 'Analyze Reverse' }}
+                </button>
+              </div>
+            </div>
+            <p v-if="!ollamaAvailable" class="ai-unavailable">AI unavailable — configure Ollama in Admin → AI Configuration</p>
+
+            <div v-if="coin.obverseAnalysis" class="ai-result-section">
+              <div class="ai-result-header">
+                <h5 class="ai-result-heading">Obverse Analysis</h5>
+                <button class="btn btn-ghost btn-xs" @click="handleDeleteAnalysis('obverse')">Remove</button>
+              </div>
+              <div class="ai-content" v-html="renderedObverse"></div>
+            </div>
+
+            <div v-if="coin.reverseAnalysis" class="ai-result-section">
+              <div class="ai-result-header">
+                <h5 class="ai-result-heading">Reverse Analysis</h5>
+                <button class="btn btn-ghost btn-xs" @click="handleDeleteAnalysis('reverse')">Remove</button>
+              </div>
+              <div class="ai-content" v-html="renderedReverse"></div>
+            </div>
+
+            <div v-if="coin.aiAnalysis && !coin.obverseAnalysis && !coin.reverseAnalysis" class="ai-result-section">
+              <div class="ai-content" v-html="renderedLegacy"></div>
+            </div>
+
+            <p v-if="!coin.obverseAnalysis && !coin.reverseAnalysis && !coin.aiAnalysis && ollamaAvailable" class="ai-empty">
+              Upload images and click an analyze button to get an expert assessment.
+            </p>
           </div>
         </div>
       </div>
@@ -297,6 +299,10 @@ function formatCurrency(value: number) {
   max-width: 1000px;
   margin-left: auto;
   margin-right: auto;
+}
+
+.detail-ai {
+  grid-column: 1 / -1;
 }
 
 .detail-title-section {
@@ -575,6 +581,9 @@ function formatCurrency(value: number) {
   .detail-layout {
     grid-template-columns: 1fr;
   }
+  .detail-images { order: 1; }
+  .detail-info { order: 2; }
+  .detail-ai { order: 3; }
   .info-grid {
     grid-template-columns: 1fr 1fr;
   }
