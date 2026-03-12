@@ -128,6 +128,7 @@ func main() {
 		admin.DELETE("/users/:id", adminHandler.DeleteUser)
 		admin.POST("/users/:id/reset-password", adminHandler.ResetPassword)
 		admin.GET("/settings", adminHandler.GetSettings)
+		admin.GET("/settings/defaults", adminHandler.GetSettingDefaults)
 		admin.PUT("/settings", adminHandler.UpdateSettings)
 		admin.GET("/logs", adminHandler.GetLogs)
 	}

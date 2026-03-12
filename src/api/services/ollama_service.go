@@ -65,14 +65,9 @@ func (s *OllamaService) AnalyzeCoinImages(imagePaths []string, coin models.Coin,
 		model = "llava"
 	}
 
-	var prompt string
-	if customPrompt != "" {
-		prompt = customPrompt + "\n\n" + buildCoinContext(coin)
-	} else {
-		prompt = buildPrompt(coin)
-	}
+	prompt := customPrompt + "\n\n" + buildCoinContext(coin)
 
-	logger.Debug("ollama", "Preparing request: model=%s, images=%d, prompt_len=%d, custom=%v", model, len(base64Images), len(prompt), customPrompt != "")
+	logger.Debug("ollama", "Preparing request: model=%s, images=%d, prompt_len=%d", model, len(base64Images), len(prompt))
 	logger.Debug("ollama", "Prompt: %s", prompt)
 
 	reqBody := ollamaRequest{
@@ -136,20 +131,11 @@ func (s *OllamaService) ExtractTextFromImage(imageData []byte, model string, cus
 
 	base64Image := base64.StdEncoding.EncodeToString(imageData)
 
-	prompt := customPrompt
-	if prompt == "" {
-		prompt = `Extract ALL text visible in this image exactly as written. 
-This is a store card or certificate that accompanies a coin purchase. 
-Preserve the original layout and formatting as much as possible.
-Include store name, coin description, price, grade, reference numbers, dates, and any other text.
-Return ONLY the extracted text, no commentary.`
-	}
-
-	logger.Debug("ollama", "ExtractText prompt: %s", prompt)
+	logger.Debug("ollama", "ExtractText prompt: %s", customPrompt)
 
 	reqBody := ollamaRequest{
 		Model:  model,
-		Prompt: prompt,
+		Prompt: customPrompt,
 		Images: []string{base64Image},
 		Stream: false,
 	}
@@ -258,22 +244,3 @@ func buildCoinContext(coin models.Coin) string {
 	return sb.String()
 }
 
-func buildPrompt(coin models.Coin) string {
-	var sb strings.Builder
-	sb.WriteString("You are an expert numismatist specializing in ancient and modern coins. ")
-	sb.WriteString("Analyze the coin image(s) provided and give a detailed assessment.\n\n")
-
-	sb.WriteString(buildCoinContext(coin))
-
-	sb.WriteString("\nPlease provide:\n")
-	sb.WriteString("1. **Identification**: Confirm or correct the identification of the coin\n")
-	sb.WriteString("2. **Obverse Description**: Describe what you see on the obverse (front)\n")
-	sb.WriteString("3. **Reverse Description**: Describe what you see on the reverse (back)\n")
-	sb.WriteString("4. **Condition Assessment**: Assess the coin's condition/grade\n")
-	sb.WriteString("5. **Inscriptions**: Read any visible inscriptions\n")
-	sb.WriteString("6. **Historical Context**: Brief historical context about this coin\n")
-	sb.WriteString("7. **Notable Features**: Any die varieties, errors, or notable features\n")
-	sb.WriteString("8. **Authenticity Notes**: Any observations about authenticity\n")
-
-	return sb.String()
-}

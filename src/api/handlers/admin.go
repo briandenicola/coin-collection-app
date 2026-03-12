@@ -123,6 +123,11 @@ func (h *AdminHandler) GetSettings(c *gin.Context) {
 	c.JSON(http.StatusOK, settings)
 }
 
+// GetSettingDefaults returns the built-in default values for all settings
+func (h *AdminHandler) GetSettingDefaults(c *gin.Context) {
+	c.JSON(http.StatusOK, services.GetSettingDefaults())
+}
+
 // UpdateSettings updates app settings
 func (h *AdminHandler) UpdateSettings(c *gin.Context) {
 	var settings []struct {

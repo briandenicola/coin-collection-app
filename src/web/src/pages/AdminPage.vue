@@ -81,34 +81,55 @@
             <span class="form-hint">Time limit for AI analysis calls. Default: 300 (5 minutes)</span>
           </div>
           <div class="form-group">
-            <label class="form-label">Obverse Analysis Prompt</label>
+            <div class="prompt-header">
+              <label class="form-label">Obverse Analysis Prompt</label>
+              <button
+                type="button"
+                class="btn btn-ghost btn-xs"
+                :disabled="settings.ObversePrompt === settingDefaults.ObversePrompt"
+                @click="settings.ObversePrompt = settingDefaults.ObversePrompt"
+              >Revert to Default</button>
+            </div>
             <textarea
               v-model="settings.ObversePrompt"
               class="form-textarea"
-              rows="4"
-              placeholder="Leave empty for default obverse analysis prompt..."
+              rows="6"
             />
-            <span class="form-hint">Custom prompt for obverse image analysis. Coin context is appended automatically.</span>
+            <span class="form-hint">Prompt for obverse image analysis. Coin context (name, category, denomination) is appended automatically.</span>
           </div>
           <div class="form-group">
-            <label class="form-label">Reverse Analysis Prompt</label>
+            <div class="prompt-header">
+              <label class="form-label">Reverse Analysis Prompt</label>
+              <button
+                type="button"
+                class="btn btn-ghost btn-xs"
+                :disabled="settings.ReversePrompt === settingDefaults.ReversePrompt"
+                @click="settings.ReversePrompt = settingDefaults.ReversePrompt"
+              >Revert to Default</button>
+            </div>
             <textarea
               v-model="settings.ReversePrompt"
               class="form-textarea"
-              rows="4"
-              placeholder="Leave empty for default reverse analysis prompt..."
+              rows="6"
             />
-            <span class="form-hint">Custom prompt for reverse image analysis. Coin context is appended automatically.</span>
+            <span class="form-hint">Prompt for reverse image analysis. Coin context (name, category, denomination) is appended automatically.</span>
           </div>
           <div class="form-group">
-            <label class="form-label">Text Extraction Prompt</label>
+            <div class="prompt-header">
+              <label class="form-label">Text Extraction Prompt</label>
+              <button
+                type="button"
+                class="btn btn-ghost btn-xs"
+                :disabled="settings.TextExtractionPrompt === settingDefaults.TextExtractionPrompt"
+                @click="settings.TextExtractionPrompt = settingDefaults.TextExtractionPrompt"
+              >Revert to Default</button>
+            </div>
             <textarea
               v-model="settings.TextExtractionPrompt"
               class="form-textarea"
-              rows="4"
-              placeholder="Leave empty for default store card text extraction prompt..."
+              rows="6"
             />
-            <span class="form-hint">Custom prompt for extracting text from store card images.</span>
+            <span class="form-hint">Prompt for extracting text from store card images.</span>
           </div>
           <p v-if="settingsMsg" class="msg" :class="{ error: settingsError }">{{ settingsMsg }}</p>
           <div class="ai-actions">
@@ -207,7 +228,7 @@ import { ref, onMounted, onUnmounted, type Component } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import {
   getUsers, deleteUser, resetUserPassword,
-  getAppSettings, updateAppSettings, getAdminLogs, getOllamaStatus,
+  getAppSettings, getAppSettingDefaults, updateAppSettings, getAdminLogs, getOllamaStatus,
 } from '@/api/client'
 import { LOG_LEVELS } from '@/types'
 import type { UserInfo, AppSettings, LogEntry } from '@/types'
@@ -289,6 +310,15 @@ const settings = ref<AppSettings>({
   OllamaTimeout: '300',
   LogLevel: 'info',
 })
+const settingDefaults = ref<AppSettings>({
+  OllamaURL: '',
+  OllamaModel: '',
+  ObversePrompt: '',
+  ReversePrompt: '',
+  TextExtractionPrompt: '',
+  OllamaTimeout: '',
+  LogLevel: '',
+})
 const settingsMsg = ref('')
 const settingsError = ref(false)
 const settingsSaving = ref(false)
@@ -298,8 +328,12 @@ const ollamaTestOk = ref(false)
 
 async function loadSettings() {
   try {
-    const res = await getAppSettings()
-    settings.value = { ...settings.value, ...res.data }
+    const [settingsRes, defaultsRes] = await Promise.all([
+      getAppSettings(),
+      getAppSettingDefaults(),
+    ])
+    settingDefaults.value = { ...settingDefaults.value, ...defaultsRes.data }
+    settings.value = { ...settings.value, ...settingsRes.data }
   } catch { /* use defaults */ }
 }
 
@@ -498,6 +532,41 @@ onUnmounted(() => {
   display: flex;
   gap: 0.5rem;
   align-items: center;
+}
+
+.prompt-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.25rem;
+}
+
+.prompt-header .form-label {
+  margin-bottom: 0;
+}
+
+.btn-ghost {
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-ghost:hover:not(:disabled) {
+  color: var(--accent-gold);
+  border-color: var(--accent-gold);
+}
+
+.btn-ghost:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.btn-xs {
+  padding: 0.2rem 0.5rem;
+  font-size: 0.7rem;
+  border-radius: var(--radius-sm);
 }
 
 .connectivity-result {

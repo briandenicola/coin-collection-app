@@ -6,23 +6,45 @@ import (
 )
 
 const (
-	SettingOllamaURL           = "OllamaURL"
-	SettingOllamaModel         = "OllamaModel"
-	SettingObversePrompt       = "ObversePrompt"
-	SettingReversePrompt       = "ReversePrompt"
+	SettingOllamaURL            = "OllamaURL"
+	SettingOllamaModel          = "OllamaModel"
+	SettingObversePrompt        = "ObversePrompt"
+	SettingReversePrompt        = "ReversePrompt"
 	SettingTextExtractionPrompt = "TextExtractionPrompt"
-	SettingOllamaTimeout       = "OllamaTimeout"
-	SettingLogLevel            = "LogLevel"
+	SettingOllamaTimeout        = "OllamaTimeout"
+	SettingLogLevel             = "LogLevel"
 )
 
+const DefaultObversePrompt = `You are an expert numismatist specializing in ancient and modern coins. Analyze the obverse (front) of this coin and provide:
+1. **Identification** – Confirm or correct the coin's identification
+2. **Portrait / Design** – Describe the obverse design in detail
+3. **Inscriptions** – Read all visible inscriptions and legends
+4. **Condition** – Assess the obverse condition and grade
+5. **Die Details** – Note any die varieties, errors, or notable features
+6. **Authenticity** – Any observations relevant to authenticity`
+
+const DefaultReversePrompt = `You are an expert numismatist specializing in ancient and modern coins. Analyze the reverse (back) of this coin and provide:
+1. **Identification** – Confirm or correct the coin's identification from the reverse
+2. **Design** – Describe the reverse design, motifs, and symbols in detail
+3. **Inscriptions** – Read all visible inscriptions, legends, and mint marks
+4. **Condition** – Assess the reverse condition and grade
+5. **Die Details** – Note any die varieties, errors, or notable features
+6. **Authenticity** – Any observations relevant to authenticity`
+
+const DefaultTextExtractionPrompt = `Extract ALL text visible in this image exactly as written.
+This is a store card or certificate that accompanies a coin purchase.
+Preserve the original layout and formatting as much as possible.
+Include store name, coin description, price, grade, reference numbers, dates, and any other text.
+Return ONLY the extracted text, no commentary.`
+
 var settingDefaults = map[string]string{
-	SettingOllamaURL:           "http://localhost:11434",
-	SettingOllamaModel:         "llava",
-	SettingObversePrompt:       "",
-	SettingReversePrompt:       "",
-	SettingTextExtractionPrompt: "",
-	SettingOllamaTimeout:       "300",
-	SettingLogLevel:            "info",
+	SettingOllamaURL:            "http://localhost:11434",
+	SettingOllamaModel:          "llava",
+	SettingObversePrompt:        DefaultObversePrompt,
+	SettingReversePrompt:        DefaultReversePrompt,
+	SettingTextExtractionPrompt: DefaultTextExtractionPrompt,
+	SettingOllamaTimeout:        "300",
+	SettingLogLevel:             "info",
 }
 
 func GetSetting(key string) string {
@@ -32,6 +54,12 @@ func GetSetting(key string) string {
 			return def
 		}
 		return ""
+	}
+	// Treat empty prompt settings as unset so the default is used
+	if setting.Value == "" {
+		if def, ok := settingDefaults[key]; ok {
+			return def
+		}
 	}
 	return setting.Value
 }
@@ -56,7 +84,17 @@ func GetAllSettings() map[string]string {
 	var settings []models.AppSetting
 	database.DB.Find(&settings)
 	for _, s := range settings {
-		result[s.Key] = s.Value
+		if s.Value != "" {
+			result[s.Key] = s.Value
+		}
+	}
+	return result
+}
+
+func GetSettingDefaults() map[string]string {
+	result := make(map[string]string)
+	for k, v := range settingDefaults {
+		result[k] = v
 	}
 	return result
 }
