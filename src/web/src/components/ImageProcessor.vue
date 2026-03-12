@@ -245,7 +245,7 @@ function autoCrop() {
 
   for (let y = 0; y < offscreen.height; y++) {
     for (let x = 0; x < offscreen.width; x++) {
-      const alpha = data[(y * offscreen.width + x) * 4 + 3]
+      const alpha = data[(y * offscreen.width + x) * 4 + 3] ?? 0
       if (alpha > 10) {
         if (x < minX) minX = x
         if (x > maxX) maxX = x
@@ -327,8 +327,8 @@ function drawCropCanvas() {
   // Corner handles
   const handleSize = 8
   ctx.fillStyle = '#c9a84c'
-  for (const [hx, hy] of [[sx, sy], [sx + sw, sy], [sx, sy + sh], [sx + sw, sy + sh]]) {
-    ctx.fillRect(hx - handleSize / 2, hy - handleSize / 2, handleSize, handleSize)
+  for (const [hx, hy] of [[sx, sy], [sx + sw, sy], [sx, sy + sh], [sx + sw, sy + sh]] as const) {
+    ctx.fillRect(hx! - handleSize / 2, hy! - handleSize / 2, handleSize, handleSize)
   }
 }
 

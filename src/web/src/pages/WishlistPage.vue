@@ -2,7 +2,7 @@
   <div class="container">
     <div class="page-header">
       <h1>Wishlist</h1>
-      <router-link to="/add" class="btn btn-primary"><CirclePlus :size="16" /> Add Coin</router-link>
+      <router-link to="/add?wishlist=true" class="btn btn-primary"><CirclePlus :size="16" /> Add Coin</router-link>
     </div>
 
     <div v-if="store.loading" class="loading-overlay">

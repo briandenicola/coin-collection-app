@@ -11,7 +11,7 @@
 
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useCoinsStore } from '@/stores/coins'
 import { uploadImage, deleteImage, extractText, updateCoin } from '@/api/client'
 import CoinForm from '@/components/CoinForm.vue'
@@ -43,7 +43,7 @@ const form = reactive<Partial<Coin>>({
   notes: '',
   referenceUrl: '',
   referenceText: 'Store Link',
-  isWishlist: false,
+  isWishlist: useRoute().query.wishlist === 'true',
 })
 
 async function handleSubmit() {

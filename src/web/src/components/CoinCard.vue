@@ -3,7 +3,6 @@
     <div class="card-image-container">
       <img v-if="primaryImage" :src="primaryImage" :alt="coin.name" class="card-image" />
       <div v-else class="card-image-placeholder"><Coins :size="48" :stroke-width="1" /></div>
-      <span class="badge" :class="`badge-${coin.category.toLowerCase()}`">{{ coin.category }}</span>
     </div>
     <div class="card-body">
       <h3 class="card-title">{{ coin.name }}</h3>
@@ -12,6 +11,7 @@
         <span v-if="coin.era" class="meta-item">{{ coin.era }}</span>
       </div>
       <div class="card-details">
+        <span v-if="coin.category" class="detail" :class="`category-${coin.category.toLowerCase()}`">{{ coin.category }}</span>
         <span v-if="coin.denomination" class="detail">{{ coin.denomination }}</span>
         <span v-if="coin.material" class="detail" :class="`material-${coin.material.toLowerCase()}`">
           {{ coin.material }}
@@ -80,12 +80,6 @@ function formatCurrency(value: number) {
   opacity: 0.3;
 }
 
-.card-image-container .badge {
-  position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
-}
-
 .card-body {
   padding: 1rem;
   flex: 1;
@@ -140,4 +134,10 @@ function formatCurrency(value: number) {
   font-weight: 600;
   color: var(--accent-gold);
 }
+
+.category-roman { color: #b57edc; }
+.category-greek { color: #9ab85a; }
+.category-byzantine { color: #e67e73; }
+.category-modern { color: #7ab3d4; }
+.category-other { color: #aaa; }
 </style>
