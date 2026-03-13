@@ -1287,7 +1287,7 @@
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Upload a base64-encoded image for a specific coin. Accepts a JSON body with the image data. Supports optional data URI prefix (e.g. \"data:image/png;base64,...\"). Max 20MB decoded.",
+                "description": "Upload a raw base64-encoded image for a specific coin. The image field must contain only raw base64 data (no data URI prefix). The fileExtension field (e.g. \".jpg\", \".png\") tells the API how to save the file. Max 20MB decoded.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2105,16 +2105,17 @@
         "handlers.base64ImageRequest": {
             "type": "object",
             "required": [
+                "fileExtension",
                 "image"
             ],
             "properties": {
-                "filename": {
+                "fileExtension": {
                     "type": "string",
-                    "example": "coin-front.jpg"
+                    "example": ".jpg"
                 },
                 "image": {
                     "type": "string",
-                    "example": "iVBORw0KGgoAAAANSUhEUg..."
+                    "example": "/9j/4AAQSkZJRgABAQ..."
                 },
                 "imageType": {
                     "type": "string",

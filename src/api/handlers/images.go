@@ -116,16 +116,16 @@ func (h *ImageHandler) Upload(c *gin.Context) {
 }
 
 type base64ImageRequest struct {
-	Image     string `json:"image" binding:"required" example:"iVBORw0KGgoAAAANSUhEUg..."`
-	ImageType string `json:"imageType" example:"obverse"`
-	IsPrimary bool   `json:"isPrimary" example:"false"`
-	Filename  string `json:"filename" example:"coin-front.jpg"`
+	Image         string `json:"image" binding:"required" example:"/9j/4AAQSkZJRgABAQ..."`
+	FileExtension string `json:"fileExtension" binding:"required" example:".jpg"`
+	ImageType     string `json:"imageType" example:"obverse"`
+	IsPrimary     bool   `json:"isPrimary" example:"false"`
 }
 
 // UploadBase64 adds an image to a coin from a base64-encoded string.
 //
 //	@Summary		Upload a coin image (base64)
-//	@Description	Upload a base64-encoded image for a specific coin. Accepts a JSON body with the image data. Supports optional data URI prefix (e.g. "data:image/png;base64,..."). Max 20MB decoded.
+//	@Description	Upload a raw base64-encoded image for a specific coin. The image field must contain only raw base64 data (no data URI prefix). The fileExtension field (e.g. ".jpg", ".png") tells the API how to save the file. Max 20MB decoded.
 //	@Tags			Images
 //	@Accept			json
 //	@Produce		json
@@ -154,6 +154,17 @@ func (h *ImageHandler) UploadBase64(c *gin.Context) {
 		return
 	}
 
+	// Validate file extension
+	ext := req.FileExtension
+	if !strings.HasPrefix(ext, ".") {
+		ext = "." + ext
+	}
+	allowed := map[string]bool{".jpg": true, ".jpeg": true, ".png": true, ".gif": true, ".webp": true}
+	if !allowed[strings.ToLower(ext)] {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "fileExtension must be one of: .jpg, .jpeg, .png, .gif, .webp"})
+		return
+	}
+
 	// Verify ownership
 	var coin models.Coin
 	if err := database.DB.Where("id = ? AND user_id = ?", coinID, userID).First(&coin).Error; err != nil {
@@ -161,37 +172,9 @@ func (h *ImageHandler) UploadBase64(c *gin.Context) {
 		return
 	}
 
-	// Strip data URI prefix if present (e.g. "data:image/png;base64,...")
-	imageData := req.Image
-	ext := ".bin"
-	if idx := strings.Index(imageData, ";base64,"); idx != -1 {
-		mimeType := imageData[5:idx] // after "data:"
-		imageData = imageData[idx+8:]
-		switch mimeType {
-		case "image/jpeg":
-			ext = ".jpg"
-		case "image/png":
-			ext = ".png"
-		case "image/gif":
-			ext = ".gif"
-		case "image/webp":
-			ext = ".webp"
-		default:
-			ext = ".jpg"
-		}
-	} else if req.Filename != "" {
-		ext = filepath.Ext(req.Filename)
-		if ext == "" {
-			ext = ".jpg"
-		}
-	} else {
-		ext = ".jpg"
-	}
-
-	decoded, err := base64.StdEncoding.DecodeString(imageData)
+	decoded, err := base64.StdEncoding.DecodeString(req.Image)
 	if err != nil {
-		// Try RawStdEncoding (no padding)
-		decoded, err = base64.RawStdEncoding.DecodeString(imageData)
+		decoded, err = base64.RawStdEncoding.DecodeString(req.Image)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid base64 image data"})
 			return
@@ -211,7 +194,6 @@ func (h *ImageHandler) UploadBase64(c *gin.Context) {
 		imageType = models.ImageType(req.ImageType)
 	}
 
-	// Create upload directory
 	coinDir := filepath.Join(h.UploadDir, fmt.Sprintf("coin-%d", coinID))
 	if err := os.MkdirAll(coinDir, 0755); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create upload directory"})
