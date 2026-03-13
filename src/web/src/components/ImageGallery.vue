@@ -3,6 +3,19 @@
     <div v-if="images.length" class="gallery-main">
       <img :src="activeImageSrc" :alt="activeImage?.imageType" class="gallery-active-img" />
       <span class="gallery-type-badge">{{ activeImage?.imageType }}</span>
+      <button
+        v-if="activeImage && !processing"
+        class="gallery-remove-bg-btn"
+        title="Remove background"
+        @click="$emit('removeBg', activeImage!)"
+      >
+        ✨ Remove BG
+      </button>
+      <div v-if="processing" class="gallery-processing-overlay">
+        <div class="spinner"></div>
+        <p>Removing background...</p>
+        <p class="processing-hint">First run downloads the ML model (~40MB)</p>
+      </div>
     </div>
     <div v-else class="gallery-empty">
       <span class="empty-icon"><Coins :size="48" :stroke-width="1" /></span>
@@ -27,7 +40,14 @@ import { ref, computed, watch } from 'vue'
 import type { CoinImage } from '@/types'
 import { Coins } from 'lucide-vue-next'
 
-const props = defineProps<{ images: CoinImage[] }>()
+const props = defineProps<{
+  images: CoinImage[]
+  processing?: boolean
+}>()
+
+defineEmits<{
+  removeBg: [image: CoinImage]
+}>()
 
 const activeImage = ref<CoinImage | null>(null)
 
@@ -35,6 +55,8 @@ watch(
   () => props.images,
   (imgs) => {
     if (imgs.length) {
+      // Keep current selection if still present, otherwise pick primary/first
+      if (activeImage.value && imgs.find((i) => i.id === activeImage.value!.id)) return
       activeImage.value = imgs.find((i) => i.isPrimary) || imgs[0] || null
     }
   },
@@ -72,6 +94,51 @@ const activeImageSrc = computed(() => {
   font-size: 0.75rem;
   border-radius: var(--radius-full);
   text-transform: capitalize;
+}
+
+.gallery-remove-bg-btn {
+  position: absolute;
+  bottom: 0.5rem;
+  right: 0.5rem;
+  padding: 0.3rem 0.7rem;
+  background: rgba(0, 0, 0, 0.75);
+  color: var(--accent-gold);
+  font-size: 0.75rem;
+  font-weight: 500;
+  border: 1px solid var(--accent-gold-dim);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  backdrop-filter: blur(4px);
+}
+
+.gallery-remove-bg-btn:hover {
+  background: var(--accent-gold);
+  color: #000;
+  border-color: var(--accent-gold);
+}
+
+.gallery-processing-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  background: rgba(0, 0, 0, 0.7);
+  color: var(--accent-gold);
+  border-radius: var(--radius-md);
+  backdrop-filter: blur(4px);
+}
+
+.gallery-processing-overlay p {
+  font-size: 0.9rem;
+}
+
+.gallery-processing-overlay .processing-hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
 }
 
 .gallery-empty {

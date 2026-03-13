@@ -16,7 +16,7 @@
       <div class="detail-layout">
         <!-- Images -->
         <div class="detail-images">
-          <ImageGallery :images="coin.images || []" />
+          <ImageGallery :images="coin.images || []" :processing="removingBg" @remove-bg="handleRemoveBackground" />
 
           <div class="image-upload-section">
             <h4>Upload Images</h4>
@@ -191,7 +191,9 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useCoinsStore } from '@/stores/coins'
 import ImageGallery from '@/components/ImageGallery.vue'
-import { uploadImage, analyzeCoin, deleteAnalysis, deleteCoin, getOllamaStatus } from '@/api/client'
+import { uploadImage, analyzeCoin, deleteAnalysis, deleteCoin, deleteImage, getOllamaStatus } from '@/api/client'
+import { removeBackground as removeBg } from '@imgly/background-removal'
+import type { CoinImage } from '@/types'
 import MarkdownIt from 'markdown-it'
 
 const route = useRoute()
@@ -205,6 +207,7 @@ const analyzing = ref(false)
 const analyzingSide = ref<string | null>(null)
 const ollamaAvailable = ref(true)
 const ollamaMessage = ref('')
+const removingBg = ref(false)
 
 const md = new MarkdownIt()
 
@@ -242,6 +245,40 @@ async function handleImageUpload(e: Event) {
   } catch {
     uploadStatus.value = 'Upload failed'
     uploadError.value = true
+  }
+}
+
+async function handleRemoveBackground(image: CoinImage) {
+  if (!coin.value) return
+  removingBg.value = true
+  uploadStatus.value = ''
+  uploadError.value = false
+
+  try {
+    // Fetch the original image
+    const response = await fetch(`/uploads/${image.filePath}`)
+    const srcBlob = await response.blob()
+
+    // Remove background using @imgly/background-removal
+    const resultBlob = await removeBg(srcBlob, {
+      output: { format: 'image/png', quality: 1 },
+    })
+
+    // Upload the processed image with the same type and primary status
+    const file = new File([resultBlob], `${image.imageType}-processed.png`, { type: 'image/png' })
+    await uploadImage(coin.value.id, file, image.imageType, image.isPrimary)
+
+    // Delete the old image
+    await deleteImage(coin.value.id, image.id)
+
+    uploadStatus.value = 'Background removed!'
+    store.fetchCoin(coin.value.id)
+  } catch (err) {
+    console.error('Background removal failed:', err)
+    uploadStatus.value = 'Background removal failed'
+    uploadError.value = true
+  } finally {
+    removingBg.value = false
   }
 }
 
