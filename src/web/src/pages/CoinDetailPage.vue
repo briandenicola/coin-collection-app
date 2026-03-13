@@ -16,7 +16,7 @@
       <div class="detail-layout">
         <!-- Images -->
         <div class="detail-images">
-          <ImageGallery :images="coin.images || []" :processing="removingBg" @remove-bg="handleRemoveBackground" />
+          <ImageGallery :images="coin.images || []" :processing="removingBg" @remove-bg="handleRemoveBackground" @delete-image="handleDeleteImage" />
 
           <div class="image-upload-section">
             <h4>Upload Images</h4>
@@ -277,6 +277,16 @@ async function handleRemoveBackground(image: CoinImage) {
     uploadError.value = true
   } finally {
     removingBg.value = false
+  }
+}
+
+async function handleDeleteImage(image: CoinImage) {
+  if (!coin.value || !confirm(`Delete this ${image.imageType} image?`)) return
+  try {
+    await deleteImage(coin.value.id, image.id)
+    store.fetchCoin(coin.value.id)
+  } catch {
+    alert('Failed to delete image')
   }
 }
 

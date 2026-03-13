@@ -3,14 +3,22 @@
     <div v-if="images.length" class="gallery-main">
       <img :src="activeImageSrc" :alt="activeImage?.imageType" class="gallery-active-img" />
       <span class="gallery-type-badge">{{ activeImage?.imageType }}</span>
-      <button
-        v-if="activeImage && !processing"
-        class="gallery-remove-bg-btn"
-        title="Remove background"
-        @click="$emit('removeBg', activeImage!)"
-      >
-        ✨ Remove BG
-      </button>
+      <div v-if="activeImage && !processing" class="gallery-action-btns">
+        <button
+          class="gallery-action-btn"
+          title="Remove background"
+          @click="$emit('removeBg', activeImage!)"
+        >
+          ✨ Remove BG
+        </button>
+        <button
+          class="gallery-action-btn gallery-delete-btn"
+          title="Delete image"
+          @click="$emit('deleteImage', activeImage!)"
+        >
+          🗑 Delete
+        </button>
+      </div>
       <div v-if="processing" class="gallery-processing-overlay">
         <div class="spinner"></div>
         <p>Removing background...</p>
@@ -47,6 +55,7 @@ const props = defineProps<{
 
 defineEmits<{
   removeBg: [image: CoinImage]
+  deleteImage: [image: CoinImage]
 }>()
 
 const activeImage = ref<CoinImage | null>(null)
@@ -96,10 +105,15 @@ const activeImageSrc = computed(() => {
   text-transform: capitalize;
 }
 
-.gallery-remove-bg-btn {
+.gallery-action-btns {
   position: absolute;
   bottom: 0.5rem;
   right: 0.5rem;
+  display: flex;
+  gap: 0.35rem;
+}
+
+.gallery-action-btn {
   padding: 0.3rem 0.7rem;
   background: rgba(0, 0, 0, 0.75);
   color: var(--accent-gold);
@@ -112,10 +126,16 @@ const activeImageSrc = computed(() => {
   backdrop-filter: blur(4px);
 }
 
-.gallery-remove-bg-btn:hover {
+.gallery-action-btn:hover {
   background: var(--accent-gold);
   color: #000;
   border-color: var(--accent-gold);
+}
+
+.gallery-delete-btn:hover {
+  background: #e74c3c;
+  color: #fff;
+  border-color: #e74c3c;
 }
 
 .gallery-processing-overlay {
