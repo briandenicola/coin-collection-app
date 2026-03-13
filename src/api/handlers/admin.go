@@ -34,7 +34,17 @@ func AdminRequired() gin.HandlerFunc {
 	}
 }
 
-// ListUsers returns all users for admin management
+// ListUsers returns all users for admin management.
+//
+//	@Summary		List all users
+//	@Description	Returns a list of all registered users. Admin only.
+//	@Tags			Admin
+//	@Produce		json
+//	@Success		200	{array}		UserDTO
+//	@Failure		401	{object}	ErrorResponse
+//	@Failure		403	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/admin/users [get]
 func (h *AdminHandler) ListUsers(c *gin.Context) {
 	var users []models.User
 	database.DB.Find(&users)
@@ -59,7 +69,20 @@ func (h *AdminHandler) ListUsers(c *gin.Context) {
 	c.JSON(http.StatusOK, result)
 }
 
-// DeleteUser removes a user and their coins
+// DeleteUser removes a user and their coins.
+//
+//	@Summary		Delete a user
+//	@Description	Deletes a user and all their associated coins and images. Cannot delete yourself. Admin only.
+//	@Tags			Admin
+//	@Produce		json
+//	@Param			id	path		int	true	"User ID"
+//	@Success		200	{object}	MessageResponse
+//	@Failure		400	{object}	ErrorResponse
+//	@Failure		401	{object}	ErrorResponse
+//	@Failure		403	{object}	ErrorResponse
+//	@Failure		404	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/admin/users/{id} [delete]
 func (h *AdminHandler) DeleteUser(c *gin.Context) {
 	adminID := c.GetUint("userId")
 	targetID, err := strconv.ParseUint(c.Param("id"), 10, 32)
@@ -90,7 +113,23 @@ func (h *AdminHandler) DeleteUser(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "User deleted"})
 }
 
-// ResetPassword allows admin to set a new password for a user
+// ResetPassword allows admin to set a new password for a user.
+//
+//	@Summary		Reset user password
+//	@Description	Sets a new password for the specified user. Admin only.
+//	@Tags			Admin
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		int						true	"User ID"
+//	@Param			body	body		ResetPasswordRequest	true	"New password"
+//	@Success		200		{object}	MessageResponse
+//	@Failure		400		{object}	ErrorResponse
+//	@Failure		401		{object}	ErrorResponse
+//	@Failure		403		{object}	ErrorResponse
+//	@Failure		404		{object}	ErrorResponse
+//	@Failure		500		{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/admin/users/{id}/reset-password [post]
 func (h *AdminHandler) ResetPassword(c *gin.Context) {
 	targetID, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -121,18 +160,52 @@ func (h *AdminHandler) ResetPassword(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Password reset"})
 }
 
-// GetSettings returns all app settings
+// GetSettings returns all app settings.
+//
+//	@Summary		Get application settings
+//	@Description	Returns all application settings merged with defaults. Admin only.
+//	@Tags			Admin
+//	@Produce		json
+//	@Success		200	{object}	map[string]string
+//	@Failure		401	{object}	ErrorResponse
+//	@Failure		403	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/admin/settings [get]
 func (h *AdminHandler) GetSettings(c *gin.Context) {
 	settings := services.GetAllSettings()
 	c.JSON(http.StatusOK, settings)
 }
 
-// GetSettingDefaults returns the built-in default values for all settings
+// GetSettingDefaults returns the built-in default values for all settings.
+//
+//	@Summary		Get setting defaults
+//	@Description	Returns the built-in default values for all application settings. Admin only.
+//	@Tags			Admin
+//	@Produce		json
+//	@Success		200	{object}	map[string]string
+//	@Failure		401	{object}	ErrorResponse
+//	@Failure		403	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/admin/settings/defaults [get]
 func (h *AdminHandler) GetSettingDefaults(c *gin.Context) {
 	c.JSON(http.StatusOK, services.GetSettingDefaults())
 }
 
-// UpdateSettings updates app settings
+// UpdateSettings updates app settings.
+//
+//	@Summary		Update application settings
+//	@Description	Updates one or more application settings. Syncs log level if changed. Admin only.
+//	@Tags			Admin
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		[]SettingInput	true	"Settings to update"
+//	@Success		200		{object}	SettingsUpdateResponse
+//	@Failure		400		{object}	ErrorResponse
+//	@Failure		401		{object}	ErrorResponse
+//	@Failure		403		{object}	ErrorResponse
+//	@Failure		500		{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/admin/settings [put]
 func (h *AdminHandler) UpdateSettings(c *gin.Context) {
 	var settings []struct {
 		Key   string `json:"key" binding:"required"`
@@ -156,7 +229,19 @@ func (h *AdminHandler) UpdateSettings(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Settings updated"})
 }
 
-// GetLogs returns recent application logs
+// GetLogs returns recent application logs.
+//
+//	@Summary		Get application logs
+//	@Description	Returns recent in-memory application logs, optionally filtered by level. Admin only.
+//	@Tags			Admin
+//	@Produce		json
+//	@Param			limit	query		int		false	"Maximum number of log entries"	default(500)
+//	@Param			level	query		string	false	"Filter by log level"	Enums(trace, debug, info, warn, error)
+//	@Success		200		{object}	LogsResponse
+//	@Failure		401		{object}	ErrorResponse
+//	@Failure		403		{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/admin/logs [get]
 func (h *AdminHandler) GetLogs(c *gin.Context) {
 	limit := 500
 	if l := c.Query("limit"); l != "" {

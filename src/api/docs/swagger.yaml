@@ -1,0 +1,1419 @@
+basePath: /api
+definitions:
+  handlers.AnalysisResponse:
+    properties:
+      analysis:
+        example: This coin appears to be a Roman denarius...
+        type: string
+      coin:
+        $ref: '#/definitions/models.Coin'
+      side:
+        example: obverse
+        type: string
+    type: object
+  handlers.AuthResponse:
+    properties:
+      token:
+        example: eyJhbGciOiJIUzI1NiIs...
+        type: string
+      user:
+        $ref: '#/definitions/handlers.AuthUserInfo'
+    type: object
+  handlers.AuthUserInfo:
+    properties:
+      id:
+        example: 1
+        type: integer
+      role:
+        example: admin
+        type: string
+      username:
+        example: admin
+        type: string
+    type: object
+  handlers.CategoryCount:
+    properties:
+      category:
+        example: Roman
+        type: string
+      count:
+        example: 10
+        type: integer
+    type: object
+  handlers.ChangePasswordRequest:
+    properties:
+      currentPassword:
+        example: oldpass123
+        type: string
+      newPassword:
+        example: newpass456
+        minLength: 6
+        type: string
+    required:
+    - currentPassword
+    - newPassword
+    type: object
+  handlers.CoinDeletedResponse:
+    properties:
+      message:
+        example: Coin deleted
+        type: string
+    type: object
+  handlers.CoinListResponse:
+    properties:
+      coins:
+        items:
+          $ref: '#/definitions/models.Coin'
+        type: array
+      limit:
+        example: 50
+        type: integer
+      page:
+        example: 1
+        type: integer
+      total:
+        example: 42
+        type: integer
+    type: object
+  handlers.DeleteAnalysisResponse:
+    properties:
+      coin:
+        $ref: '#/definitions/models.Coin'
+    type: object
+  handlers.ErrorResponse:
+    properties:
+      error:
+        example: Something went wrong
+        type: string
+    type: object
+  handlers.ExtractTextResponse:
+    properties:
+      text:
+        example: CAESAR AVGVSTVS
+        type: string
+    type: object
+  handlers.ImageDeletedResponse:
+    properties:
+      message:
+        example: Image deleted
+        type: string
+    type: object
+  handlers.ImportResponse:
+    properties:
+      imported:
+        example: 10
+        type: integer
+      message:
+        example: Import complete
+        type: string
+    type: object
+  handlers.LogEntry:
+    properties:
+      level:
+        example: info
+        type: string
+      message:
+        example: Application starting
+        type: string
+      timestamp:
+        example: "2025-01-01T12:00:00Z"
+        type: string
+    type: object
+  handlers.LogsResponse:
+    properties:
+      count:
+        example: 100
+        type: integer
+      logLevel:
+        example: info
+        type: string
+      logs:
+        items:
+          $ref: '#/definitions/handlers.LogEntry'
+        type: array
+    type: object
+  handlers.MaterialCount:
+    properties:
+      count:
+        example: 8
+        type: integer
+      material:
+        example: Silver
+        type: string
+    type: object
+  handlers.MessageResponse:
+    properties:
+      message:
+        example: Operation successful
+        type: string
+    type: object
+  handlers.OllamaStatusResponse:
+    properties:
+      available:
+        example: true
+        type: boolean
+      message:
+        example: Model llava is available
+        type: string
+      model:
+        example: llava
+        type: string
+      url:
+        example: http://localhost:11434
+        type: string
+    type: object
+  handlers.PasswordChangedResponse:
+    properties:
+      message:
+        example: Password changed
+        type: string
+    type: object
+  handlers.ResetPasswordRequest:
+    properties:
+      newPassword:
+        example: newpass456
+        minLength: 6
+        type: string
+    required:
+    - newPassword
+    type: object
+  handlers.SettingInput:
+    properties:
+      key:
+        example: OllamaURL
+        type: string
+      value:
+        example: http://localhost:11434
+        type: string
+    type: object
+  handlers.SettingsUpdateResponse:
+    properties:
+      message:
+        example: Settings updated
+        type: string
+    type: object
+  handlers.SetupResponse:
+    properties:
+      needsSetup:
+        example: false
+        type: boolean
+    type: object
+  handlers.StatsResponse:
+    properties:
+      byCategory:
+        items:
+          $ref: '#/definitions/handlers.CategoryCount'
+        type: array
+      byMaterial:
+        items:
+          $ref: '#/definitions/handlers.MaterialCount'
+        type: array
+      totalCoins:
+        example: 25
+        type: integer
+      totalWishlist:
+        example: 5
+        type: integer
+      values:
+        $ref: '#/definitions/handlers.ValueSummary'
+    type: object
+  handlers.UserDTO:
+    properties:
+      createdAt:
+        example: "2025-01-01T00:00:00Z"
+        type: string
+      id:
+        example: 1
+        type: integer
+      role:
+        allOf:
+        - $ref: '#/definitions/models.UserRole'
+        example: admin
+      username:
+        example: admin
+        type: string
+    type: object
+  handlers.UserInfoResponse:
+    properties:
+      createdAt:
+        example: "2025-01-01T00:00:00Z"
+        type: string
+      id:
+        example: 1
+        type: integer
+      role:
+        example: admin
+        type: string
+      username:
+        example: admin
+        type: string
+    type: object
+  handlers.ValueSummary:
+    properties:
+      avgCurrentValue:
+        example: 100
+        type: number
+      avgPurchasePrice:
+        example: 50
+        type: number
+      totalCurrentValue:
+        example: 2500
+        type: number
+      totalPurchasePrice:
+        example: 1250
+        type: number
+    type: object
+  handlers.loginRequest:
+    properties:
+      password:
+        example: password123
+        type: string
+      username:
+        example: admin
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  handlers.registerRequest:
+    properties:
+      password:
+        example: password123
+        minLength: 6
+        type: string
+      username:
+        example: admin
+        minLength: 3
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  models.Category:
+    enum:
+    - Roman
+    - Greek
+    - Byzantine
+    - Modern
+    - Other
+    type: string
+    x-enum-varnames:
+    - CategoryRoman
+    - CategoryGreek
+    - CategoryByzantine
+    - CategoryModern
+    - CategoryOther
+  models.Coin:
+    properties:
+      aiAnalysis:
+        type: string
+      category:
+        $ref: '#/definitions/models.Category'
+      createdAt:
+        type: string
+      currentValue:
+        type: number
+      denomination:
+        type: string
+      diameterMm:
+        type: number
+      era:
+        type: string
+      grade:
+        type: string
+      id:
+        type: integer
+      images:
+        items:
+          $ref: '#/definitions/models.CoinImage'
+        type: array
+      isWishlist:
+        type: boolean
+      material:
+        $ref: '#/definitions/models.Material'
+      mint:
+        type: string
+      name:
+        type: string
+      notes:
+        type: string
+      obverseAnalysis:
+        type: string
+      obverseDescription:
+        type: string
+      obverseInscription:
+        type: string
+      purchaseDate:
+        type: string
+      purchaseLocation:
+        type: string
+      purchasePrice:
+        type: number
+      rarityRating:
+        type: string
+      referenceText:
+        type: string
+      referenceUrl:
+        type: string
+      reverseAnalysis:
+        type: string
+      reverseDescription:
+        type: string
+      reverseInscription:
+        type: string
+      ruler:
+        type: string
+      updatedAt:
+        type: string
+      userId:
+        type: integer
+      weightGrams:
+        type: number
+    type: object
+  models.CoinImage:
+    properties:
+      coinId:
+        type: integer
+      createdAt:
+        type: string
+      filePath:
+        type: string
+      id:
+        type: integer
+      imageType:
+        $ref: '#/definitions/models.ImageType'
+      isPrimary:
+        type: boolean
+    type: object
+  models.ImageType:
+    enum:
+    - obverse
+    - reverse
+    - detail
+    - other
+    type: string
+    x-enum-varnames:
+    - ImageTypeObverse
+    - ImageTypeReverse
+    - ImageTypeDetail
+    - ImageTypeOther
+  models.Material:
+    enum:
+    - Gold
+    - Silver
+    - Bronze
+    - Copper
+    - Electrum
+    - Other
+    type: string
+    x-enum-varnames:
+    - MaterialGold
+    - MaterialSilver
+    - MaterialBronze
+    - MaterialCopper
+    - MaterialElectrum
+    - MaterialOther
+  models.UserRole:
+    enum:
+    - admin
+    - user
+    type: string
+    x-enum-varnames:
+    - RoleAdmin
+    - RoleUser
+info:
+  contact: {}
+  description: REST API for managing an ancient coin collection. Supports coin CRUD,
+    image uploads, AI-powered analysis via Ollama, user management, and admin features.
+  title: Ancient Coins API
+  version: "1.0"
+paths:
+  /admin/logs:
+    get:
+      description: Returns recent in-memory application logs, optionally filtered
+        by level. Admin only.
+      parameters:
+      - default: 500
+        description: Maximum number of log entries
+        in: query
+        name: limit
+        type: integer
+      - description: Filter by log level
+        enum:
+        - trace
+        - debug
+        - info
+        - warn
+        - error
+        in: query
+        name: level
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.LogsResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get application logs
+      tags:
+      - Admin
+  /admin/settings:
+    get:
+      description: Returns all application settings merged with defaults. Admin only.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get application settings
+      tags:
+      - Admin
+    put:
+      consumes:
+      - application/json
+      description: Updates one or more application settings. Syncs log level if changed.
+        Admin only.
+      parameters:
+      - description: Settings to update
+        in: body
+        name: body
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/handlers.SettingInput'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.SettingsUpdateResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update application settings
+      tags:
+      - Admin
+  /admin/settings/defaults:
+    get:
+      description: Returns the built-in default values for all application settings.
+        Admin only.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get setting defaults
+      tags:
+      - Admin
+  /admin/users:
+    get:
+      description: Returns a list of all registered users. Admin only.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/handlers.UserDTO'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List all users
+      tags:
+      - Admin
+  /admin/users/{id}:
+    delete:
+      description: Deletes a user and all their associated coins and images. Cannot
+        delete yourself. Admin only.
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete a user
+      tags:
+      - Admin
+  /admin/users/{id}/reset-password:
+    post:
+      consumes:
+      - application/json
+      description: Sets a new password for the specified user. Admin only.
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: New password
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.ResetPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Reset user password
+      tags:
+      - Admin
+  /auth/change-password:
+    post:
+      consumes:
+      - application/json
+      description: Change the authenticated user's password. Requires the current
+        password for verification.
+      parameters:
+      - description: Password change request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.ChangePasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PasswordChangedResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Change password
+      tags:
+      - User
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate with username and password to receive a JWT token.
+      parameters:
+      - description: Login credentials
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.loginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.AuthResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Login
+      tags:
+      - Auth
+  /auth/me:
+    get:
+      description: Returns profile information for the authenticated user.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.UserInfoResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get current user
+      tags:
+      - User
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Create a new user account. The first registered user is assigned
+        the admin role.
+      parameters:
+      - description: Registration credentials
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.registerRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/handlers.AuthResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Register a new user
+      tags:
+      - Auth
+  /auth/setup:
+    get:
+      description: Returns whether the application needs initial setup (no users exist
+        yet).
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.SetupResponse'
+      summary: Check setup status
+      tags:
+      - Auth
+  /coins:
+    get:
+      description: Returns a paginated, filterable list of coins belonging to the
+        authenticated user.
+      parameters:
+      - description: Filter by category (Roman, Greek, Byzantine, Modern, Other)
+        in: query
+        name: category
+        type: string
+      - description: Search across name, denomination, ruler, era, mint, inscriptions,
+          notes
+        in: query
+        name: search
+        type: string
+      - description: Filter by wishlist status
+        enum:
+        - "true"
+        - "false"
+        in: query
+        name: wishlist
+        type: string
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 50
+        description: Items per page (max 100)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.CoinListResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List coins
+      tags:
+      - Coins
+    post:
+      consumes:
+      - application/json
+      description: Creates a new coin record for the authenticated user.
+      parameters:
+      - description: Coin data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.Coin'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Coin'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a coin
+      tags:
+      - Coins
+  /coins/{id}:
+    delete:
+      description: Deletes a coin and all associated image records. Only the coin
+        owner can delete it.
+      parameters:
+      - description: Coin ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.CoinDeletedResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete a coin
+      tags:
+      - Coins
+    get:
+      description: Returns a single coin with its images, owned by the authenticated
+        user.
+      parameters:
+      - description: Coin ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Coin'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get a coin
+      tags:
+      - Coins
+    put:
+      consumes:
+      - application/json
+      description: Updates an existing coin record. Only the coin owner can update
+        it.
+      parameters:
+      - description: Coin ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Updated coin data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.Coin'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Coin'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update a coin
+      tags:
+      - Coins
+  /coins/{id}/analyze:
+    delete:
+      description: Clears the obverse or reverse AI analysis text for a specific coin.
+      parameters:
+      - description: Coin ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Which side's analysis to clear
+        enum:
+        - obverse
+        - reverse
+        in: query
+        name: side
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.DeleteAnalysisResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete coin analysis
+      tags:
+      - Analysis
+    post:
+      description: Sends coin images to Ollama for AI-powered analysis. Can analyze
+        a specific side (obverse/reverse) or all images.
+      parameters:
+      - description: Coin ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Analyze a specific side only
+        enum:
+        - obverse
+        - reverse
+        in: query
+        name: side
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.AnalysisResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Analyze coin images
+      tags:
+      - Analysis
+  /coins/{id}/images:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Upload an image file for a specific coin. Supports setting image
+        type and primary flag.
+      parameters:
+      - description: Coin ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Image file
+        in: formData
+        name: image
+        required: true
+        type: file
+      - default: other
+        description: Image type
+        enum:
+        - obverse
+        - reverse
+        - detail
+        - other
+        in: formData
+        name: imageType
+        type: string
+      - default: "false"
+        description: Set as primary image
+        enum:
+        - "true"
+        - "false"
+        in: formData
+        name: isPrimary
+        type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.CoinImage'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Upload a coin image
+      tags:
+      - Images
+  /coins/{id}/images/{imageId}:
+    delete:
+      description: Deletes an image from a coin. Removes the file from disk and the
+        database record.
+      parameters:
+      - description: Coin ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Image ID
+        in: path
+        name: imageId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.ImageDeletedResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete a coin image
+      tags:
+      - Images
+  /extract-text:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Uploads an image and uses Ollama to extract visible text (e.g.,
+        coin inscriptions).
+      parameters:
+      - description: Image file
+        in: formData
+        name: image
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.ExtractTextResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Extract text from image
+      tags:
+      - Analysis
+  /ollama-status:
+    get:
+      description: Returns whether the configured Ollama instance is reachable and
+        the model is available.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OllamaStatusResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Check Ollama status
+      tags:
+      - Analysis
+  /proxy-image:
+    get:
+      description: Fetches an image from an external URL and streams it to the client.
+        Limited to 20MB. Only http/https URLs with image content types are allowed.
+      parameters:
+      - description: External image URL
+        in: query
+        name: url
+        required: true
+        type: string
+      produces:
+      - image/*
+      responses:
+        "200":
+          description: Image binary data
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "502":
+          description: Bad Gateway
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Proxy an external image
+      tags:
+      - Images
+  /stats:
+    get:
+      description: Returns counts by category/material, total/average values, and
+        wishlist count.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.StatsResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get collection statistics
+      tags:
+      - Coins
+  /suggestions:
+    get:
+      description: Returns distinct values for the specified field, optionally filtered
+        by a search query. Limited to 20 results.
+      parameters:
+      - description: Field to get suggestions for
+        enum:
+        - name
+        - denomination
+        - purchaseLocation
+        in: query
+        name: field
+        required: true
+        type: string
+      - description: Search filter
+        in: query
+        name: q
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              type: string
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get autocomplete suggestions
+      tags:
+      - Coins
+  /user/export:
+    get:
+      description: Downloads all coins and images as a ZIP archive containing coins.json
+        and image files.
+      produces:
+      - application/zip
+      responses:
+        "200":
+          description: ZIP archive
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Export collection
+      tags:
+      - User
+  /user/import:
+    post:
+      consumes:
+      - application/json
+      description: Imports coins from a JSON array. Each coin is created fresh with
+        a new ID for the authenticated user.
+      parameters:
+      - description: Array of coins to import
+        in: body
+        name: body
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/models.Coin'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.ImportResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Import collection
+      tags:
+      - User
+securityDefinitions:
+  BearerAuth:
+    description: Enter your JWT token with the Bearer prefix, e.g. "Bearer eyJhbGci..."
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

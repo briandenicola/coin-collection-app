@@ -18,6 +18,21 @@ func NewAnalysisHandler() *AnalysisHandler {
 	return &AnalysisHandler{}
 }
 
+// Analyze runs AI analysis on a coin's images using Ollama.
+//
+//	@Summary		Analyze coin images
+//	@Description	Sends coin images to Ollama for AI-powered analysis. Can analyze a specific side (obverse/reverse) or all images.
+//	@Tags			Analysis
+//	@Produce		json
+//	@Param			id		path		int		true	"Coin ID"
+//	@Param			side	query		string	false	"Analyze a specific side only"	Enums(obverse, reverse)
+//	@Success		200		{object}	AnalysisResponse
+//	@Failure		400		{object}	ErrorResponse
+//	@Failure		401		{object}	ErrorResponse
+//	@Failure		404		{object}	ErrorResponse
+//	@Failure		500		{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/coins/{id}/analyze [post]
 func (h *AnalysisHandler) Analyze(c *gin.Context) {
 	logger := services.AppLogger
 	userID := c.GetUint("userId")
@@ -123,7 +138,20 @@ func (h *AnalysisHandler) Analyze(c *gin.Context) {
 	})
 }
 
-// DeleteAnalysis clears obverse or reverse analysis for a coin
+// DeleteAnalysis clears obverse or reverse analysis for a coin.
+//
+//	@Summary		Delete coin analysis
+//	@Description	Clears the obverse or reverse AI analysis text for a specific coin.
+//	@Tags			Analysis
+//	@Produce		json
+//	@Param			id		path		int		true	"Coin ID"
+//	@Param			side	query		string	true	"Which side's analysis to clear"	Enums(obverse, reverse)
+//	@Success		200		{object}	DeleteAnalysisResponse
+//	@Failure		400		{object}	ErrorResponse
+//	@Failure		401		{object}	ErrorResponse
+//	@Failure		404		{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/coins/{id}/analyze [delete]
 func (h *AnalysisHandler) DeleteAnalysis(c *gin.Context) {
 	logger := services.AppLogger
 	userID := c.GetUint("userId")
@@ -154,7 +182,20 @@ func (h *AnalysisHandler) DeleteAnalysis(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"coin": coin})
 }
 
-// ExtractText accepts an image upload and returns extracted text via Ollama
+// ExtractText accepts an image upload and returns extracted text via Ollama.
+//
+//	@Summary		Extract text from image
+//	@Description	Uploads an image and uses Ollama to extract visible text (e.g., coin inscriptions).
+//	@Tags			Analysis
+//	@Accept			multipart/form-data
+//	@Produce		json
+//	@Param			image	formData	file	true	"Image file"
+//	@Success		200		{object}	ExtractTextResponse
+//	@Failure		400		{object}	ErrorResponse
+//	@Failure		401		{object}	ErrorResponse
+//	@Failure		500		{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/extract-text [post]
 func (h *AnalysisHandler) ExtractText(c *gin.Context) {
 	logger := services.AppLogger
 	logger.Info("extract-text", "Text extraction request received")
@@ -205,7 +246,16 @@ func (h *AnalysisHandler) ExtractText(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"text": text})
 }
 
-// OllamaStatus checks Ollama connectivity and model availability
+// OllamaStatus checks Ollama connectivity and model availability.
+//
+//	@Summary		Check Ollama status
+//	@Description	Returns whether the configured Ollama instance is reachable and the model is available.
+//	@Tags			Analysis
+//	@Produce		json
+//	@Success		200	{object}	OllamaStatusResponse
+//	@Failure		401	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/ollama-status [get]
 func (h *AnalysisHandler) OllamaStatus(c *gin.Context) {
 	logger := services.AppLogger
 	logger.Debug("ollama-status", "Checking Ollama status")

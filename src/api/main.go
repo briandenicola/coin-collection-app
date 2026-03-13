@@ -7,11 +7,23 @@ import (
 
 	"github.com/briandenicola/ancient-coins-api/config"
 	"github.com/briandenicola/ancient-coins-api/database"
+	_ "github.com/briandenicola/ancient-coins-api/docs"
 	"github.com/briandenicola/ancient-coins-api/handlers"
 	"github.com/briandenicola/ancient-coins-api/middleware"
 	"github.com/briandenicola/ancient-coins-api/services"
 	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
+
+//	@title						Ancient Coins API
+//	@version					1.0
+//	@description				REST API for managing an ancient coin collection. Supports coin CRUD, image uploads, AI-powered analysis via Ollama, user management, and admin features.
+//	@BasePath					/api
+//	@securityDefinitions.apikey	BearerAuth
+//	@in							header
+//	@name						Authorization
+//	@description				Enter your JWT token with the Bearer prefix, e.g. "Bearer eyJhbGci..."
 
 func main() {
 	cfg := config.Load()
@@ -77,6 +89,9 @@ func main() {
 			c.File(filepath.Join(wwwroot, "index.html"))
 		})
 	}
+
+	// Swagger docs
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// Auth routes (public)
 	authHandler := handlers.NewAuthHandler(cfg.JWTSecret)

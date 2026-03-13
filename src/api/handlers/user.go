@@ -20,7 +20,21 @@ func NewUserHandler(uploadDir string) *UserHandler {
 	return &UserHandler{UploadDir: uploadDir}
 }
 
-// ChangePassword allows a user to change their own password
+// ChangePassword allows a user to change their own password.
+//
+//	@Summary		Change password
+//	@Description	Change the authenticated user's password. Requires the current password for verification.
+//	@Tags			User
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		ChangePasswordRequest	true	"Password change request"
+//	@Success		200		{object}	PasswordChangedResponse
+//	@Failure		400		{object}	ErrorResponse
+//	@Failure		401		{object}	ErrorResponse
+//	@Failure		404		{object}	ErrorResponse
+//	@Failure		500		{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/auth/change-password [post]
 func (h *UserHandler) ChangePassword(c *gin.Context) {
 	userID := c.GetUint("userId")
 
@@ -54,7 +68,17 @@ func (h *UserHandler) ChangePassword(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Password changed"})
 }
 
-// GetMe returns the current user info
+// GetMe returns the current authenticated user's info.
+//
+//	@Summary		Get current user
+//	@Description	Returns profile information for the authenticated user.
+//	@Tags			User
+//	@Produce		json
+//	@Success		200	{object}	UserInfoResponse
+//	@Failure		401	{object}	ErrorResponse
+//	@Failure		404	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/auth/me [get]
 func (h *UserHandler) GetMe(c *gin.Context) {
 	userID := c.GetUint("userId")
 
@@ -72,7 +96,16 @@ func (h *UserHandler) GetMe(c *gin.Context) {
 	})
 }
 
-// ExportCollection exports the current user's coins and images as a zip archive
+// ExportCollection exports the current user's coins and images as a zip archive.
+//
+//	@Summary		Export collection
+//	@Description	Downloads all coins and images as a ZIP archive containing coins.json and image files.
+//	@Tags			User
+//	@Produce		application/zip
+//	@Success		200	"ZIP archive"
+//	@Failure		401	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/user/export [get]
 func (h *UserHandler) ExportCollection(c *gin.Context) {
 	userID := c.GetUint("userId")
 
@@ -83,7 +116,19 @@ func (h *UserHandler) ExportCollection(c *gin.Context) {
 	writeCollectionZip(c, coins, h.UploadDir, filename)
 }
 
-// ImportCollection imports coins from JSON for the current user
+// ImportCollection imports coins from JSON for the current user.
+//
+//	@Summary		Import collection
+//	@Description	Imports coins from a JSON array. Each coin is created fresh with a new ID for the authenticated user.
+//	@Tags			User
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		[]models.Coin	true	"Array of coins to import"
+//	@Success		200		{object}	ImportResponse
+//	@Failure		400		{object}	ErrorResponse
+//	@Failure		401		{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/user/import [post]
 func (h *UserHandler) ImportCollection(c *gin.Context) {
 	userID := c.GetUint("userId")
 

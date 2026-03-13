@@ -17,6 +17,22 @@ func NewCoinHandler() *CoinHandler {
 	return &CoinHandler{}
 }
 
+// List returns a paginated list of coins for the authenticated user.
+//
+//	@Summary		List coins
+//	@Description	Returns a paginated, filterable list of coins belonging to the authenticated user.
+//	@Tags			Coins
+//	@Produce		json
+//	@Param			category	query		string	false	"Filter by category (Roman, Greek, Byzantine, Modern, Other)"
+//	@Param			search		query		string	false	"Search across name, denomination, ruler, era, mint, inscriptions, notes"
+//	@Param			wishlist	query		string	false	"Filter by wishlist status"	Enums(true, false)
+//	@Param			page		query		int		false	"Page number"	default(1)
+//	@Param			limit		query		int		false	"Items per page (max 100)"	default(50)
+//	@Success		200			{object}	CoinListResponse
+//	@Failure		401			{object}	ErrorResponse
+//	@Failure		500			{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/coins [get]
 func (h *CoinHandler) List(c *gin.Context) {
 	userID := c.GetUint("userId")
 	category := c.Query("category")
@@ -77,6 +93,20 @@ func (h *CoinHandler) List(c *gin.Context) {
 	})
 }
 
+// Get returns a single coin by ID for the authenticated user.
+//
+//	@Summary		Get a coin
+//	@Description	Returns a single coin with its images, owned by the authenticated user.
+//	@Tags			Coins
+//	@Produce		json
+//	@Param			id	path		int	true	"Coin ID"
+//	@Success		200	{object}	models.Coin
+//	@Failure		400	{object}	ErrorResponse
+//	@Failure		401	{object}	ErrorResponse
+//	@Failure		404	{object}	ErrorResponse
+//	@Failure		500	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/coins/{id} [get]
 func (h *CoinHandler) Get(c *gin.Context) {
 	userID := c.GetUint("userId")
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
@@ -98,6 +128,20 @@ func (h *CoinHandler) Get(c *gin.Context) {
 	c.JSON(http.StatusOK, coin)
 }
 
+// Create adds a new coin for the authenticated user.
+//
+//	@Summary		Create a coin
+//	@Description	Creates a new coin record for the authenticated user.
+//	@Tags			Coins
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		models.Coin	true	"Coin data"
+//	@Success		201		{object}	models.Coin
+//	@Failure		400		{object}	ErrorResponse
+//	@Failure		401		{object}	ErrorResponse
+//	@Failure		500		{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/coins [post]
 func (h *CoinHandler) Create(c *gin.Context) {
 	logger := services.AppLogger
 	userID := c.GetUint("userId")
@@ -125,6 +169,22 @@ func (h *CoinHandler) Create(c *gin.Context) {
 	c.JSON(http.StatusCreated, coin)
 }
 
+// Update modifies an existing coin owned by the authenticated user.
+//
+//	@Summary		Update a coin
+//	@Description	Updates an existing coin record. Only the coin owner can update it.
+//	@Tags			Coins
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		int			true	"Coin ID"
+//	@Param			body	body		models.Coin	true	"Updated coin data"
+//	@Success		200		{object}	models.Coin
+//	@Failure		400		{object}	ErrorResponse
+//	@Failure		401		{object}	ErrorResponse
+//	@Failure		404		{object}	ErrorResponse
+//	@Failure		500		{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/coins/{id} [put]
 func (h *CoinHandler) Update(c *gin.Context) {
 	userID := c.GetUint("userId")
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
@@ -157,6 +217,19 @@ func (h *CoinHandler) Update(c *gin.Context) {
 	c.JSON(http.StatusOK, existing)
 }
 
+// Delete removes a coin and its associated images.
+//
+//	@Summary		Delete a coin
+//	@Description	Deletes a coin and all associated image records. Only the coin owner can delete it.
+//	@Tags			Coins
+//	@Produce		json
+//	@Param			id	path		int	true	"Coin ID"
+//	@Success		200	{object}	CoinDeletedResponse
+//	@Failure		400	{object}	ErrorResponse
+//	@Failure		401	{object}	ErrorResponse
+//	@Failure		404	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/coins/{id} [delete]
 func (h *CoinHandler) Delete(c *gin.Context) {
 	userID := c.GetUint("userId")
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
@@ -177,6 +250,16 @@ func (h *CoinHandler) Delete(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Coin deleted"})
 }
 
+// Stats returns aggregate statistics for the authenticated user's collection.
+//
+//	@Summary		Get collection statistics
+//	@Description	Returns counts by category/material, total/average values, and wishlist count.
+//	@Tags			Coins
+//	@Produce		json
+//	@Success		200	{object}	StatsResponse
+//	@Failure		401	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/stats [get]
 func (h *CoinHandler) Stats(c *gin.Context) {
 	userID := c.GetUint("userId")
 
@@ -228,7 +311,19 @@ func (h *CoinHandler) Stats(c *gin.Context) {
 	})
 }
 
-// Suggestions returns distinct values for autocomplete fields
+// Suggestions returns distinct values for autocomplete fields.
+//
+//	@Summary		Get autocomplete suggestions
+//	@Description	Returns distinct values for the specified field, optionally filtered by a search query. Limited to 20 results.
+//	@Tags			Coins
+//	@Produce		json
+//	@Param			field	query		string	true	"Field to get suggestions for"	Enums(name, denomination, purchaseLocation)
+//	@Param			q		query		string	false	"Search filter"
+//	@Success		200		{array}		string
+//	@Failure		400		{object}	ErrorResponse
+//	@Failure		401		{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/suggestions [get]
 func (h *CoinHandler) Suggestions(c *gin.Context) {
 	userID := c.GetUint("userId")
 	field := c.Query("field")

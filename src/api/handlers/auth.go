@@ -16,19 +16,32 @@ type AuthHandler struct {
 }
 
 type loginRequest struct {
-	Username string `json:"username" binding:"required"`
-	Password string `json:"password" binding:"required"`
+	Username string `json:"username" binding:"required" example:"admin"`
+	Password string `json:"password" binding:"required" example:"password123"`
 }
 
 type registerRequest struct {
-	Username string `json:"username" binding:"required,min=3"`
-	Password string `json:"password" binding:"required,min=6"`
+	Username string `json:"username" binding:"required,min=3" example:"admin"`
+	Password string `json:"password" binding:"required,min=6" example:"password123"`
 }
 
 func NewAuthHandler(jwtSecret string) *AuthHandler {
 	return &AuthHandler{JWTSecret: jwtSecret}
 }
 
+// Register creates a new user account. The first user registered becomes an admin.
+//
+//	@Summary		Register a new user
+//	@Description	Create a new user account. The first registered user is assigned the admin role.
+//	@Tags			Auth
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		registerRequest	true	"Registration credentials"
+//	@Success		201		{object}	AuthResponse
+//	@Failure		400		{object}	ErrorResponse
+//	@Failure		409		{object}	ErrorResponse
+//	@Failure		500		{object}	ErrorResponse
+//	@Router			/auth/register [post]
 func (h *AuthHandler) Register(c *gin.Context) {
 	var req registerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -77,6 +90,19 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	})
 }
 
+// Login authenticates a user and returns a JWT token.
+//
+//	@Summary	Login
+//	@Description	Authenticate with username and password to receive a JWT token.
+//	@Tags		Auth
+//	@Accept		json
+//	@Produce	json
+//	@Param		body	body		loginRequest	true	"Login credentials"
+//	@Success	200		{object}	AuthResponse
+//	@Failure	400		{object}	ErrorResponse
+//	@Failure	401		{object}	ErrorResponse
+//	@Failure	500		{object}	ErrorResponse
+//	@Router		/auth/login [post]
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req loginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -123,7 +149,14 @@ func (h *AuthHandler) generateToken(user models.User) (string, error) {
 	return token.SignedString([]byte(h.JWTSecret))
 }
 
-// NeedsSetup returns whether the first user has been created yet
+// NeedsSetup returns whether the first user has been created yet.
+//
+//	@Summary		Check setup status
+//	@Description	Returns whether the application needs initial setup (no users exist yet).
+//	@Tags			Auth
+//	@Produce		json
+//	@Success		200	{object}	SetupResponse
+//	@Router			/auth/setup [get]
 func (h *AuthHandler) NeedsSetup(c *gin.Context) {
 	var count int64
 	database.DB.Model(&models.User{}).Count(&count)

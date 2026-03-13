@@ -24,6 +24,24 @@ func NewImageHandler(uploadDir string) *ImageHandler {
 	return &ImageHandler{UploadDir: uploadDir}
 }
 
+// Upload adds an image to a coin.
+//
+//	@Summary		Upload a coin image
+//	@Description	Upload an image file for a specific coin. Supports setting image type and primary flag.
+//	@Tags			Images
+//	@Accept			multipart/form-data
+//	@Produce		json
+//	@Param			id			path		int		true	"Coin ID"
+//	@Param			image		formData	file	true	"Image file"
+//	@Param			imageType	formData	string	false	"Image type"	Enums(obverse, reverse, detail, other)	default(other)
+//	@Param			isPrimary	formData	string	false	"Set as primary image"	Enums(true, false)	default(false)
+//	@Success		201			{object}	models.CoinImage
+//	@Failure		400			{object}	ErrorResponse
+//	@Failure		401			{object}	ErrorResponse
+//	@Failure		404			{object}	ErrorResponse
+//	@Failure		500			{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/coins/{id}/images [post]
 func (h *ImageHandler) Upload(c *gin.Context) {
 	logger := services.AppLogger
 	userID := c.GetUint("userId")
@@ -96,6 +114,20 @@ func (h *ImageHandler) Upload(c *gin.Context) {
 	c.JSON(http.StatusCreated, image)
 }
 
+// Delete removes an image from a coin.
+//
+//	@Summary		Delete a coin image
+//	@Description	Deletes an image from a coin. Removes the file from disk and the database record.
+//	@Tags			Images
+//	@Produce		json
+//	@Param			id		path		int	true	"Coin ID"
+//	@Param			imageId	path		int	true	"Image ID"
+//	@Success		200		{object}	ImageDeletedResponse
+//	@Failure		400		{object}	ErrorResponse
+//	@Failure		401		{object}	ErrorResponse
+//	@Failure		404		{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/coins/{id}/images/{imageId} [delete]
 func (h *ImageHandler) Delete(c *gin.Context) {
 	userID := c.GetUint("userId")
 	coinID, err := strconv.ParseUint(c.Param("id"), 10, 32)
@@ -130,6 +162,18 @@ func (h *ImageHandler) Delete(c *gin.Context) {
 }
 
 // ProxyImage fetches an external image URL and streams it back to the client.
+//
+//	@Summary		Proxy an external image
+//	@Description	Fetches an image from an external URL and streams it to the client. Limited to 20MB. Only http/https URLs with image content types are allowed.
+//	@Tags			Images
+//	@Produce		image/*
+//	@Param			url	query	string	true	"External image URL"
+//	@Success		200	"Image binary data"
+//	@Failure		400	{object}	ErrorResponse
+//	@Failure		401	{object}	ErrorResponse
+//	@Failure		502	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/proxy-image [get]
 func (h *ImageHandler) ProxyImage(c *gin.Context) {
 	logger := services.AppLogger
 
