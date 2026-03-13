@@ -115,3 +115,13 @@ export interface LogEntry {
   level: string
   message: string
 }
+
+export interface ApiKey {
+  id: number
+  userId: number
+  keyPrefix: string
+  name: string
+  createdAt: string
+  lastUsedAt: string | null
+  revokedAt: string | null
+}

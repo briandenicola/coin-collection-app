@@ -263,6 +263,22 @@ definitions:
         example: 1250
         type: number
     type: object
+  handlers.generateApiKeyRequest:
+    properties:
+      name:
+        example: My Script
+        type: string
+    required:
+    - name
+    type: object
+  handlers.generateApiKeyResponse:
+    properties:
+      apiKey:
+        $ref: '#/definitions/models.ApiKey'
+      key:
+        example: ak_a1b2c3d4e5f6...
+        type: string
+    type: object
   handlers.loginRequest:
     properties:
       password:
@@ -288,6 +304,23 @@ definitions:
     required:
     - password
     - username
+    type: object
+  models.ApiKey:
+    properties:
+      createdAt:
+        type: string
+      id:
+        type: integer
+      keyPrefix:
+        type: string
+      lastUsedAt:
+        type: string
+      name:
+        type: string
+      revokedAt:
+        type: string
+      userId:
+        type: integer
     type: object
   models.Category:
     enum:
@@ -673,6 +706,97 @@ paths:
       summary: Reset user password
       tags:
       - Admin
+  /auth/api-keys:
+    get:
+      description: Returns all API keys for the authenticated user. Key values are
+        not included, only metadata.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.ApiKey'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List API keys
+      tags:
+      - API Keys
+    post:
+      consumes:
+      - application/json
+      description: Creates a new API key. The key is returned once and cannot be retrieved
+        again.
+      parameters:
+      - description: Key name for identification
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.generateApiKeyRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/handlers.generateApiKeyResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Generate an API key
+      tags:
+      - API Keys
+  /auth/api-keys/{id}:
+    delete:
+      description: Revokes an API key so it can no longer be used for authentication.
+      parameters:
+      - description: API Key ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Revoke an API key
+      tags:
+      - API Keys
   /auth/change-password:
     post:
       consumes:
@@ -1411,6 +1535,11 @@ paths:
       tags:
       - User
 securityDefinitions:
+  ApiKeyAuth:
+    description: Enter your API key, e.g. "ak_a1b2c3d4..."
+    in: header
+    name: X-API-Key
+    type: apiKey
   BearerAuth:
     description: Enter your JWT token with the Bearer prefix, e.g. "Bearer eyJhbGci..."
     in: header

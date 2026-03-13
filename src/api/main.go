@@ -25,6 +25,11 @@ import (
 //	@name						Authorization
 //	@description				Enter your JWT token with the Bearer prefix, e.g. "Bearer eyJhbGci..."
 
+//	@securityDefinitions.apikey	ApiKeyAuth
+//	@in							header
+//	@name						X-API-Key
+//	@description				Enter your API key, e.g. "ak_a1b2c3d4..."
+
 func main() {
 	cfg := config.Load()
 
@@ -133,6 +138,12 @@ func main() {
 		protected.POST("/auth/change-password", userHandler.ChangePassword)
 		protected.GET("/user/export", userHandler.ExportCollection)
 		protected.POST("/user/import", userHandler.ImportCollection)
+
+		// API key management
+		apiKeyHandler := handlers.NewApiKeyHandler()
+		protected.POST("/auth/api-keys", apiKeyHandler.Generate)
+		protected.GET("/auth/api-keys", apiKeyHandler.List)
+		protected.DELETE("/auth/api-keys/:id", apiKeyHandler.Revoke)
 	}
 
 	// Admin-only routes

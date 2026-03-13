@@ -1,15 +1,32 @@
 package middleware
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"net/http"
 	"strings"
+	"time"
 
+	"github.com/briandenicola/ancient-coins-api/database"
+	"github.com/briandenicola/ancient-coins-api/models"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 )
 
 func AuthRequired(jwtSecret string) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// Try API key auth first
+		apiKey := c.GetHeader("X-API-Key")
+		if apiKey != "" {
+			if authenticateApiKey(c, apiKey) {
+				c.Next()
+				return
+			}
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid API key"})
+			return
+		}
+
+		// Fall back to JWT bearer auth
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Authorization header required"})
@@ -52,4 +69,28 @@ func AuthRequired(jwtSecret string) gin.HandlerFunc {
 		c.Set("userRole", role)
 		c.Next()
 	}
+}
+
+func authenticateApiKey(c *gin.Context, plainKey string) bool {
+	hash := sha256.Sum256([]byte(plainKey))
+	keyHash := hex.EncodeToString(hash[:])
+
+	var apiKey models.ApiKey
+	if err := database.DB.Where("key_hash = ? AND revoked_at IS NULL", keyHash).First(&apiKey).Error; err != nil {
+		return false
+	}
+
+	// Look up the user to get their role
+	var user models.User
+	if err := database.DB.First(&user, apiKey.UserID).Error; err != nil {
+		return false
+	}
+
+	// Update last used timestamp
+	now := time.Now()
+	database.DB.Model(&apiKey).Update("last_used_at", &now)
+
+	c.Set("userId", apiKey.UserID)
+	c.Set("userRole", string(user.Role))
+	return true
 }

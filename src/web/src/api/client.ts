@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Coin, CoinListResponse, CoinImage, AuthResponse, StatsResponse, UserInfo, AppSettings, LogEntry } from '@/types'
+import type { Coin, CoinListResponse, CoinImage, AuthResponse, StatsResponse, UserInfo, AppSettings, LogEntry, ApiKey } from '@/types'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
@@ -109,6 +109,12 @@ export const exportCollection = () => api.get('/user/export', { responseType: 'b
 export const proxyImage = (url: string) =>
   api.get('/proxy-image', { params: { url }, responseType: 'blob' })
 export const importCollection = (coins: Coin[]) => api.post('/user/import', coins)
+
+// API Keys
+export const generateApiKey = (name: string) =>
+  api.post<{ key: string; apiKey: ApiKey }>('/auth/api-keys', { name })
+export const listApiKeys = () => api.get<ApiKey[]>('/auth/api-keys')
+export const revokeApiKey = (id: number) => api.delete(`/auth/api-keys/${id}`)
 
 // Admin
 export const getUsers = () => api.get<UserInfo[]>('/admin/users')

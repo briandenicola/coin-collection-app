@@ -101,15 +101,84 @@
         </div>
         <p v-if="dataMsg" class="msg" :class="{ error: dataError }">{{ dataMsg }}</p>
       </section>
+
+      <!-- API Keys -->
+      <section class="settings-section card">
+        <h2>API Keys</h2>
+        <p class="setting-desc" style="margin-bottom: 1rem">
+          Generate API keys to access your collection from external tools and scripts. Use the <code>X-API-Key</code> header to authenticate.
+        </p>
+
+        <!-- Generate form -->
+        <div class="apikey-generate">
+          <input
+            v-model="apiKeyName"
+            type="text"
+            class="form-input"
+            placeholder="Key name (e.g. My Script)"
+            :disabled="generatingKey"
+          />
+          <button
+            class="btn btn-primary btn-sm"
+            :disabled="!apiKeyName.trim() || generatingKey"
+            @click="handleGenerateKey"
+          >
+            {{ generatingKey ? 'Generating...' : '🔑 Generate Key' }}
+          </button>
+        </div>
+
+        <!-- Newly generated key (shown once) -->
+        <div v-if="newlyGeneratedKey" class="apikey-reveal">
+          <p class="apikey-reveal-warning">
+            ⚠️ Copy this key now — it will not be shown again.
+          </p>
+          <div class="apikey-reveal-box">
+            <code class="apikey-reveal-value">{{ newlyGeneratedKey }}</code>
+            <button class="btn btn-secondary btn-sm" @click="copyKey">
+              {{ keyCopied ? '✓ Copied' : '📋 Copy' }}
+            </button>
+          </div>
+        </div>
+
+        <p v-if="apiKeyMsg" class="msg" :class="{ error: apiKeyError }">{{ apiKeyMsg }}</p>
+
+        <!-- Existing keys list -->
+        <div v-if="apiKeys.length" class="apikey-list">
+          <div
+            v-for="key in apiKeys"
+            :key="key.id"
+            class="apikey-item"
+            :class="{ revoked: key.revokedAt }"
+          >
+            <div class="apikey-item-info">
+              <span class="apikey-item-name">{{ key.name }}</span>
+              <span class="apikey-item-meta">
+                ...{{ key.keyPrefix }}
+                · Created {{ formatDate(key.createdAt) }}
+                <template v-if="key.lastUsedAt"> · Last used {{ formatDate(key.lastUsedAt) }}</template>
+              </span>
+            </div>
+            <span v-if="key.revokedAt" class="apikey-item-badge revoked-badge">Revoked</span>
+            <button
+              v-else
+              class="btn btn-danger btn-sm"
+              @click="handleRevokeKey(key.id)"
+            >
+              Revoke
+            </button>
+          </div>
+        </div>
+        <p v-else-if="!generatingKey" class="setting-desc" style="margin-top: 0.5rem">No API keys yet.</p>
+      </section>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
-import { changePassword, exportCollection, importCollection } from '@/api/client'
-import type { Coin, Theme } from '@/types'
+import { changePassword, exportCollection, importCollection, generateApiKey, listApiKeys, revokeApiKey } from '@/api/client'
+import type { Coin, Theme, ApiKey } from '@/types'
 
 
 const auth = useAuthStore()
@@ -207,6 +276,85 @@ async function handleImport(e: Event) {
     dataError.value = true
   }
 }
+
+// API Keys
+const apiKeys = ref<ApiKey[]>([])
+const apiKeyName = ref('')
+const newlyGeneratedKey = ref('')
+const keyCopied = ref(false)
+const generatingKey = ref(false)
+const apiKeyMsg = ref('')
+const apiKeyError = ref(false)
+
+async function loadApiKeys() {
+  try {
+    const res = await listApiKeys()
+    apiKeys.value = res.data
+  } catch {
+    // silently fail on load
+  }
+}
+
+async function handleGenerateKey() {
+  if (!apiKeyName.value.trim()) return
+
+  generatingKey.value = true
+  apiKeyMsg.value = ''
+  apiKeyError.value = false
+  newlyGeneratedKey.value = ''
+  keyCopied.value = false
+
+  try {
+    const res = await generateApiKey(apiKeyName.value.trim())
+    newlyGeneratedKey.value = res.data.key
+    apiKeyName.value = ''
+    await loadApiKeys()
+  } catch {
+    apiKeyMsg.value = 'Failed to generate API key'
+    apiKeyError.value = true
+  } finally {
+    generatingKey.value = false
+  }
+}
+
+async function copyKey() {
+  try {
+    await navigator.clipboard.writeText(newlyGeneratedKey.value)
+    keyCopied.value = true
+    setTimeout(() => { keyCopied.value = false }, 3000)
+  } catch {
+    // Fallback for non-HTTPS contexts
+    const textarea = document.createElement('textarea')
+    textarea.value = newlyGeneratedKey.value
+    document.body.appendChild(textarea)
+    textarea.select()
+    document.execCommand('copy')
+    document.body.removeChild(textarea)
+    keyCopied.value = true
+    setTimeout(() => { keyCopied.value = false }, 3000)
+  }
+}
+
+async function handleRevokeKey(id: number) {
+  apiKeyMsg.value = ''
+  apiKeyError.value = false
+  try {
+    await revokeApiKey(id)
+    await loadApiKeys()
+    newlyGeneratedKey.value = ''
+  } catch {
+    apiKeyMsg.value = 'Failed to revoke key'
+    apiKeyError.value = true
+  }
+}
+
+function formatDate(dateStr: string) {
+  return new Date(dateStr).toLocaleDateString(undefined, {
+    year: 'numeric', month: 'short', day: 'numeric',
+  })
+}
+
+onMounted(loadApiKeys)
 </script>
 
 <style scoped>
@@ -311,6 +459,109 @@ async function handleImport(e: Event) {
 
 .msg.error {
   color: #e74c3c;
+}
+
+.apikey-generate {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.apikey-generate .form-input {
+  flex: 1;
+  max-width: 280px;
+}
+
+.apikey-reveal {
+  background: var(--bg-primary);
+  border: 1px solid var(--accent-gold-dim);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.apikey-reveal-warning {
+  font-size: 0.8rem;
+  color: var(--accent-gold);
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+}
+
+.apikey-reveal-box {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.apikey-reveal-value {
+  flex: 1;
+  font-size: 0.78rem;
+  background: var(--bg-card);
+  padding: 0.4rem 0.6rem;
+  border-radius: var(--radius-sm);
+  word-break: break-all;
+  user-select: all;
+}
+
+.apikey-list {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.apikey-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--border-subtle);
+  gap: 0.75rem;
+}
+
+.apikey-item:last-child {
+  border-bottom: none;
+}
+
+.apikey-item.revoked {
+  opacity: 0.5;
+}
+
+.apikey-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.apikey-item-name {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.apikey-item-meta {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.revoked-badge {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.5rem;
+  background: var(--bg-primary);
+  border-radius: var(--radius-full);
+  color: var(--text-muted);
+}
+
+.btn-danger {
+  background: #e74c3c;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+}
+
+.btn-danger:hover {
+  background: #c0392b;
 }
 
 @media (max-width: 640px) {
