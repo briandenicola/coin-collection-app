@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/base64"
 	"fmt"
 	"io"
 	"net/http"
@@ -111,6 +112,138 @@ func (h *ImageHandler) Upload(c *gin.Context) {
 	}
 
 	logger.Info("images", "Uploaded %s image for coin %d: %s", imageType, coinID, image.FilePath)
+	c.JSON(http.StatusCreated, image)
+}
+
+type base64ImageRequest struct {
+	Image     string `json:"image" binding:"required" example:"iVBORw0KGgoAAAANSUhEUg..."`
+	ImageType string `json:"imageType" example:"obverse"`
+	IsPrimary bool   `json:"isPrimary" example:"false"`
+	Filename  string `json:"filename" example:"coin-front.jpg"`
+}
+
+// UploadBase64 adds an image to a coin from a base64-encoded string.
+//
+//	@Summary		Upload a coin image (base64)
+//	@Description	Upload a base64-encoded image for a specific coin. Accepts a JSON body with the image data. Supports optional data URI prefix (e.g. "data:image/png;base64,..."). Max 20MB decoded.
+//	@Tags			Images
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		int					true	"Coin ID"
+//	@Param			body	body		base64ImageRequest	true	"Base64 image data"
+//	@Success		201		{object}	models.CoinImage
+//	@Failure		400		{object}	ErrorResponse
+//	@Failure		401		{object}	ErrorResponse
+//	@Failure		404		{object}	ErrorResponse
+//	@Failure		500		{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Security		ApiKeyAuth
+//	@Router			/coins/{id}/images/base64 [post]
+func (h *ImageHandler) UploadBase64(c *gin.Context) {
+	logger := services.AppLogger
+	userID := c.GetUint("userId")
+	coinID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid coin ID"})
+		return
+	}
+
+	var req base64ImageRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Verify ownership
+	var coin models.Coin
+	if err := database.DB.Where("id = ? AND user_id = ?", coinID, userID).First(&coin).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Coin not found"})
+		return
+	}
+
+	// Strip data URI prefix if present (e.g. "data:image/png;base64,...")
+	imageData := req.Image
+	ext := ".bin"
+	if idx := strings.Index(imageData, ";base64,"); idx != -1 {
+		mimeType := imageData[5:idx] // after "data:"
+		imageData = imageData[idx+8:]
+		switch mimeType {
+		case "image/jpeg":
+			ext = ".jpg"
+		case "image/png":
+			ext = ".png"
+		case "image/gif":
+			ext = ".gif"
+		case "image/webp":
+			ext = ".webp"
+		default:
+			ext = ".jpg"
+		}
+	} else if req.Filename != "" {
+		ext = filepath.Ext(req.Filename)
+		if ext == "" {
+			ext = ".jpg"
+		}
+	} else {
+		ext = ".jpg"
+	}
+
+	decoded, err := base64.StdEncoding.DecodeString(imageData)
+	if err != nil {
+		// Try RawStdEncoding (no padding)
+		decoded, err = base64.RawStdEncoding.DecodeString(imageData)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid base64 image data"})
+			return
+		}
+	}
+
+	const maxSize = 20 * 1024 * 1024
+	if len(decoded) > maxSize {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Image exceeds 20MB limit"})
+		return
+	}
+
+	logger.Debug("images", "Base64 upload for coin %d: %d bytes decoded", coinID, len(decoded))
+
+	imageType := models.ImageType("other")
+	if req.ImageType != "" {
+		imageType = models.ImageType(req.ImageType)
+	}
+
+	// Create upload directory
+	coinDir := filepath.Join(h.UploadDir, fmt.Sprintf("coin-%d", coinID))
+	if err := os.MkdirAll(coinDir, 0755); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create upload directory"})
+		return
+	}
+
+	filename := fmt.Sprintf("%d-%s%s", time.Now().UnixNano(), imageType, ext)
+	filePath := filepath.Join(coinDir, filename)
+
+	if err := os.WriteFile(filePath, decoded, 0644); err != nil {
+		logger.Error("images", "Failed to write base64 image to %s: %v", filePath, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save image"})
+		return
+	}
+
+	if req.IsPrimary {
+		database.DB.Model(&models.CoinImage{}).Where("coin_id = ?", coinID).Update("is_primary", false)
+	}
+
+	image := models.CoinImage{
+		CoinID:    uint(coinID),
+		FilePath:  filepath.ToSlash(filepath.Join(fmt.Sprintf("coin-%d", coinID), filename)),
+		ImageType: imageType,
+		IsPrimary: req.IsPrimary,
+	}
+
+	if err := database.DB.Create(&image).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save image record"})
+		return
+	}
+
+	logger.Info("images", "Uploaded base64 %s image for coin %d: %s", imageType, coinID, image.FilePath)
 	c.JSON(http.StatusCreated, image)
 }
 

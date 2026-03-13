@@ -1277,6 +1277,79 @@
                 }
             }
         },
+        "/coins/{id}/images/base64": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Upload a base64-encoded image for a specific coin. Accepts a JSON body with the image data. Supports optional data URI prefix (e.g. \"data:image/png;base64,...\"). Max 20MB decoded.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Images"
+                ],
+                "summary": "Upload a coin image (base64)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Coin ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Base64 image data",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.base64ImageRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/models.CoinImage"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/coins/{id}/images/{imageId}": {
             "delete": {
                 "security": [
@@ -2026,6 +2099,30 @@
                 "totalPurchasePrice": {
                     "type": "number",
                     "example": 1250
+                }
+            }
+        },
+        "handlers.base64ImageRequest": {
+            "type": "object",
+            "required": [
+                "image"
+            ],
+            "properties": {
+                "filename": {
+                    "type": "string",
+                    "example": "coin-front.jpg"
+                },
+                "image": {
+                    "type": "string",
+                    "example": "iVBORw0KGgoAAAANSUhEUg..."
+                },
+                "imageType": {
+                    "type": "string",
+                    "example": "obverse"
+                },
+                "isPrimary": {
+                    "type": "boolean",
+                    "example": false
                 }
             }
         },

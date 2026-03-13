@@ -263,6 +263,23 @@ definitions:
         example: 1250
         type: number
     type: object
+  handlers.base64ImageRequest:
+    properties:
+      filename:
+        example: coin-front.jpg
+        type: string
+      image:
+        example: iVBORw0KGgoAAAANSUhEUg...
+        type: string
+      imageType:
+        example: obverse
+        type: string
+      isPrimary:
+        example: false
+        type: boolean
+    required:
+    - image
+    type: object
   handlers.generateApiKeyRequest:
     properties:
       name:
@@ -1331,6 +1348,54 @@ paths:
       security:
       - BearerAuth: []
       summary: Delete a coin image
+      tags:
+      - Images
+  /coins/{id}/images/base64:
+    post:
+      consumes:
+      - application/json
+      description: Upload a base64-encoded image for a specific coin. Accepts a JSON
+        body with the image data. Supports optional data URI prefix (e.g. "data:image/png;base64,...").
+        Max 20MB decoded.
+      parameters:
+      - description: Coin ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Base64 image data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.base64ImageRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.CoinImage'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      - ApiKeyAuth: []
+      summary: Upload a coin image (base64)
       tags:
       - Images
   /extract-text:

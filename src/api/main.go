@@ -123,6 +123,7 @@ func main() {
 
 		imageHandler := handlers.NewImageHandler(cfg.UploadDir)
 		protected.POST("/coins/:id/images", imageHandler.Upload)
+		protected.POST("/coins/:id/images/base64", imageHandler.UploadBase64)
 		protected.DELETE("/coins/:id/images/:imageId", imageHandler.Delete)
 		protected.GET("/proxy-image", imageHandler.ProxyImage)
 
