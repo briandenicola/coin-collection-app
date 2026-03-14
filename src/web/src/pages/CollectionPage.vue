@@ -1,15 +1,15 @@
 <template>
   <div class="container">
-    <div class="page-header">
+    <div class="page-header collection-header">
       <h1>My Collection</h1>
-      <div class="header-actions">
-        <SearchBar v-model="search" />
+      <SearchBar v-model="search" />
+      <div class="header-filters">
+        <CategoryFilter v-model="selectedCategory" />
         <SortSelect v-model="sortKey" />
       </div>
     </div>
 
     <div class="collection-toolbar">
-      <CategoryFilter v-model="selectedCategory" />
       <div class="toolbar-right">
         <div v-if="viewMode === 'grid'" class="side-toggle">
           <button class="toggle-btn" :class="{ active: gridSide === null }" @click="gridSide = null">
@@ -128,19 +128,33 @@ loadCoins()
 </script>
 
 <style scoped>
-.header-actions {
+.collection-header {
   display: flex;
-  gap: 0.75rem;
   align-items: center;
+  gap: 1rem;
+}
+
+.collection-header h1 {
+  white-space: nowrap;
+}
+
+.collection-header :deep(.search-bar) {
+  flex: 1;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.header-filters {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .collection-toolbar {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  flex-wrap: wrap;
+  justify-content: flex-end;
   margin-bottom: 1rem;
 }
 
@@ -217,5 +231,20 @@ loadCoins()
 .page-info {
   color: var(--text-secondary);
   font-size: 0.85rem;
+}
+
+@media (max-width: 768px) {
+  .collection-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .collection-header :deep(.search-bar) {
+    max-width: 100%;
+  }
+
+  .header-filters {
+    justify-content: flex-start;
+  }
 }
 </style>
