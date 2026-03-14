@@ -5,6 +5,23 @@
       <div class="header-actions">
         <SearchBar v-model="search" />
         <SortSelect v-model="sortKey" />
+      </div>
+    </div>
+
+    <div class="collection-toolbar">
+      <CategoryFilter v-model="selectedCategory" />
+      <div class="toolbar-right">
+        <div v-if="viewMode === 'grid'" class="side-toggle">
+          <button class="toggle-btn" :class="{ active: gridSide === null }" @click="gridSide = null">
+            Primary
+          </button>
+          <button class="toggle-btn" :class="{ active: gridSide === 'obverse' }" @click="gridSide = 'obverse'">
+            Obverse
+          </button>
+          <button class="toggle-btn" :class="{ active: gridSide === 'reverse' }" @click="gridSide = 'reverse'">
+            Reverse
+          </button>
+        </div>
         <div class="view-toggle">
           <button class="view-btn" :class="{ active: viewMode === 'swipe' }" @click="viewMode = 'swipe'" title="Swipe view">
             <Layers :size="18" />
@@ -17,35 +34,15 @@
       </div>
     </div>
 
-    <CategoryFilter v-model="selectedCategory" />
-
     <div v-if="store.loading" class="loading-overlay">
       <div class="spinner"></div>
       <p>Loading collection...</p>
     </div>
 
     <template v-else-if="store.coins.length">
-      <!-- Swipe view -->
       <SwipeGallery v-if="viewMode === 'swipe'" :coins="store.coins" />
-
-      <!-- Grid view -->
-      <div v-else>
-        <div class="grid-toolbar">
-          <div class="side-toggle">
-            <button class="toggle-btn" :class="{ active: gridSide === null }" @click="gridSide = null">
-              Primary
-            </button>
-            <button class="toggle-btn" :class="{ active: gridSide === 'obverse' }" @click="gridSide = 'obverse'">
-              Obverse
-            </button>
-            <button class="toggle-btn" :class="{ active: gridSide === 'reverse' }" @click="gridSide = 'reverse'">
-              Reverse
-            </button>
-          </div>
-        </div>
-        <div class="coins-grid">
-          <CoinCard v-for="coin in store.coins" :key="coin.id" :coin="coin" :image-side="gridSide" />
-        </div>
+      <div v-else class="coins-grid">
+        <CoinCard v-for="coin in store.coins" :key="coin.id" :coin="coin" :image-side="gridSide" />
       </div>
     </template>
 
@@ -138,6 +135,22 @@ loadCoins()
   flex-wrap: wrap;
 }
 
+.collection-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
 .view-toggle {
   display: flex;
   border: 1px solid var(--border-subtle);
@@ -163,13 +176,6 @@ loadCoins()
 
 .view-btn:hover:not(.active) {
   background: var(--bg-card-hover);
-}
-
-.grid-toolbar {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 1rem;
-  margin-bottom: 1rem;
 }
 
 .side-toggle {
