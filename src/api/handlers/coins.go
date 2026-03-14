@@ -28,6 +28,8 @@ func NewCoinHandler() *CoinHandler {
 //	@Param			wishlist	query		string	false	"Filter by wishlist status"	Enums(true, false)
 //	@Param			page		query		int		false	"Page number"	default(1)
 //	@Param			limit		query		int		false	"Items per page (max 100)"	default(50)
+//	@Param			sort		query		string	false	"Sort field"	Enums(created_at, updated_at, current_value)	default(updated_at)
+//	@Param			order		query		string	false	"Sort order"	Enums(asc, desc)	default(desc)
 //	@Success		200			{object}	CoinListResponse
 //	@Failure		401			{object}	ErrorResponse
 //	@Failure		500			{object}	ErrorResponse
@@ -38,6 +40,8 @@ func (h *CoinHandler) List(c *gin.Context) {
 	category := c.Query("category")
 	search := c.Query("search")
 	wishlist := c.Query("wishlist")
+	sortField := c.DefaultQuery("sort", "updated_at")
+	sortOrder := c.DefaultQuery("order", "desc")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 
@@ -79,8 +83,22 @@ func (h *CoinHandler) List(c *gin.Context) {
 	var total int64
 	query.Model(&models.Coin{}).Count(&total)
 
+	allowedSortFields := map[string]string{
+		"created_at":    "created_at",
+		"updated_at":    "updated_at",
+		"current_value": "current_value",
+	}
+	column, ok := allowedSortFields[sortField]
+	if !ok {
+		column = "updated_at"
+	}
+	if sortOrder != "asc" && sortOrder != "desc" {
+		sortOrder = "desc"
+	}
+	orderClause := column + " " + sortOrder
+
 	var coins []models.Coin
-	if err := query.Order("updated_at DESC").Offset(offset).Limit(limit).Find(&coins).Error; err != nil {
+	if err := query.Order(orderClause).Offset(offset).Limit(limit).Find(&coins).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch coins"})
 		return
 	}

@@ -6,21 +6,33 @@
     </div>
     <div class="card-body">
       <h3 class="card-title">{{ coin.name }}</h3>
-      <div class="card-meta">
-        <span v-if="coin.ruler" class="meta-item">{{ coin.ruler }}</span>
-        <span v-if="coin.era" class="meta-item">{{ coin.era }}</span>
-      </div>
-      <div class="card-details">
-        <span v-if="coin.category" class="detail" :class="`category-${coin.category.toLowerCase()}`">{{ coin.category }}</span>
-        <span v-if="coin.denomination" class="detail">{{ coin.denomination }}</span>
-        <span v-if="coin.material" class="detail" :class="`material-${coin.material.toLowerCase()}`">
-          {{ coin.material }}
-        </span>
-      </div>
-      <div v-if="coin.grade" class="card-grade">{{ coin.grade }}</div>
+      <template v-if="!wishlist">
+        <div class="card-meta">
+          <span v-if="coin.ruler" class="meta-item">{{ coin.ruler }}</span>
+          <span v-if="coin.era" class="meta-item">{{ coin.era }}</span>
+        </div>
+        <div class="card-details">
+          <span v-if="coin.category" class="detail" :class="`category-${coin.category.toLowerCase()}`">{{ coin.category }}</span>
+          <span v-if="coin.denomination" class="detail">{{ coin.denomination }}</span>
+          <span v-if="coin.material" class="detail" :class="`material-${coin.material.toLowerCase()}`">
+            {{ coin.material }}
+          </span>
+        </div>
+        <div v-if="coin.grade" class="card-grade">{{ coin.grade }}</div>
+      </template>
       <div v-if="coin.currentValue || coin.purchasePrice" class="card-value">
         {{ formatCurrency(coin.currentValue || coin.purchasePrice || 0) }}
       </div>
+      <a
+        v-if="wishlist && coin.referenceUrl"
+        :href="coin.referenceUrl"
+        class="card-reference"
+        target="_blank"
+        rel="noopener noreferrer"
+        @click.stop
+      >
+        {{ coin.referenceText || coin.referenceUrl }}
+      </a>
     </div>
   </div>
 </template>
@@ -30,8 +42,9 @@ import type { Coin, ImageType } from '@/types'
 import { computed } from 'vue'
 import { Coins } from 'lucide-vue-next'
 
-const props = withDefaults(defineProps<{ coin: Coin; imageSide?: ImageType | null }>(), {
+const props = withDefaults(defineProps<{ coin: Coin; imageSide?: ImageType | null; wishlist?: boolean }>(), {
   imageSide: null,
+  wishlist: false,
 })
 
 const primaryImage = computed(() => {
@@ -139,6 +152,20 @@ function formatCurrency(value: number) {
   font-size: 0.9rem;
   font-weight: 600;
   color: var(--accent-gold);
+}
+
+.card-reference {
+  font-size: 0.8rem;
+  color: var(--accent-gold);
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+}
+
+.card-reference:hover {
+  text-decoration: underline;
 }
 
 .category-roman { color: #b57edc; }

@@ -75,6 +75,25 @@
             <option v-for="tz in timezones" :key="tz" :value="tz">{{ tz }}</option>
           </select>
         </div>
+
+        <div class="setting-item">
+          <div class="setting-info">
+            <span class="setting-label">Default View</span>
+            <span class="setting-desc">Preferred collection view on mobile / PWA</span>
+          </div>
+          <div class="theme-toggle">
+            <button
+              class="theme-btn"
+              :class="{ active: defaultView === 'swipe' }"
+              @click="setDefaultView('swipe')"
+            >Swipe</button>
+            <button
+              class="theme-btn"
+              :class="{ active: defaultView === 'grid' }"
+              @click="setDefaultView('grid')"
+            >Grid</button>
+          </div>
+        </div>
       </section>
 
       <!-- Data Management -->
@@ -231,6 +250,14 @@ const timezone = ref(localStorage.getItem('timezone') || Intl.DateTimeFormat().r
 
 function saveTimezone() {
   localStorage.setItem('timezone', timezone.value)
+}
+
+// Default view
+const defaultView = ref<'swipe' | 'grid'>((localStorage.getItem('defaultView') as 'swipe' | 'grid') || 'swipe')
+
+function setDefaultView(v: 'swipe' | 'grid') {
+  defaultView.value = v
+  localStorage.setItem('defaultView', v)
 }
 
 // Data

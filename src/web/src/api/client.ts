@@ -41,6 +41,8 @@ export const getCoins = (params?: {
   wishlist?: string
   page?: number
   limit?: number
+  sort?: string
+  order?: string
 }) => api.get<CoinListResponse>('/coins', { params })
 
 const NULLABLE_FIELDS = ['weightGrams', 'diameterMm', 'purchasePrice', 'currentValue', 'purchaseDate']

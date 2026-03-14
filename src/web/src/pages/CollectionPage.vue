@@ -4,6 +4,7 @@
       <h1>My Collection</h1>
       <div class="header-actions">
         <SearchBar v-model="search" />
+        <SortSelect v-model="sortKey" />
         <div class="view-toggle">
           <button class="view-btn" :class="{ active: viewMode === 'swipe' }" @click="viewMode = 'swipe'" title="Swipe view">
             <Layers :size="18" />
@@ -72,6 +73,7 @@ import CoinCard from '@/components/CoinCard.vue'
 import SwipeGallery from '@/components/SwipeGallery.vue'
 import CategoryFilter from '@/components/CategoryFilter.vue'
 import SearchBar from '@/components/SearchBar.vue'
+import SortSelect from '@/components/SortSelect.vue'
 
 import { Layers, LayoutGrid, CirclePlus } from 'lucide-vue-next'
 
@@ -79,16 +81,21 @@ const store = useCoinsStore()
 const selectedCategory = store.selectedCategory !== undefined ? ref(store.selectedCategory) : ref('')
 const search = ref(store.searchQuery)
 const page = ref(1)
+const sortKey = ref('updated_at_desc')
 
-// Default to swipe in standalone PWA mode, grid otherwise
+// Use saved preference if set, otherwise default to swipe in PWA mode
+const savedView = localStorage.getItem('defaultView') as 'grid' | 'swipe' | null
 const isPwa = window.matchMedia('(display-mode: standalone)').matches
   || (window.navigator as any).standalone === true
-const viewMode = ref<'grid' | 'swipe'>(isPwa ? 'swipe' : 'grid')
+const viewMode = ref<'grid' | 'swipe'>(savedView || (isPwa ? 'swipe' : 'grid'))
 const gridSide = ref<ImageType | null>(null)
 
 let debounceTimer: ReturnType<typeof setTimeout>
 
 function loadCoins() {
+  const [sort, order] = sortKey.value.split('_').length === 3
+    ? [sortKey.value.split('_').slice(0, 2).join('_'), sortKey.value.split('_')[2]]
+    : [sortKey.value.split('_')[0], sortKey.value.split('_')[1]]
   store.selectedCategory = selectedCategory.value
   store.searchQuery = search.value
   store.fetchCoins({
@@ -96,6 +103,8 @@ function loadCoins() {
     search: search.value || undefined,
     wishlist: 'false',
     page: page.value,
+    sort,
+    order,
   })
 }
 
@@ -113,6 +122,10 @@ watch(search, () => {
 })
 
 watch(page, loadCoins)
+watch(sortKey, () => {
+  page.value = 1
+  loadCoins()
+})
 
 loadCoins()
 </script>
