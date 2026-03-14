@@ -3,13 +3,11 @@
     <div class="page-header collection-header">
       <h1>My Collection</h1>
       <SearchBar v-model="search" />
-      <div class="header-filters">
-        <CategoryFilter v-model="selectedCategory" />
-        <SortSelect v-model="sortKey" />
-      </div>
+      <SortSelect v-model="sortKey" />
     </div>
 
     <div class="collection-toolbar">
+      <CategoryFilter v-model="selectedCategory" />
       <div class="toolbar-right">
         <div v-if="viewMode === 'grid'" class="side-toggle">
           <button class="toggle-btn" :class="{ active: gridSide === null }" @click="gridSide = null">
@@ -144,17 +142,12 @@ loadCoins()
   margin: 0 auto;
 }
 
-.header-filters {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
 .collection-toolbar {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
   margin-bottom: 1rem;
 }
 
