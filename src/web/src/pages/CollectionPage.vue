@@ -102,7 +102,7 @@
       </router-link>
     </div>
 
-    <div v-if="store.total > 50" class="pagination">
+    <div v-if="store.total > 50 && viewMode === 'grid'" class="pagination">
       <button class="btn btn-secondary btn-sm" :disabled="page <= 1" @click="page--">← Previous</button>
       <span class="page-info">Page {{ page }} of {{ Math.ceil(store.total / 50) }}</span>
       <button class="btn btn-secondary btn-sm" :disabled="page * 50 >= store.total" @click="page++">Next →</button>
