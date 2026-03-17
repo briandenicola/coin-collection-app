@@ -19,7 +19,9 @@ export function usePullToRefresh(
 
   function onTouchStart(e: TouchEvent) {
     if (refreshing.value || !isAtTop()) return
-    startY = e.touches[0].clientY
+    const touch = e.touches[0]
+    if (!touch) return
+    startY = touch.clientY
     pulling = true
   }
 
@@ -30,7 +32,9 @@ export function usePullToRefresh(
       return
     }
 
-    const dy = e.touches[0].clientY - startY
+    const touch = e.touches[0]
+    if (!touch) return
+    const dy = touch.clientY - startY
     if (dy < 0) {
       pullDistance.value = 0
       return
