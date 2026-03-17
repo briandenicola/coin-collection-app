@@ -68,6 +68,7 @@ function sanitizeCoin(coin: Partial<Coin>): Partial<Coin> {
 export const getCoin = (id: number) => api.get<Coin>(`/coins/${id}`)
 export const createCoin = (coin: Partial<Coin>) => api.post<Coin>('/coins', sanitizeCoin(coin))
 export const updateCoin = (id: number, coin: Partial<Coin>) => api.put<Coin>(`/coins/${id}`, sanitizeCoin(coin))
+export const purchaseCoin = (id: number) => api.post<Coin>(`/coins/${id}/purchase`)
 export const deleteCoin = (id: number) => api.delete(`/coins/${id}`)
 
 // Images

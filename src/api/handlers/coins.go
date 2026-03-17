@@ -235,6 +235,43 @@ func (h *CoinHandler) Update(c *gin.Context) {
 	c.JSON(http.StatusOK, existing)
 }
 
+// Purchase marks a wishlist coin as purchased (moves it to the collection).
+//
+//	@Summary		Mark coin as purchased
+//	@Description	Sets isWishlist to false, moving the coin from wishlist to collection. Only the coin owner can do this.
+//	@Tags			Coins
+//	@Produce		json
+//	@Param			id	path		int	true	"Coin ID"
+//	@Success		200	{object}	models.Coin
+//	@Failure		400	{object}	ErrorResponse
+//	@Failure		401	{object}	ErrorResponse
+//	@Failure		404	{object}	ErrorResponse
+//	@Failure		500	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/coins/{id}/purchase [post]
+func (h *CoinHandler) Purchase(c *gin.Context) {
+	userID := c.GetUint("userId")
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid coin ID"})
+		return
+	}
+
+	var coin models.Coin
+	if err := database.DB.Where("id = ? AND user_id = ?", id, userID).First(&coin).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Coin not found"})
+		return
+	}
+
+	if err := database.DB.Model(&coin).Update("is_wishlist", false).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to mark as purchased"})
+		return
+	}
+
+	database.DB.Preload("Images").First(&coin, coin.ID)
+	c.JSON(http.StatusOK, coin)
+}
+
 // Delete removes a coin and its associated images.
 //
 //	@Summary		Delete a coin

@@ -8,6 +8,7 @@
       <div class="detail-header">
         <button class="btn btn-secondary btn-sm" @click="$router.back()">← Back</button>
         <div class="detail-actions">
+          <button v-if="coin.isWishlist" class="btn btn-primary btn-sm" @click="handlePurchase">🛒 Mark as Purchased</button>
           <router-link :to="`/edit/${coin.id}`" class="btn btn-secondary btn-sm">Edit</router-link>
           <button class="btn btn-danger btn-sm" @click="handleDelete">Delete</button>
         </div>
@@ -189,7 +190,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useCoinsStore } from '@/stores/coins'
 import ImageGallery from '@/components/ImageGallery.vue'
-import { uploadImage, analyzeCoin, deleteAnalysis, deleteCoin, deleteImage, getOllamaStatus } from '@/api/client'
+import { uploadImage, analyzeCoin, deleteAnalysis, deleteCoin, deleteImage, purchaseCoin, getOllamaStatus } from '@/api/client'
 import { removeBackground as removeBg } from '@imgly/background-removal'
 import type { CoinImage } from '@/types'
 import MarkdownIt from 'markdown-it'
@@ -302,6 +303,16 @@ async function handleAnalyze(side: 'obverse' | 'reverse') {
   } finally {
     analyzing.value = false
     analyzingSide.value = null
+  }
+}
+
+async function handlePurchase() {
+  if (!coin.value || !confirm(`Move "${coin.value.name}" to your collection?`)) return
+  try {
+    await purchaseCoin(coin.value.id)
+    store.fetchCoin(coin.value.id)
+  } catch {
+    alert('Failed to mark as purchased')
   }
 }
 

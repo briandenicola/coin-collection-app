@@ -13,7 +13,7 @@
     </div>
 
     <div v-else-if="store.coins.length" class="coins-grid">
-      <CoinCard v-for="coin in store.coins" :key="coin.id" :coin="coin" wishlist />
+      <CoinCard v-for="coin in store.coins" :key="coin.id" :coin="coin" wishlist @purchase="handlePurchase" />
     </div>
 
     <div v-else class="empty-state">
@@ -28,6 +28,8 @@ import { ref, watch } from 'vue'
 import { useCoinsStore } from '@/stores/coins'
 import CoinCard from '@/components/CoinCard.vue'
 import SortSelect from '@/components/SortSelect.vue'
+import { purchaseCoin } from '@/api/client'
+import type { Coin } from '@/types'
 import { CirclePlus } from 'lucide-vue-next'
 
 const store = useCoinsStore()
@@ -38,6 +40,16 @@ function loadCoins() {
     ? [sortKey.value.split('_').slice(0, 2).join('_'), sortKey.value.split('_')[2]]
     : [sortKey.value.split('_')[0], sortKey.value.split('_')[1]]
   store.fetchCoins({ wishlist: 'true', sort, order })
+}
+
+async function handlePurchase(coin: Coin) {
+  if (!confirm(`Move "${coin.name}" to your collection?`)) return
+  try {
+    await purchaseCoin(coin.id)
+    loadCoins()
+  } catch {
+    alert('Failed to mark as purchased')
+  }
 }
 
 watch(sortKey, loadCoins)

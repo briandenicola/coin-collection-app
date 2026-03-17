@@ -1,5 +1,10 @@
 <template>
-  <div class="container">
+  <div ref="pullContainer" class="container" :style="pullDistance > 0 ? `transform: translateY(${pullDistance}px); transition: none` : ''">
+    <div class="pull-indicator" :class="{ visible: pullDistance > 0 || refreshing, refreshing }" :style="`top: ${-50 + pullDistance * 0.6}px; opacity: ${Math.min(pullDistance / 60, 1)}`">
+      <div class="pull-spinner" :style="refreshing ? '' : `transform: rotate(${pullDistance * 3}deg)`"></div>
+      <span class="pull-text">{{ refreshing ? 'Refreshing...' : pullDistance >= 60 ? 'Release to refresh' : 'Pull to refresh' }}</span>
+    </div>
+
     <div class="page-header collection-header">
       <h1>My Collection</h1>
       <SearchBar v-model="search" />
@@ -64,6 +69,7 @@
 import { ref, watch, onMounted } from 'vue'
 import { useCoinsStore } from '@/stores/coins'
 import type { ImageType } from '@/types'
+import { usePullToRefresh } from '@/composables/usePullToRefresh'
 import CoinCard from '@/components/CoinCard.vue'
 import SwipeGallery from '@/components/SwipeGallery.vue'
 import CategoryFilter from '@/components/CategoryFilter.vue'
@@ -84,6 +90,17 @@ const isPwa = window.matchMedia('(display-mode: standalone)').matches
   || (window.navigator as any).standalone === true
 const viewMode = ref<'grid' | 'swipe'>(savedView || (isPwa ? 'swipe' : 'grid'))
 const gridSide = ref<ImageType | null>(null)
+
+const pullContainer = ref<HTMLElement | null>(null)
+const { pullDistance, refreshing } = usePullToRefresh(pullContainer, async () => {
+  await new Promise<void>((resolve) => {
+    loadCoins()
+    const unwatch = watch(() => store.loading, (loading) => {
+      if (!loading) { unwatch(); resolve() }
+    })
+    if (!store.loading) { unwatch(); resolve() }
+  })
+})
 
 let debounceTimer: ReturnType<typeof setTimeout>
 
@@ -224,6 +241,50 @@ loadCoins()
 .page-info {
   color: var(--text-secondary);
   font-size: 0.85rem;
+}
+
+.pull-indicator {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 1rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+  z-index: 100;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.pull-indicator.visible {
+  pointer-events: auto;
+}
+
+.pull-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--border-subtle);
+  border-top-color: var(--accent-gold);
+  border-radius: 50%;
+}
+
+.pull-indicator.refreshing .pull-spinner {
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.pull-text {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
 }
 
 @media (max-width: 768px) {

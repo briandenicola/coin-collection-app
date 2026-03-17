@@ -116,6 +116,7 @@ func main() {
 		protected.GET("/coins/:id", coinHandler.Get)
 		protected.POST("/coins", coinHandler.Create)
 		protected.PUT("/coins/:id", coinHandler.Update)
+		protected.POST("/coins/:id/purchase", coinHandler.Purchase)
 		protected.DELETE("/coins/:id", coinHandler.Delete)
 
 		protected.GET("/stats", coinHandler.Stats)

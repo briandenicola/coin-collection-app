@@ -33,6 +33,13 @@
       >
         {{ coin.referenceText || coin.referenceUrl }}
       </a>
+      <button
+        v-if="wishlist"
+        class="btn btn-primary btn-sm card-purchase-btn"
+        @click.stop="emit('purchase', coin)"
+      >
+        <ShoppingCart :size="14" /> Purchased
+      </button>
     </div>
   </div>
 </template>
@@ -40,12 +47,16 @@
 <script setup lang="ts">
 import type { Coin, ImageType } from '@/types'
 import { computed } from 'vue'
-import { Coins } from 'lucide-vue-next'
+import { Coins, ShoppingCart } from 'lucide-vue-next'
 
 const props = withDefaults(defineProps<{ coin: Coin; imageSide?: ImageType | null; wishlist?: boolean }>(), {
   imageSide: null,
   wishlist: false,
 })
+
+const emit = defineEmits<{
+  purchase: [coin: Coin]
+}>()
 
 const primaryImage = computed(() => {
   if (props.imageSide) {
@@ -166,6 +177,16 @@ function formatCurrency(value: number) {
 
 .card-reference:hover {
   text-decoration: underline;
+}
+
+.card-purchase-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+  width: 100%;
+  justify-content: center;
+  font-size: 0.8rem;
 }
 
 .category-roman { color: #b57edc; }

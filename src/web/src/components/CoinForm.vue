@@ -153,12 +153,6 @@
           <label class="form-label">Notes</label>
           <textarea v-model="form.notes" class="form-textarea" rows="3" placeholder="Any additional notes..." />
         </div>
-        <div class="form-group">
-          <label class="form-check">
-            <input v-model="form.isWishlist" type="checkbox" />
-            <span>Add to wishlist (not yet owned)</span>
-          </label>
-        </div>
       </fieldset>
     </div>
 
