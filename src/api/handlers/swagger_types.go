@@ -13,8 +13,9 @@ type MessageResponse struct {
 }
 
 type AuthResponse struct {
-	Token string       `json:"token" example:"eyJhbGciOiJIUzI1NiIs..."`
-	User  AuthUserInfo `json:"user"`
+	Token        string       `json:"token" example:"eyJhbGciOiJIUzI1NiIs..."`
+	RefreshToken string       `json:"refreshToken" example:"rt_a1b2c3d4..."`
+	User         AuthUserInfo `json:"user"`
 }
 
 type AuthUserInfo struct {

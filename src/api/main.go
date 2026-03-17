@@ -100,11 +100,22 @@ func main() {
 
 	// Auth routes (public)
 	authHandler := handlers.NewAuthHandler(cfg.JWTSecret)
+	webauthnHandler, err := handlers.NewWebAuthnHandler(cfg.WebAuthnID, cfg.WebAuthnOrigin, authHandler)
+	if err != nil {
+		log.Fatalf("Failed to initialize WebAuthn: %v", err)
+	}
+
 	api := r.Group("/api")
 	{
 		api.GET("/auth/setup", authHandler.NeedsSetup)
 		api.POST("/auth/register", authHandler.Register)
 		api.POST("/auth/login", authHandler.Login)
+		api.POST("/auth/refresh", authHandler.Refresh)
+
+		// WebAuthn public routes (login ceremony)
+		api.POST("/auth/webauthn/login/begin", webauthnHandler.LoginBegin)
+		api.POST("/auth/webauthn/login/finish", webauthnHandler.LoginFinish)
+		api.GET("/auth/webauthn/check", webauthnHandler.CheckCredentials)
 	}
 
 	// Protected routes
@@ -146,6 +157,12 @@ func main() {
 		protected.POST("/auth/api-keys", apiKeyHandler.Generate)
 		protected.GET("/auth/api-keys", apiKeyHandler.List)
 		protected.DELETE("/auth/api-keys/:id", apiKeyHandler.Revoke)
+
+		// WebAuthn registration (requires auth)
+		protected.POST("/auth/webauthn/register/begin", webauthnHandler.RegisterBegin)
+		protected.POST("/auth/webauthn/register/finish", webauthnHandler.RegisterFinish)
+		protected.GET("/auth/webauthn/credentials", webauthnHandler.ListCredentials)
+		protected.DELETE("/auth/webauthn/credentials/:id", webauthnHandler.DeleteCredential)
 	}
 
 	// Admin-only routes

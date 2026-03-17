@@ -7,7 +7,7 @@
       <form @submit.prevent="handleLogin" class="auth-form">
         <div class="form-group">
           <label class="form-label">Username</label>
-          <input v-model="username" class="form-input" required autocomplete="username" />
+          <input v-model="username" class="form-input" required autocomplete="username" @blur="checkBiometric" />
         </div>
         <div class="form-group">
           <label class="form-label">Password</label>
@@ -18,6 +18,14 @@
           {{ loading ? 'Signing in...' : 'Sign In' }}
         </button>
       </form>
+      <button
+        v-if="biometricAvailable"
+        class="btn btn-secondary auth-btn biometric-btn"
+        :disabled="loading"
+        @click="handleBiometricLogin"
+      >
+        🔐 Sign in with Biometrics
+      </button>
       <p class="auth-footer">
         Don't have an account? <router-link to="/register">Create one</router-link>
       </p>
@@ -26,9 +34,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { webauthnCheck } from '@/api/client'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -37,15 +46,55 @@ const username = ref('')
 const password = ref('')
 const error = ref('')
 const loading = ref(false)
+const biometricAvailable = ref(false)
+
+const supportsWebAuthn = !!window.PublicKeyCredential
+
+onMounted(() => {
+  // Check if we have a remembered username with biometrics
+  const lastUser = localStorage.getItem('lastUsername')
+  if (lastUser && supportsWebAuthn) {
+    username.value = lastUser
+    checkBiometric()
+  }
+})
+
+async function checkBiometric() {
+  if (!supportsWebAuthn || !username.value.trim()) {
+    biometricAvailable.value = false
+    return
+  }
+  try {
+    const res = await webauthnCheck(username.value.trim())
+    biometricAvailable.value = res.data.available
+  } catch {
+    biometricAvailable.value = false
+  }
+}
 
 async function handleLogin() {
   error.value = ''
   loading.value = true
   try {
     await auth.doLogin(username.value, password.value)
+    localStorage.setItem('lastUsername', username.value)
     router.push('/')
   } catch {
     error.value = 'Invalid username or password'
+  } finally {
+    loading.value = false
+  }
+}
+
+async function handleBiometricLogin() {
+  error.value = ''
+  loading.value = true
+  try {
+    await auth.doWebAuthnLogin(username.value)
+    localStorage.setItem('lastUsername', username.value)
+    router.push('/')
+  } catch (e: any) {
+    error.value = e?.message || 'Biometric authentication failed'
   } finally {
     loading.value = false
   }
@@ -103,6 +152,11 @@ async function handleLogin() {
   justify-content: center;
   padding: 0.75rem;
   margin-top: 0.5rem;
+}
+
+.biometric-btn {
+  margin-top: 0.75rem;
+  font-size: 0.95rem;
 }
 
 .auth-footer {

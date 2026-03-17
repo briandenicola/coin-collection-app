@@ -203,6 +203,34 @@
         </div>
         <p v-else-if="!generatingKey" class="setting-desc" style="margin-top: 0.5rem">No API keys yet.</p>
       </section>
+
+      <!-- Biometric Login -->
+      <section v-if="supportsWebAuthn" class="settings-section card">
+        <h2>Biometric Login</h2>
+        <p class="setting-desc" style="margin-bottom: 1rem">
+          Register Face ID, Touch ID, or fingerprint for quick sign-in on this device.
+        </p>
+
+        <button
+          class="btn btn-primary btn-sm"
+          :disabled="registeringCredential"
+          @click="handleRegisterCredential"
+        >
+          {{ registeringCredential ? 'Registering...' : '🔐 Register Biometric' }}
+        </button>
+        <p v-if="credentialMsg" class="msg" :class="{ error: credentialError }" style="margin-top: 0.5rem">{{ credentialMsg }}</p>
+
+        <div v-if="webauthnCredentials.length" class="apikey-list">
+          <div v-for="cred in webauthnCredentials" :key="cred.id" class="apikey-item">
+            <div class="apikey-item-info">
+              <span class="apikey-item-name">{{ cred.name }}</span>
+              <span class="apikey-item-meta">Registered {{ formatDate(cred.createdAt) }}</span>
+            </div>
+            <button class="btn btn-danger btn-sm" @click="handleDeleteCredential(cred.id)">Remove</button>
+          </div>
+        </div>
+        <p v-else-if="!registeringCredential" class="setting-desc" style="margin-top: 0.5rem">No biometric credentials registered.</p>
+      </section>
     </div>
   </div>
 </template>
@@ -210,8 +238,13 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
-import { changePassword, exportCollection, importCollection, generateApiKey, listApiKeys, revokeApiKey } from '@/api/client'
-import type { Coin, Theme, ApiKey } from '@/types'
+import {
+  changePassword, exportCollection, importCollection,
+  generateApiKey, listApiKeys, revokeApiKey,
+  webauthnRegisterBegin, webauthnRegisterFinish,
+  webauthnListCredentials, webauthnDeleteCredential,
+} from '@/api/client'
+import type { Coin, Theme, ApiKey, WebAuthnCredentialInfo } from '@/types'
 
 
 const auth = useAuthStore()
@@ -402,7 +435,94 @@ function formatDate(dateStr: string) {
   })
 }
 
-onMounted(loadApiKeys)
+// WebAuthn Biometric
+const supportsWebAuthn = !!window.PublicKeyCredential
+const webauthnCredentials = ref<WebAuthnCredentialInfo[]>([])
+const registeringCredential = ref(false)
+const credentialMsg = ref('')
+const credentialError = ref(false)
+
+async function loadCredentials() {
+  try {
+    const res = await webauthnListCredentials()
+    webauthnCredentials.value = res.data
+  } catch {
+    // silently fail
+  }
+}
+
+function base64urlToBuffer(base64url: string): ArrayBuffer {
+  const base64 = base64url.replace(/-/g, '+').replace(/_/g, '/')
+  const pad = base64.length % 4 === 0 ? '' : '='.repeat(4 - (base64.length % 4))
+  const binary = atob(base64 + pad)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+  return bytes.buffer
+}
+
+async function handleRegisterCredential() {
+  registeringCredential.value = true
+  credentialMsg.value = ''
+  credentialError.value = false
+
+  try {
+    // Begin registration — get options from server
+    const beginRes = await webauthnRegisterBegin()
+    const options = beginRes.data
+
+    // Convert base64url fields to ArrayBuffers for the browser API
+    const publicKeyOptions: PublicKeyCredentialCreationOptions = {
+      challenge: base64urlToBuffer(options.publicKey.challenge),
+      rp: options.publicKey.rp,
+      user: {
+        id: base64urlToBuffer(options.publicKey.user.id),
+        name: options.publicKey.user.name,
+        displayName: options.publicKey.user.displayName,
+      },
+      pubKeyCredParams: options.publicKey.pubKeyCredParams,
+      timeout: options.publicKey.timeout || 60000,
+      authenticatorSelection: options.publicKey.authenticatorSelection,
+      attestation: options.publicKey.attestation || 'none',
+      excludeCredentials: (options.publicKey.excludeCredentials || []).map((c: any) => ({
+        id: base64urlToBuffer(c.id),
+        type: c.type,
+        transports: c.transports,
+      })),
+    }
+
+    // Call browser WebAuthn API (triggers Face ID / fingerprint prompt)
+    const credential = await navigator.credentials.create({
+      publicKey: publicKeyOptions,
+    }) as PublicKeyCredential
+
+    // Finish registration — send attestation to server
+    await webauthnRegisterFinish(credential)
+
+    credentialMsg.value = 'Biometric credential registered!'
+    await loadCredentials()
+  } catch (e: any) {
+    credentialMsg.value = e?.message || 'Registration failed'
+    credentialError.value = true
+  } finally {
+    registeringCredential.value = false
+  }
+}
+
+async function handleDeleteCredential(id: number) {
+  if (!confirm('Remove this biometric credential?')) return
+  try {
+    await webauthnDeleteCredential(id)
+    await loadCredentials()
+  } catch {
+    credentialMsg.value = 'Failed to remove credential'
+    credentialError.value = true
+  }
+}
+
+onMounted(() => {
+  loadApiKeys()
+  if (supportsWebAuthn) loadCredentials()
+})
 </script>
 
 <style scoped>

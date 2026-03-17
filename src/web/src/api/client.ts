@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Coin, CoinListResponse, CoinImage, AuthResponse, StatsResponse, UserInfo, AppSettings, LogEntry, ApiKey } from '@/types'
+import type { Coin, CoinListResponse, CoinImage, AuthResponse, StatsResponse, UserInfo, AppSettings, LogEntry, ApiKey, WebAuthnCredentialInfo } from '@/types'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
@@ -15,17 +15,70 @@ api.interceptors.request.use((config) => {
   return config
 })
 
+let isRefreshing = false
+let failedQueue: Array<{ resolve: (token: string) => void; reject: (err: unknown) => void }> = []
+
+function processQueue(error: unknown, token: string | null) {
+  failedQueue.forEach((p) => {
+    if (token) p.resolve(token)
+    else p.reject(error)
+  })
+  failedQueue = []
+}
+
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('token')
-      localStorage.removeItem('user')
-      window.location.href = '/login'
+  async (error) => {
+    const originalRequest = error.config
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      const refreshToken = localStorage.getItem('refreshToken')
+      if (!refreshToken) {
+        clearAuth()
+        return Promise.reject(error)
+      }
+
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({
+            resolve: (token: string) => {
+              originalRequest.headers.Authorization = `Bearer ${token}`
+              resolve(api(originalRequest))
+            },
+            reject,
+          })
+        })
+      }
+
+      originalRequest._retry = true
+      isRefreshing = true
+
+      try {
+        const res = await axios.post<AuthResponse>(`${API_BASE}/api/auth/refresh`, { refreshToken })
+        const { token, refreshToken: newRefresh, user } = res.data
+        localStorage.setItem('token', token)
+        localStorage.setItem('refreshToken', newRefresh)
+        localStorage.setItem('user', JSON.stringify(user))
+        processQueue(null, token)
+        originalRequest.headers.Authorization = `Bearer ${token}`
+        return api(originalRequest)
+      } catch (refreshError) {
+        processQueue(refreshError, null)
+        clearAuth()
+        return Promise.reject(refreshError)
+      } finally {
+        isRefreshing = false
+      }
     }
     return Promise.reject(error)
   },
 )
+
+function clearAuth() {
+  localStorage.removeItem('token')
+  localStorage.removeItem('refreshToken')
+  localStorage.removeItem('user')
+  window.location.href = '/login'
+}
 
 // Auth
 export const checkSetup = () => api.get<{ needsSetup: boolean }>('/auth/setup')
@@ -132,6 +185,62 @@ export const getAdminLogs = (limit = 500, level?: string) => {
   const params: Record<string, string> = { limit: String(limit) }
   if (level) params.level = level
   return api.get<{ logs: LogEntry[]; count: number; logLevel: string }>('/admin/logs', { params })
+}
+
+// WebAuthn
+export const webauthnRegisterBegin = () =>
+  api.post('/auth/webauthn/register/begin')
+export const webauthnRegisterFinish = (credential: PublicKeyCredential) => {
+  const attestation = credential.response as AuthenticatorAttestationResponse
+  const body = {
+    id: credential.id,
+    rawId: bufferToBase64url(credential.rawId),
+    type: credential.type,
+    response: {
+      attestationObject: bufferToBase64url(attestation.attestationObject),
+      clientDataJSON: bufferToBase64url(attestation.clientDataJSON),
+    },
+  }
+  return api.post('/auth/webauthn/register/finish', body)
+}
+export const webauthnLoginBegin = (username: string) =>
+  api.post<{ options: PublicKeyCredentialRequestOptionsJSON; username: string }>('/auth/webauthn/login/begin', { username })
+export const webauthnLoginFinish = (username: string, credential: PublicKeyCredential) => {
+  const assertion = credential.response as AuthenticatorAssertionResponse
+  const body = {
+    id: credential.id,
+    rawId: bufferToBase64url(credential.rawId),
+    type: credential.type,
+    response: {
+      authenticatorData: bufferToBase64url(assertion.authenticatorData),
+      clientDataJSON: bufferToBase64url(assertion.clientDataJSON),
+      signature: bufferToBase64url(assertion.signature),
+      userHandle: assertion.userHandle ? bufferToBase64url(assertion.userHandle) : null,
+    },
+  }
+  return api.post<AuthResponse>(`/auth/webauthn/login/finish?username=${encodeURIComponent(username)}`, body)
+}
+export const webauthnCheck = (username: string) =>
+  api.get<{ available: boolean }>('/auth/webauthn/check', { params: { username } })
+export const webauthnListCredentials = () =>
+  api.get<WebAuthnCredentialInfo[]>('/auth/webauthn/credentials')
+export const webauthnDeleteCredential = (id: number) =>
+  api.delete(`/auth/webauthn/credentials/${id}`)
+
+function bufferToBase64url(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer)
+  let binary = ''
+  bytes.forEach((b) => (binary += String.fromCharCode(b)))
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+
+// Helper types for WebAuthn JSON format
+interface PublicKeyCredentialRequestOptionsJSON {
+  challenge: string
+  timeout?: number
+  rpId?: string
+  allowCredentials?: Array<{ id: string; type: string; transports?: string[] }>
+  userVerification?: string
 }
 
 export default api

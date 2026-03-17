@@ -65,7 +65,15 @@ export interface User {
 
 export interface AuthResponse {
   token: string
+  refreshToken: string
   user: User
+}
+
+export interface WebAuthnCredentialInfo {
+  id: number
+  credentialId: string
+  name: string
+  createdAt: string
 }
 
 export interface CoinListResponse {
