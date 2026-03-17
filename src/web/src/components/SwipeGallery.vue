@@ -259,8 +259,8 @@ onUnmounted(() => {
 
 .card-stack {
   position: relative;
-  width: 300px;
-  height: 380px;
+  width: 315px;
+  height: 399px;
   touch-action: none;
 }
 
