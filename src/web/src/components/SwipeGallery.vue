@@ -70,16 +70,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onUnmounted } from 'vue'
+import { ref, computed, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import type { Coin, ImageType } from '@/types'
+import { useCoinsStore } from '@/stores/coins'
 import { Coins, ChevronLeft, ChevronRight } from 'lucide-vue-next'
 
 const props = defineProps<{ coins: Coin[] }>()
 const router = useRouter()
+const store = useCoinsStore()
 
 const activeSide = ref<'obverse' | 'reverse'>('obverse')
-const currentIndex = ref(0)
+const currentIndex = computed({
+  get: () => store.galleryIndex,
+  set: (val) => { store.galleryIndex = val },
+})
 const isAnimating = ref(false)
 const stackRef = ref<HTMLElement | null>(null)
 
@@ -94,6 +99,13 @@ let pointerId: number | null = null
 
 const SWIPE_THRESHOLD = 100
 const FLY_DISTANCE = 600
+
+// Clamp index if coins list shrinks (e.g., after filter change)
+watch(() => props.coins.length, (len) => {
+  if (len > 0 && currentIndex.value >= len) {
+    store.galleryIndex = len - 1
+  }
+})
 
 const currentCoin = computed(() => props.coins[currentIndex.value] ?? null)
 const nextCoin = computed(() => {
