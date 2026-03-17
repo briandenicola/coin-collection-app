@@ -46,7 +46,7 @@ func NewWebAuthnHandler(rpID, rpOrigin string, authHandler *AuthHandler) (*WebAu
 		RPID:          rpID,
 		RPOrigins:     []string{rpOrigin},
 		AuthenticatorSelection: protocol.AuthenticatorSelection{
-			AuthenticatorAttachment: protocol.CrossPlatform,
+			AuthenticatorAttachment: protocol.Platform,
 			UserVerification:        protocol.VerificationPreferred,
 		},
 	}
