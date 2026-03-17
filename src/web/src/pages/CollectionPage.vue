@@ -1,17 +1,62 @@
 <template>
-  <div ref="pullContainer" class="container" :style="pullDistance > 0 ? `transform: translateY(${pullDistance}px); transition: none` : ''">
+  <div ref="pullContainer" class="container" :class="{ 'pwa-mode': isPwa }" :style="pullDistance > 0 ? `transform: translateY(${pullDistance}px); transition: none` : ''">
     <div class="pull-indicator" :class="{ visible: pullDistance > 0 || refreshing, refreshing }" :style="`top: ${-50 + pullDistance * 0.6}px; opacity: ${Math.min(pullDistance / 60, 1)}`">
       <div class="pull-spinner" :style="refreshing ? '' : `transform: rotate(${pullDistance * 3}deg)`"></div>
       <span class="pull-text">{{ refreshing ? 'Refreshing...' : pullDistance >= 60 ? 'Release to refresh' : 'Pull to refresh' }}</span>
     </div>
 
-    <div class="page-header collection-header">
+    <!-- PWA compact header: search + hamburger -->
+    <div v-if="isPwa" class="pwa-header">
+      <SearchBar v-model="search" />
+      <button class="hamburger-btn" @click="menuOpen = !menuOpen" :class="{ active: menuOpen }">
+        <Menu :size="22" />
+      </button>
+    </div>
+
+    <!-- PWA dropdown menu -->
+    <Transition name="menu-slide">
+      <div v-if="isPwa && menuOpen" class="pwa-menu">
+        <div class="pwa-menu-section">
+          <span class="pwa-menu-label">Category</span>
+          <CategoryFilter v-model="selectedCategory" />
+        </div>
+        <div class="pwa-menu-section">
+          <span class="pwa-menu-label">Sort</span>
+          <SortSelect v-model="sortKey" />
+        </div>
+        <div class="pwa-menu-section">
+          <span class="pwa-menu-label">View</span>
+          <div class="pwa-menu-row">
+            <div class="view-toggle">
+              <button class="view-btn" :class="{ active: viewMode === 'swipe' }" @click="viewMode = 'swipe'" title="Swipe view">
+                <Layers :size="18" />
+              </button>
+              <button class="view-btn" :class="{ active: viewMode === 'grid' }" @click="viewMode = 'grid'" title="Grid view">
+                <LayoutGrid :size="18" />
+              </button>
+            </div>
+            <div v-if="viewMode === 'grid'" class="side-toggle">
+              <button class="toggle-btn" :class="{ active: gridSide === null }" @click="gridSide = null">Primary</button>
+              <button class="toggle-btn" :class="{ active: gridSide === 'obverse' }" @click="gridSide = 'obverse'">Obverse</button>
+              <button class="toggle-btn" :class="{ active: gridSide === 'reverse' }" @click="gridSide = 'reverse'">Reverse</button>
+            </div>
+          </div>
+        </div>
+        <router-link to="/add" class="btn btn-primary pwa-add-btn" @click="menuOpen = false">
+          <CirclePlus :size="16" /> Add Coin
+        </router-link>
+      </div>
+    </Transition>
+    <div v-if="isPwa && menuOpen" class="pwa-menu-backdrop" @click="menuOpen = false"></div>
+
+    <!-- Desktop header (hidden in PWA) -->
+    <div v-if="!isPwa" class="page-header collection-header">
       <h1>My Collection</h1>
       <SearchBar v-model="search" />
       <SortSelect v-model="sortKey" />
     </div>
 
-    <div class="collection-toolbar">
+    <div v-if="!isPwa" class="collection-toolbar">
       <CategoryFilter v-model="selectedCategory" />
       <div class="toolbar-right">
         <div v-if="viewMode === 'grid'" class="side-toggle">
@@ -76,13 +121,14 @@ import CategoryFilter from '@/components/CategoryFilter.vue'
 import SearchBar from '@/components/SearchBar.vue'
 import SortSelect from '@/components/SortSelect.vue'
 
-import { Layers, LayoutGrid, CirclePlus } from 'lucide-vue-next'
+import { Layers, LayoutGrid, CirclePlus, Menu } from 'lucide-vue-next'
 
 const store = useCoinsStore()
 const selectedCategory = store.selectedCategory !== undefined ? ref(store.selectedCategory) : ref('')
 const search = ref(store.searchQuery)
 const page = ref(1)
 const sortKey = ref('updated_at_desc')
+const menuOpen = ref(false)
 
 // Use saved preference if set, otherwise default to swipe in PWA mode
 const savedView = localStorage.getItem('defaultView') as 'grid' | 'swipe' | null
@@ -143,6 +189,103 @@ loadCoins()
 </script>
 
 <style scoped>
+/* --- PWA compact header --- */
+.pwa-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.pwa-header :deep(.search-bar) {
+  flex: 1;
+  max-width: none;
+}
+
+.hamburger-btn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.hamburger-btn.active,
+.hamburger-btn:hover {
+  border-color: var(--accent-gold);
+  color: var(--accent-gold);
+  background: var(--accent-gold-dim);
+}
+
+/* --- PWA dropdown menu --- */
+.pwa-menu {
+  position: relative;
+  z-index: 50;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.pwa-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+}
+
+.pwa-menu-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.pwa-menu-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.pwa-menu-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.pwa-add-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  text-decoration: none;
+}
+
+/* Menu slide transition */
+.menu-slide-enter-active,
+.menu-slide-leave-active {
+  transition: all 0.2s ease;
+}
+.menu-slide-enter-from,
+.menu-slide-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+
+/* --- Desktop header (unchanged) --- */
 .collection-header {
   display: flex;
   align-items: center;
@@ -243,6 +386,7 @@ loadCoins()
   font-size: 0.85rem;
 }
 
+/* --- Pull to refresh --- */
 .pull-indicator {
   position: fixed;
   left: 50%;
