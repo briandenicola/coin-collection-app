@@ -94,6 +94,20 @@
             >Grid</button>
           </div>
         </div>
+
+        <div class="setting-item">
+          <div class="setting-info">
+            <span class="setting-label">Default Sort</span>
+            <span class="setting-desc">How coins are sorted by default</span>
+          </div>
+          <select v-model="defaultSort" class="form-select sort-select" @change="saveDefaultSort">
+            <option value="updated_at_desc">Last Updated</option>
+            <option value="created_at_desc">Newest First</option>
+            <option value="created_at_asc">Oldest First</option>
+            <option value="current_value_desc">Price: High → Low</option>
+            <option value="current_value_asc">Price: Low → High</option>
+          </select>
+        </div>
       </section>
 
       <!-- Data Management -->
@@ -258,6 +272,13 @@ const defaultView = ref<'swipe' | 'grid'>((localStorage.getItem('defaultView') a
 function setDefaultView(v: 'swipe' | 'grid') {
   defaultView.value = v
   localStorage.setItem('defaultView', v)
+}
+
+// Default sort
+const defaultSort = ref(localStorage.getItem('defaultSort') || 'updated_at_desc')
+
+function saveDefaultSort() {
+  localStorage.setItem('defaultSort', defaultSort.value)
 }
 
 // Data
@@ -471,6 +492,10 @@ onMounted(loadApiKeys)
 }
 
 .tz-select {
+  max-width: 250px;
+}
+
+.sort-select {
   max-width: 250px;
 }
 

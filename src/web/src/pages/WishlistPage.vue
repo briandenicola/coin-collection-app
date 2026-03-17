@@ -33,7 +33,7 @@ import type { Coin } from '@/types'
 import { CirclePlus } from 'lucide-vue-next'
 
 const store = useCoinsStore()
-const sortKey = ref('updated_at_desc')
+const sortKey = ref(localStorage.getItem('defaultSort') || 'updated_at_desc')
 
 function loadCoins() {
   const [sort, order] = sortKey.value.split('_').length === 3

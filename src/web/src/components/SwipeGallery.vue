@@ -56,6 +56,16 @@
     <div v-else class="swipe-empty">
       <p>No coins to display</p>
     </div>
+
+    <!-- Arrow navigation -->
+    <div v-if="coins.length > 1" class="swipe-nav">
+      <button class="nav-btn" @click="goPrev">
+        <ChevronLeft :size="16" /> Prev
+      </button>
+      <button class="nav-btn" @click="goNext">
+        Next <ChevronRight :size="16" />
+      </button>
+    </div>
   </div>
 </template>
 
@@ -63,7 +73,7 @@
 import { ref, computed, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import type { Coin, ImageType } from '@/types'
-import { Coins } from 'lucide-vue-next'
+import { Coins, ChevronLeft, ChevronRight } from 'lucide-vue-next'
 
 const props = defineProps<{ coins: Coin[] }>()
 const router = useRouter()
@@ -336,6 +346,32 @@ onUnmounted(() => {
 
 .right-hint {
   right: 1rem;
+}
+
+.swipe-nav {
+  display: flex;
+  gap: 1rem;
+}
+
+.nav-btn {
+  padding: 0.5rem 1.25rem;
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-full);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.nav-btn:hover:not(:disabled) {
+  background: var(--accent-gold-dim);
+  color: var(--text-primary);
+}
+
+.nav-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
 }
 
 .swipe-empty {

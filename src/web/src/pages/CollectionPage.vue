@@ -42,9 +42,6 @@
             </div>
           </div>
         </div>
-        <router-link to="/add" class="btn btn-primary pwa-add-btn" @click="menuOpen = false">
-          <CirclePlus :size="16" /> Add Coin
-        </router-link>
       </div>
     </Transition>
     <div v-if="isPwa && menuOpen" class="pwa-menu-backdrop" @click="menuOpen = false"></div>
@@ -127,7 +124,7 @@ const store = useCoinsStore()
 const selectedCategory = store.selectedCategory !== undefined ? ref(store.selectedCategory) : ref('')
 const search = ref(store.searchQuery)
 const page = ref(1)
-const sortKey = ref('updated_at_desc')
+const sortKey = ref(localStorage.getItem('defaultSort') || 'updated_at_desc')
 const menuOpen = ref(false)
 
 // Use saved preference if set, otherwise default to swipe in PWA mode
