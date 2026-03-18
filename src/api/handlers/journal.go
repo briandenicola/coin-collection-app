@@ -1,0 +1,134 @@
+package handlers
+
+import (
+	"net/http"
+	"strconv"
+
+	"github.com/briandenicola/ancient-coins-api/database"
+	"github.com/briandenicola/ancient-coins-api/models"
+	"github.com/gin-gonic/gin"
+)
+
+type JournalHandler struct{}
+
+func NewJournalHandler() *JournalHandler {
+	return &JournalHandler{}
+}
+
+// ListEntries returns all journal entries for a coin.
+//
+//	@Summary		List journal entries
+//	@Description	Returns all activity log entries for a coin, newest first.
+//	@Tags			Journal
+//	@Produce		json
+//	@Param			id	path		int	true	"Coin ID"
+//	@Success		200	{array}		models.CoinJournal
+//	@Failure		401	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/coins/{id}/journal [get]
+func (h *JournalHandler) ListEntries(c *gin.Context) {
+	userID := c.GetUint("userId")
+	coinID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid coin ID"})
+		return
+	}
+
+	// Verify coin ownership
+	var count int64
+	database.DB.Model(&models.Coin{}).Where("id = ? AND user_id = ?", coinID, userID).Count(&count)
+	if count == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Coin not found"})
+		return
+	}
+
+	var entries []models.CoinJournal
+	database.DB.Where("coin_id = ? AND user_id = ?", coinID, userID).
+		Order("created_at DESC").
+		Find(&entries)
+
+	c.JSON(http.StatusOK, entries)
+}
+
+// AddEntry creates a new journal entry for a coin.
+//
+//	@Summary		Add journal entry
+//	@Description	Creates a new activity log entry for a coin.
+//	@Tags			Journal
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		int						true	"Coin ID"
+//	@Param			body	body		object{entry string}	true	"Journal entry"
+//	@Success		201		{object}	models.CoinJournal
+//	@Failure		400		{object}	ErrorResponse
+//	@Failure		401		{object}	ErrorResponse
+//	@Failure		404		{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/coins/{id}/journal [post]
+func (h *JournalHandler) AddEntry(c *gin.Context) {
+	userID := c.GetUint("userId")
+	coinID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid coin ID"})
+		return
+	}
+
+	// Verify coin ownership
+	var count int64
+	database.DB.Model(&models.Coin{}).Where("id = ? AND user_id = ?", coinID, userID).Count(&count)
+	if count == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Coin not found"})
+		return
+	}
+
+	var body struct {
+		Entry string `json:"entry" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Entry text is required"})
+		return
+	}
+
+	entry := models.CoinJournal{
+		CoinID: uint(coinID),
+		UserID: userID,
+		Entry:  body.Entry,
+	}
+
+	if err := database.DB.Create(&entry).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create journal entry"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, entry)
+}
+
+// DeleteEntry removes a journal entry.
+//
+//	@Summary		Delete journal entry
+//	@Description	Deletes an activity log entry. Only the entry owner can delete it.
+//	@Tags			Journal
+//	@Produce		json
+//	@Param			id		path		int	true	"Coin ID"
+//	@Param			entryId	path		int	true	"Entry ID"
+//	@Success		200		{object}	object{message string}
+//	@Failure		401		{object}	ErrorResponse
+//	@Failure		404		{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/coins/{id}/journal/{entryId} [delete]
+func (h *JournalHandler) DeleteEntry(c *gin.Context) {
+	userID := c.GetUint("userId")
+	entryID, err := strconv.ParseUint(c.Param("entryId"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid entry ID"})
+		return
+	}
+
+	result := database.DB.Where("id = ? AND user_id = ?", entryID, userID).Delete(&models.CoinJournal{})
+	if result.RowsAffected == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Entry not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Entry deleted"})
+}

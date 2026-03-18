@@ -106,6 +106,30 @@ export interface ValueSnapshot {
   recordedAt: string
 }
 
+export interface CoinJournal {
+  id: number
+  coinId: number
+  userId: number
+  entry: string
+  createdAt: string
+}
+
+export interface NumistaType {
+  id: number
+  title: string
+  category: string
+  issuer?: { name: string }
+  min_year?: number
+  max_year?: number
+  obverse_thumbnail?: string
+  reverse_thumbnail?: string
+}
+
+export interface NumistaSearchResponse {
+  count: number
+  types: NumistaType[]
+}
+
 export interface UserInfo {
   id: number
   username: string

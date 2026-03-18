@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Coin, CoinListResponse, CoinImage, AuthResponse, StatsResponse, UserInfo, AppSettings, LogEntry, ApiKey, WebAuthnCredentialInfo, ValueSnapshot } from '@/types'
+import type { Coin, CoinListResponse, CoinImage, AuthResponse, StatsResponse, UserInfo, AppSettings, LogEntry, ApiKey, WebAuthnCredentialInfo, ValueSnapshot, CoinJournal, NumistaSearchResponse } from '@/types'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
@@ -123,6 +123,16 @@ export const createCoin = (coin: Partial<Coin>) => api.post<Coin>('/coins', sani
 export const updateCoin = (id: number, coin: Partial<Coin>) => api.put<Coin>(`/coins/${id}`, sanitizeCoin(coin))
 export const purchaseCoin = (id: number) => api.post<Coin>(`/coins/${id}/purchase`)
 export const deleteCoin = (id: number) => api.delete(`/coins/${id}`)
+
+// Journal
+export const getJournalEntries = (coinId: number) => api.get<CoinJournal[]>(`/coins/${coinId}/journal`)
+export const addJournalEntry = (coinId: number, entry: string) =>
+  api.post<CoinJournal>(`/coins/${coinId}/journal`, { entry })
+export const deleteJournalEntry = (coinId: number, entryId: number) =>
+  api.delete(`/coins/${coinId}/journal/${entryId}`)
+
+// Numista
+export const searchNumista = (q: string) => api.get<NumistaSearchResponse>('/numista/search', { params: { q } })
 
 // Images
 export const uploadImage = (coinId: number, file: File, imageType: string, isPrimary: boolean) => {

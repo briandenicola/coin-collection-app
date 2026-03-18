@@ -13,6 +13,7 @@ const (
 	SettingTextExtractionPrompt = "TextExtractionPrompt"
 	SettingOllamaTimeout        = "OllamaTimeout"
 	SettingLogLevel             = "LogLevel"
+	SettingNumistaAPIKey        = "NumistaAPIKey"
 )
 
 const DefaultObversePrompt = `You are an expert numismatist specializing in ancient and modern coins. Analyze the obverse (front) of this coin and provide:
@@ -45,6 +46,7 @@ var settingDefaults = map[string]string{
 	SettingTextExtractionPrompt: DefaultTextExtractionPrompt,
 	SettingOllamaTimeout:        "300",
 	SettingLogLevel:             "info",
+	SettingNumistaAPIKey:        "",
 }
 
 func GetSetting(key string) string {

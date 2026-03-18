@@ -130,6 +130,11 @@ func main() {
 		protected.POST("/coins/:id/purchase", coinHandler.Purchase)
 		protected.DELETE("/coins/:id", coinHandler.Delete)
 
+		journalHandler := handlers.NewJournalHandler()
+		protected.GET("/coins/:id/journal", journalHandler.ListEntries)
+		protected.POST("/coins/:id/journal", journalHandler.AddEntry)
+		protected.DELETE("/coins/:id/journal/:entryId", journalHandler.DeleteEntry)
+
 		protected.GET("/stats", coinHandler.Stats)
 		protected.GET("/value-history", coinHandler.ValueHistory)
 		protected.GET("/suggestions", coinHandler.Suggestions)
@@ -145,6 +150,9 @@ func main() {
 		protected.DELETE("/coins/:id/analyze", analysisHandler.DeleteAnalysis)
 		protected.POST("/extract-text", analysisHandler.ExtractText)
 		protected.GET("/ollama-status", analysisHandler.OllamaStatus)
+
+		numistaHandler := handlers.NewNumistaHandler()
+		protected.GET("/numista/search", numistaHandler.Search)
 
 		// User self-service routes
 		userHandler := handlers.NewUserHandler(cfg.UploadDir)
