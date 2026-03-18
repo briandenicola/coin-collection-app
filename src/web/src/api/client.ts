@@ -196,9 +196,11 @@ export const webauthnRegisterFinish = (credential: PublicKeyCredential) => {
     id: credential.id,
     rawId: bufferToBase64url(credential.rawId),
     type: credential.type,
+    authenticatorAttachment: credential.authenticatorAttachment || undefined,
     response: {
       attestationObject: bufferToBase64url(attestation.attestationObject),
       clientDataJSON: bufferToBase64url(attestation.clientDataJSON),
+      transports: attestation.getTransports ? attestation.getTransports() : undefined,
     },
   }
   return api.post('/auth/webauthn/register/finish', body)

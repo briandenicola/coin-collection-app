@@ -1,14 +1,19 @@
 package handlers
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
+	"log"
 	"net/http"
+	"strings"
 	"sync"
 
 	"github.com/briandenicola/ancient-coins-api/database"
 	"github.com/briandenicola/ancient-coins-api/models"
+	"github.com/briandenicola/ancient-coins-api/services"
 	"github.com/gin-gonic/gin"
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
@@ -17,6 +22,8 @@ import (
 type WebAuthnHandler struct {
 	webAuthn  *webauthn.WebAuthn
 	auth      *AuthHandler
+	rpID      string
+	rpOrigins []string
 	sessions  map[string]*webauthn.SessionData
 	sessionMu sync.RWMutex
 }
@@ -41,12 +48,19 @@ func (u *webAuthnUser) WebAuthnDisplayName() string  { return u.user.Username }
 func (u *webAuthnUser) WebAuthnCredentials() []webauthn.Credential { return u.credentials }
 
 func NewWebAuthnHandler(rpID, rpOrigin string, authHandler *AuthHandler) (*WebAuthnHandler, error) {
+	// Support comma-separated origins
+	origins := strings.Split(rpOrigin, ",")
+	for i := range origins {
+		origins[i] = strings.TrimSpace(origins[i])
+	}
+
 	wconfig := &webauthn.Config{
 		RPDisplayName: "Ancient Coins",
 		RPID:          rpID,
-		RPOrigins:     []string{rpOrigin},
+		RPOrigins:     origins,
 		AuthenticatorSelection: protocol.AuthenticatorSelection{
 			AuthenticatorAttachment: protocol.Platform,
+			ResidentKey:             protocol.ResidentKeyRequirementPreferred,
 			UserVerification:        protocol.VerificationPreferred,
 		},
 	}
@@ -57,10 +71,61 @@ func NewWebAuthnHandler(rpID, rpOrigin string, authHandler *AuthHandler) (*WebAu
 	}
 
 	return &WebAuthnHandler{
-		webAuthn: w,
-		auth:     authHandler,
-		sessions: make(map[string]*webauthn.SessionData),
+		webAuthn:  w,
+		auth:      authHandler,
+		rpID:      rpID,
+		rpOrigins: origins,
+		sessions:  make(map[string]*webauthn.SessionData),
 	}, nil
+}
+
+// getWebAuthnForRequest returns a WebAuthn instance configured with the request's
+// actual origin. This handles cases where the app is accessed from a different
+// origin than the configured default (e.g., PWA on a mobile device).
+func (h *WebAuthnHandler) getWebAuthnForRequest(c *gin.Context) *webauthn.WebAuthn {
+	origin := c.GetHeader("Origin")
+	if origin == "" {
+		// Derive origin from the request
+		scheme := "https"
+		if proto := c.GetHeader("X-Forwarded-Proto"); proto != "" {
+			scheme = proto
+		} else if c.Request.TLS == nil {
+			scheme = "http"
+		}
+		origin = scheme + "://" + c.Request.Host
+	}
+
+	// Check if the origin is already in the configured list
+	for _, o := range h.rpOrigins {
+		if o == origin {
+			return h.webAuthn
+		}
+	}
+
+	// Origin not in configured list — create instance with this origin included
+	logger := services.AppLogger
+	logger.Info("webauthn", "Request origin %q not in configured origins %v, adding dynamically", origin, h.rpOrigins)
+
+	allOrigins := append([]string{}, h.rpOrigins...)
+	allOrigins = append(allOrigins, origin)
+
+	wconfig := &webauthn.Config{
+		RPDisplayName: "Ancient Coins",
+		RPID:          h.rpID,
+		RPOrigins:     allOrigins,
+		AuthenticatorSelection: protocol.AuthenticatorSelection{
+			AuthenticatorAttachment: protocol.Platform,
+			ResidentKey:             protocol.ResidentKeyRequirementPreferred,
+			UserVerification:        protocol.VerificationPreferred,
+		},
+	}
+
+	w, err := webauthn.New(wconfig)
+	if err != nil {
+		logger.Error("webauthn", "Failed to create WebAuthn with origin %q: %v", origin, err)
+		return h.webAuthn
+	}
+	return w
 }
 
 func (h *WebAuthnHandler) loadCredentials(userID uint) []webauthn.Credential {
@@ -137,6 +202,7 @@ func (h *WebAuthnHandler) RegisterBegin(c *gin.Context) {
 //	@Router			/auth/webauthn/register/finish [post]
 func (h *WebAuthnHandler) RegisterFinish(c *gin.Context) {
 	userID := c.GetUint("userId")
+	logger := services.AppLogger
 
 	var user models.User
 	if err := database.DB.First(&user, userID).Error; err != nil {
@@ -157,8 +223,20 @@ func (h *WebAuthnHandler) RegisterFinish(c *gin.Context) {
 		credentials: h.loadCredentials(userID),
 	}
 
-	credential, err := h.webAuthn.FinishRegistration(wUser, *session, c.Request)
+	// Pre-read the body so we can restore it for go-webauthn and parse name after
+	bodyBytes, err := io.ReadAll(c.Request.Body)
 	if err != nil {
+		logger.Error("webauthn", "Failed to read request body: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to read request body"})
+		return
+	}
+	c.Request.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+
+	w := h.getWebAuthnForRequest(c)
+	credential, err := w.FinishRegistration(wUser, *session, c.Request)
+	if err != nil {
+		logger.Error("webauthn", "Registration failed for user %s: %v", user.Username, err)
+		log.Printf("WebAuthn RegisterFinish error: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Registration failed: " + err.Error()})
 		return
 	}
@@ -168,11 +246,10 @@ func (h *WebAuthnHandler) RegisterFinish(c *gin.Context) {
 	delete(h.sessions, sessionKey("reg", userID))
 	h.sessionMu.Unlock()
 
-	// Parse optional name from request body
+	// Parse optional name from the pre-read body
 	credName := "Biometric key"
-	body, _ := c.GetRawData()
 	var bodyMap map[string]interface{}
-	if json.Unmarshal(body, &bodyMap) == nil {
+	if json.Unmarshal(bodyBytes, &bodyMap) == nil {
 		if name, ok := bodyMap["name"].(string); ok && name != "" {
 			credName = name
 		}
@@ -192,6 +269,7 @@ func (h *WebAuthnHandler) RegisterFinish(c *gin.Context) {
 		return
 	}
 
+	logger.Info("webauthn", "Credential registered for user %s", user.Username)
 	c.JSON(http.StatusOK, gin.H{"status": "ok", "credential": dbCred})
 }
 
@@ -265,6 +343,8 @@ func (h *WebAuthnHandler) LoginBegin(c *gin.Context) {
 //	@Failure		500		{object}	ErrorResponse
 //	@Router			/auth/webauthn/login/finish [post]
 func (h *WebAuthnHandler) LoginFinish(c *gin.Context) {
+	logger := services.AppLogger
+
 	// Username is passed as a query param so we know which user's session to look up
 	username := c.Query("username")
 	if username == "" {
@@ -291,8 +371,11 @@ func (h *WebAuthnHandler) LoginFinish(c *gin.Context) {
 		credentials: h.loadCredentials(user.ID),
 	}
 
-	credential, err := h.webAuthn.FinishLogin(wUser, *session, c.Request)
+	w := h.getWebAuthnForRequest(c)
+	credential, err := w.FinishLogin(wUser, *session, c.Request)
 	if err != nil {
+		logger.Error("webauthn", "Login failed for user %s: %v", username, err)
+		log.Printf("WebAuthn LoginFinish error: %v", err)
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication failed: " + err.Error()})
 		return
 	}
@@ -308,6 +391,7 @@ func (h *WebAuthnHandler) LoginFinish(c *gin.Context) {
 		Where("credential_id = ? AND user_id = ?", credID, user.ID).
 		Update("sign_count", credential.Authenticator.SignCount)
 
+	logger.Info("webauthn", "Biometric login succeeded for user %s", username)
 	// Issue tokens
 	h.auth.issueTokens(c, user, http.StatusOK)
 }
