@@ -19,7 +19,7 @@
             <BarChart3 :size="18" />
             <span class="nav-label">Stats</span>
           </router-link>
-          <router-link to="/add" class="nav-link add-link" active-class="active">
+          <router-link v-if="isPwa" to="/add" class="nav-link add-link" active-class="active">
             <CirclePlus :size="18" />
             <span class="nav-label">Add</span>
           </router-link>
@@ -56,6 +56,8 @@ import { Landmark, Bookmark, BarChart3, CirclePlus, Scissors, Settings, ShieldCh
 
 const auth = useAuthStore()
 const router = useRouter()
+const isPwa = window.matchMedia('(display-mode: standalone)').matches
+  || (window.navigator as any).standalone === true
 
 function handleLogout() {
   auth.logout()
