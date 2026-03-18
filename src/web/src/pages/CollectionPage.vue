@@ -8,42 +8,42 @@
     <!-- PWA compact header: search + hamburger -->
     <div v-if="isPwa" class="pwa-header">
       <SearchBar v-model="search" />
-      <button class="hamburger-btn" @click="menuOpen = !menuOpen" :class="{ active: menuOpen }">
-        <Menu :size="22" />
-      </button>
-    </div>
-
-    <!-- PWA dropdown menu -->
-    <Transition name="menu-slide">
-      <div v-if="isPwa && menuOpen" class="pwa-menu">
-        <div class="pwa-menu-section">
-          <span class="pwa-menu-label">Category</span>
-          <CategoryFilter v-model="selectedCategory" />
-        </div>
-        <div class="pwa-menu-section">
-          <span class="pwa-menu-label">Sort</span>
-          <SortSelect v-model="sortKey" />
-        </div>
-        <div class="pwa-menu-section">
-          <span class="pwa-menu-label">View</span>
-          <div class="pwa-menu-row">
-            <div class="view-toggle">
-              <button class="view-btn" :class="{ active: viewMode === 'swipe' }" @click="viewMode = 'swipe'" title="Swipe view">
-                <Layers :size="18" />
-              </button>
-              <button class="view-btn" :class="{ active: viewMode === 'grid' }" @click="viewMode = 'grid'" title="Grid view">
-                <LayoutGrid :size="18" />
-              </button>
+      <div class="hamburger-wrapper">
+        <button class="hamburger-btn" @click="menuOpen = !menuOpen" :class="{ active: menuOpen }">
+          <Menu :size="22" />
+        </button>
+        <Transition name="menu-slide">
+          <div v-if="menuOpen" class="pwa-menu">
+            <div class="pwa-menu-section">
+              <span class="pwa-menu-label">Category</span>
+              <CategoryFilter v-model="selectedCategory" />
             </div>
-            <div v-if="viewMode === 'grid'" class="side-toggle">
-              <button class="toggle-btn" :class="{ active: gridSide === null }" @click="gridSide = null">Primary</button>
-              <button class="toggle-btn" :class="{ active: gridSide === 'obverse' }" @click="gridSide = 'obverse'">Obverse</button>
-              <button class="toggle-btn" :class="{ active: gridSide === 'reverse' }" @click="gridSide = 'reverse'">Reverse</button>
+            <div class="pwa-menu-section">
+              <span class="pwa-menu-label">Sort</span>
+              <SortSelect v-model="sortKey" />
+            </div>
+            <div class="pwa-menu-section">
+              <span class="pwa-menu-label">View</span>
+              <div class="pwa-menu-row">
+                <div class="view-toggle">
+                  <button class="view-btn" :class="{ active: viewMode === 'swipe' }" @click="viewMode = 'swipe'" title="Swipe view">
+                    <Layers :size="18" />
+                  </button>
+                  <button class="view-btn" :class="{ active: viewMode === 'grid' }" @click="viewMode = 'grid'" title="Grid view">
+                    <LayoutGrid :size="18" />
+                  </button>
+                </div>
+                <div v-if="viewMode === 'grid'" class="side-toggle">
+                  <button class="toggle-btn" :class="{ active: gridSide === null }" @click="gridSide = null">Primary</button>
+                  <button class="toggle-btn" :class="{ active: gridSide === 'obverse' }" @click="gridSide = 'obverse'">Obverse</button>
+                  <button class="toggle-btn" :class="{ active: gridSide === 'reverse' }" @click="gridSide = 'reverse'">Reverse</button>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
+        </Transition>
       </div>
-    </Transition>
+    </div>
     <div v-if="isPwa && menuOpen" class="pwa-menu-backdrop" @click="menuOpen = false"></div>
 
     <!-- Desktop header (hidden in PWA) -->
@@ -199,8 +199,12 @@ loadCoins()
   max-width: none;
 }
 
-.hamburger-btn {
+.hamburger-wrapper {
+  position: relative;
   flex-shrink: 0;
+}
+
+.hamburger-btn {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -221,25 +225,27 @@ loadCoins()
   background: var(--accent-gold-dim);
 }
 
-/* --- PWA dropdown menu --- */
+/* --- PWA popover menu --- */
 .pwa-menu {
-  position: relative;
-  z-index: 50;
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  z-index: 100;
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   padding: 1rem;
-  margin-bottom: 0.75rem;
+  min-width: 260px;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
 }
 
 .pwa-menu-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 40;
+  z-index: 90;
 }
 
 .pwa-menu-section {
