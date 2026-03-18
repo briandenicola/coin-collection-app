@@ -88,12 +88,22 @@ export interface StatsResponse {
   totalWishlist: number
   byCategory: { category: string; count: number }[]
   byMaterial: { material: string; count: number }[]
+  byGrade: { grade: string; count: number }[]
   values: {
     totalPurchasePrice: number
     totalCurrentValue: number
     avgPurchasePrice: number
     avgCurrentValue: number
   }
+}
+
+export interface ValueSnapshot {
+  id: number
+  userId: number
+  totalValue: number
+  totalInvested: number
+  coinCount: number
+  recordedAt: string
 }
 
 export interface UserInfo {

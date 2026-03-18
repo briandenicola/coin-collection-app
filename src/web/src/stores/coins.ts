@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import type { Coin, StatsResponse } from '@/types'
+import type { Coin, StatsResponse, ValueSnapshot } from '@/types'
 import * as api from '@/api/client'
 
 export const useCoinsStore = defineStore('coins', () => {
@@ -9,6 +9,7 @@ export const useCoinsStore = defineStore('coins', () => {
   const total = ref(0)
   const loading = ref(false)
   const stats = ref<StatsResponse | null>(null)
+  const valueHistory = ref<ValueSnapshot[]>([])
   const selectedCategory = ref('')
   const searchQuery = ref('')
   const galleryIndex = ref(0)
@@ -61,12 +62,18 @@ export const useCoinsStore = defineStore('coins', () => {
     stats.value = res.data
   }
 
+  async function fetchValueHistory() {
+    const res = await api.getValueHistory()
+    valueHistory.value = res.data
+  }
+
   return {
     coins,
     currentCoin,
     total,
     loading,
     stats,
+    valueHistory,
     selectedCategory,
     searchQuery,
     galleryIndex,
@@ -76,5 +83,6 @@ export const useCoinsStore = defineStore('coins', () => {
     editCoin,
     removeCoin,
     fetchStats,
+    fetchValueHistory,
   }
 })

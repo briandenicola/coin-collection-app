@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Coin, CoinListResponse, CoinImage, AuthResponse, StatsResponse, UserInfo, AppSettings, LogEntry, ApiKey, WebAuthnCredentialInfo } from '@/types'
+import type { Coin, CoinListResponse, CoinImage, AuthResponse, StatsResponse, UserInfo, AppSettings, LogEntry, ApiKey, WebAuthnCredentialInfo, ValueSnapshot } from '@/types'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
@@ -152,6 +152,7 @@ export const getOllamaStatus = () =>
 
 // Stats
 export const getStats = () => api.get<StatsResponse>('/stats')
+export const getValueHistory = () => api.get<ValueSnapshot[]>('/value-history')
 
 // Autocomplete suggestions
 export const getSuggestions = (field: string, q: string) =>

@@ -131,6 +131,7 @@ func main() {
 		protected.DELETE("/coins/:id", coinHandler.Delete)
 
 		protected.GET("/stats", coinHandler.Stats)
+		protected.GET("/value-history", coinHandler.ValueHistory)
 		protected.GET("/suggestions", coinHandler.Suggestions)
 
 		imageHandler := handlers.NewImageHandler(cfg.UploadDir)

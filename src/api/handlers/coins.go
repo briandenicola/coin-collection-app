@@ -184,6 +184,7 @@ func (h *CoinHandler) Create(c *gin.Context) {
 
 	logger.Info("coins", "Created coin %d '%s' for user %d", coin.ID, coin.Name, userID)
 	database.DB.Preload("Images").First(&coin, coin.ID)
+	RecordValueSnapshot(userID)
 	c.JSON(http.StatusCreated, coin)
 }
 
@@ -232,6 +233,7 @@ func (h *CoinHandler) Update(c *gin.Context) {
 	}
 
 	database.DB.Preload("Images").First(&existing, existing.ID)
+	RecordValueSnapshot(userID)
 	c.JSON(http.StatusOK, existing)
 }
 
@@ -269,6 +271,7 @@ func (h *CoinHandler) Purchase(c *gin.Context) {
 	}
 
 	database.DB.Preload("Images").First(&coin, coin.ID)
+	RecordValueSnapshot(userID)
 	c.JSON(http.StatusOK, coin)
 }
 
@@ -302,6 +305,7 @@ func (h *CoinHandler) Delete(c *gin.Context) {
 	// Clean up associated images
 	database.DB.Where("coin_id = ?", id).Delete(&models.CoinImage{})
 
+	RecordValueSnapshot(userID)
 	c.JSON(http.StatusOK, gin.H{"message": "Coin deleted"})
 }
 
@@ -345,6 +349,18 @@ func (h *CoinHandler) Stats(c *gin.Context) {
 		Group("material").
 		Scan(&byMaterial)
 
+	type gradeCount struct {
+		Grade string `json:"grade"`
+		Count int64  `json:"count"`
+	}
+	var byGrade []gradeCount
+	database.DB.Model(&models.Coin{}).
+		Select("grade, count(*) as count").
+		Where("user_id = ? AND is_wishlist = ? AND grade != ''", userID, false).
+		Group("grade").
+		Order("count DESC").
+		Scan(&byGrade)
+
 	type valueSummary struct {
 		TotalPurchasePrice float64 `json:"totalPurchasePrice"`
 		TotalCurrentValue  float64 `json:"totalCurrentValue"`
@@ -362,6 +378,7 @@ func (h *CoinHandler) Stats(c *gin.Context) {
 		"totalWishlist": totalWishlist,
 		"byCategory":    byCategory,
 		"byMaterial":    byMaterial,
+		"byGrade":       byGrade,
 		"values":        values,
 	})
 }
@@ -409,4 +426,25 @@ func (h *CoinHandler) Suggestions(c *gin.Context) {
 
 	query.Limit(20).Pluck(column, &values)
 	c.JSON(http.StatusOK, values)
+}
+
+// ValueHistory returns historical value snapshots for the authenticated user.
+//
+//	@Summary		Get value history
+//	@Description	Returns value snapshots over time for charting collection value trends.
+//	@Tags			Coins
+//	@Produce		json
+//	@Success		200	{array}		models.ValueSnapshot
+//	@Failure		401	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/value-history [get]
+func (h *CoinHandler) ValueHistory(c *gin.Context) {
+	userID := c.GetUint("userId")
+
+	var snapshots []models.ValueSnapshot
+	database.DB.Where("user_id = ?", userID).
+		Order("recorded_at ASC").
+		Find(&snapshots)
+
+	c.JSON(http.StatusOK, snapshots)
 }

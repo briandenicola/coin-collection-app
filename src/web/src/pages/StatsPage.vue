@@ -68,6 +68,66 @@
         </div>
       </div>
 
+      <!-- Grade Distribution -->
+      <div v-if="stats.byGrade?.length" class="stats-section card">
+        <h2>By Grade</h2>
+        <div class="bar-chart">
+          <div v-for="item in stats.byGrade" :key="item.grade" class="bar-row">
+            <span class="bar-label">{{ item.grade }}</span>
+            <div class="bar-track">
+              <div
+                class="bar-fill fill-grade"
+                :style="{ width: `${(item.count / maxGradeCount) * 100}%` }"
+              ></div>
+            </div>
+            <span class="bar-value">{{ item.count }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Value Over Time -->
+      <div v-if="store.valueHistory.length >= 2" class="stats-section card">
+        <h2>Value Over Time</h2>
+        <div class="line-chart-container">
+          <div class="line-chart-y-axis">
+            <span>{{ formatCurrency(chartMaxValue) }}</span>
+            <span>{{ formatCurrency(chartMaxValue / 2) }}</span>
+            <span>$0</span>
+          </div>
+          <div class="line-chart">
+            <svg viewBox="0 0 1000 300" preserveAspectRatio="none" class="line-chart-svg">
+              <polyline
+                :points="investedPoints"
+                fill="none"
+                stroke="var(--text-muted)"
+                stroke-width="2"
+                stroke-dasharray="6 3"
+              />
+              <polyline
+                :points="valuePoints"
+                fill="none"
+                stroke="var(--accent-gold)"
+                stroke-width="2.5"
+              />
+              <circle
+                v-for="(pt, i) in valuePointsList"
+                :key="i"
+                :cx="pt.x" :cy="pt.y" r="4"
+                fill="var(--accent-gold)"
+              />
+            </svg>
+          </div>
+        </div>
+        <div class="line-chart-legend">
+          <span class="legend-item"><span class="legend-line legend-value"></span> Current Value</span>
+          <span class="legend-item"><span class="legend-line legend-invested"></span> Invested</span>
+        </div>
+        <div class="line-chart-dates">
+          <span>{{ formatShortDate(store.valueHistory[0].recordedAt) }}</span>
+          <span>{{ formatShortDate(store.valueHistory[store.valueHistory.length - 1].recordedAt) }}</span>
+        </div>
+      </div>
+
       <!-- Value Summary -->
       <div class="stats-section card">
         <h2>Value Summary</h2>
@@ -108,6 +168,9 @@ const maxCategoryCount = computed(() =>
 const maxMaterialCount = computed(() =>
   Math.max(...(stats.value?.byMaterial.map((m) => m.count) || [1])),
 )
+const maxGradeCount = computed(() =>
+  Math.max(...(stats.value?.byGrade?.map((g) => g.count) || [1])),
+)
 
 const roi = computed(() => {
   if (!stats.value?.values.totalPurchasePrice) return 0
@@ -118,11 +181,48 @@ const roi = computed(() => {
   )
 })
 
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value)
+// Value over time chart
+const chartMaxValue = computed(() => {
+  if (!store.valueHistory.length) return 1
+  const max = Math.max(...store.valueHistory.flatMap((s) => [s.totalValue, s.totalInvested]))
+  return max * 1.1 || 1
+})
+
+function toSvgPoints(data: number[]): string {
+  if (!data.length) return ''
+  const max = chartMaxValue.value
+  return data
+    .map((v, i) => {
+      const x = data.length === 1 ? 500 : (i / (data.length - 1)) * 1000
+      const y = 300 - (v / max) * 280 - 10
+      return `${x},${y}`
+    })
+    .join(' ')
 }
 
-onMounted(() => store.fetchStats())
+const valuePoints = computed(() => toSvgPoints(store.valueHistory.map((s) => s.totalValue)))
+const investedPoints = computed(() => toSvgPoints(store.valueHistory.map((s) => s.totalInvested)))
+const valuePointsList = computed(() => {
+  const data = store.valueHistory.map((s) => s.totalValue)
+  const max = chartMaxValue.value
+  return data.map((v, i) => ({
+    x: data.length === 1 ? 500 : (i / (data.length - 1)) * 1000,
+    y: 300 - (v / max) * 280 - 10,
+  }))
+})
+
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value)
+}
+
+function formatShortDate(dateStr: string) {
+  return new Date(dateStr).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: '2-digit' })
+}
+
+onMounted(() => {
+  store.fetchStats()
+  store.fetchValueHistory()
+})
 </script>
 
 <style scoped>
@@ -209,6 +309,7 @@ onMounted(() => store.fetchStats())
 .fill-modern { background: linear-gradient(90deg, #2c5f8a, #4682b4); }
 .fill-other { background: linear-gradient(90deg, #555, #888); }
 .fill-material { background: linear-gradient(90deg, var(--accent-bronze), var(--accent-gold)); }
+.fill-grade { background: linear-gradient(90deg, #2c5f8a, #7ab3d4); }
 
 .bar-value {
   font-size: 0.85rem;
@@ -242,4 +343,79 @@ onMounted(() => store.fetchStats())
 .value-stat-amount.gold { color: var(--accent-gold); }
 .value-stat-amount.positive { color: #2ecc71; }
 .value-stat-amount.negative { color: #e74c3c; }
+
+.line-chart-container {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.line-chart-y-axis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-align: right;
+  min-width: 60px;
+  padding: 0.25rem 0;
+}
+
+.line-chart {
+  flex: 1;
+  height: 200px;
+  background: var(--bg-primary);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem;
+}
+
+.line-chart-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.line-chart-legend {
+  display: flex;
+  gap: 1.5rem;
+  justify-content: center;
+  margin-top: 0.75rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.legend-line {
+  display: inline-block;
+  width: 20px;
+  height: 3px;
+  border-radius: 2px;
+}
+
+.legend-value {
+  background: var(--accent-gold);
+}
+
+.legend-invested {
+  background: var(--text-muted);
+  background-image: repeating-linear-gradient(
+    90deg,
+    var(--text-muted) 0px,
+    var(--text-muted) 6px,
+    transparent 6px,
+    transparent 9px
+  );
+}
+
+.line-chart-dates {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+  padding: 0 0.5rem 0 68px;
+}
 </style>
