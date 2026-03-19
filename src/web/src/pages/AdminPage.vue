@@ -81,9 +81,14 @@
             <span class="form-hint">Time limit for AI analysis calls. Default: 300 (5 minutes)</span>
           </div>
           <div class="form-group">
-            <label class="form-label">Numista API Key</label>
-            <input v-model="settings.NumistaAPIKey" class="form-input" type="password" placeholder="Enter your Numista API key" />
-            <span class="form-hint">Get a free key at <a href="https://en.numista.com/api/" target="_blank" rel="noopener">numista.com/api</a> (2,000 requests/month free)</span>
+            <label class="form-label">Anthropic API Key</label>
+            <input v-model="settings.AnthropicAPIKey" class="form-input" type="password" placeholder="Enter your Anthropic API key" />
+            <span class="form-hint">Required for the AI coin search agent. Get a key at <a href="https://console.anthropic.com/" target="_blank" rel="noopener">console.anthropic.com</a></span>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Anthropic Model</label>
+            <input v-model="settings.AnthropicModel" class="form-input" placeholder="claude-sonnet-4-20250514" />
+            <span class="form-hint">Model used for the coin search agent (default: claude-sonnet-4-20250514)</span>
           </div>
           <div class="form-group">
             <div class="prompt-header">
@@ -156,6 +161,11 @@
       <section v-if="activeTab === 'system'" class="admin-section card">
         <h2>System Settings</h2>
         <form @submit.prevent="saveSettings">
+          <div class="form-group">
+            <label class="form-label">Numista API Key</label>
+            <input v-model="settings.NumistaAPIKey" class="form-input" type="password" placeholder="Enter your Numista API key" />
+            <span class="form-hint">Get a free key at <a href="https://en.numista.com/api/" target="_blank" rel="noopener">numista.com/api</a> (2,000 requests/month free)</span>
+          </div>
           <div class="form-group">
             <label class="form-label">Log Level</label>
             <select v-model="settings.LogLevel" class="form-select">

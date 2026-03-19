@@ -1,0 +1,541 @@
+<template>
+  <div class="chat-overlay" @click.self="$emit('close')">
+    <div class="chat-drawer">
+      <div class="chat-header">
+        <h3><Bot :size="18" /> Coin Search Agent</h3>
+        <button class="chat-close" @click="$emit('close')"><X :size="18" /></button>
+      </div>
+
+      <div class="chat-messages" ref="messagesEl">
+        <div v-if="messages.length === 0" class="chat-intro">
+          <Bot :size="32" />
+          <p>Describe the coins you're looking for and I'll search the web to find them.</p>
+          <div class="chat-examples">
+            <button class="example-btn" @click="sendExample('Find me Roman silver denarii of Julius Caesar')">
+              Roman denarii of Julius Caesar
+            </button>
+            <button class="example-btn" @click="sendExample('I\'m looking for Byzantine gold solidi under $500')">
+              Byzantine gold solidi under $500
+            </button>
+            <button class="example-btn" @click="sendExample('Show me ancient Greek tetradrachms from Athens')">
+              Greek tetradrachms from Athens
+            </button>
+          </div>
+        </div>
+
+        <template v-for="(msg, i) in messages" :key="i">
+          <div class="chat-bubble" :class="msg.role">
+            <div class="bubble-content" v-html="formatMessage(msg.content)"></div>
+          </div>
+
+          <!-- Suggestions after assistant message -->
+          <div v-if="msg.role === 'assistant' && msg.suggestions?.length" class="suggestions-grid">
+            <div v-for="(coin, j) in msg.suggestions" :key="j" class="suggestion-card">
+              <div class="suggestion-img" v-if="coin.imageUrl">
+                <img :src="proxyImageUrl(coin.imageUrl)" :alt="coin.name" @error="handleImgError" />
+              </div>
+              <div class="suggestion-body">
+                <h4>{{ coin.name }}</h4>
+                <p class="suggestion-desc">{{ coin.description }}</p>
+                <div class="suggestion-meta">
+                  <span v-if="coin.era" class="meta-tag">{{ coin.era }}</span>
+                  <span v-if="coin.material" class="meta-tag">{{ coin.material }}</span>
+                  <span v-if="coin.denomination" class="meta-tag">{{ coin.denomination }}</span>
+                </div>
+                <div class="suggestion-price" v-if="coin.estPrice">{{ coin.estPrice }}</div>
+                <div class="suggestion-actions">
+                  <a v-if="coin.sourceUrl" :href="coin.sourceUrl" target="_blank" rel="noopener" class="source-link">
+                    <ExternalLink :size="12" /> {{ coin.sourceName || 'Source' }}
+                  </a>
+                  <button
+                    class="btn btn-primary btn-sm add-btn"
+                    :disabled="addingIdx === `${i}-${j}`"
+                    @click="addToWishlist(coin, `${i}-${j}`)"
+                  >
+                    <CirclePlus :size="14" />
+                    {{ addedSet.has(`${i}-${j}`) ? 'Added!' : addingIdx === `${i}-${j}` ? 'Adding...' : 'Add to Wishlist' }}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <div v-if="loading" class="chat-bubble assistant">
+          <div class="bubble-content thinking">
+            <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+            Searching the web for coins...
+          </div>
+        </div>
+      </div>
+
+      <form class="chat-input-bar" @submit.prevent="sendMessage">
+        <input
+          v-model="input"
+          class="chat-input"
+          placeholder="Describe the coins you're looking for..."
+          :disabled="loading"
+          ref="inputEl"
+        />
+        <button type="submit" class="send-btn" :disabled="!input.trim() || loading">
+          <SendHorizontal :size="18" />
+        </button>
+      </form>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, nextTick, onMounted } from 'vue'
+import { agentChat, createCoin } from '@/api/client'
+import type { CoinSuggestion, AgentChatMessage, Category, Material } from '@/types'
+import { Bot, X, SendHorizontal, CirclePlus, ExternalLink } from 'lucide-vue-next'
+
+interface ChatMsg {
+  role: 'user' | 'assistant'
+  content: string
+  suggestions?: CoinSuggestion[]
+}
+
+const emit = defineEmits<{
+  close: []
+  added: []
+}>()
+
+const messages = ref<ChatMsg[]>([])
+const input = ref('')
+const loading = ref(false)
+const addingIdx = ref<string | null>(null)
+const addedSet = ref<Set<string>>(new Set())
+const messagesEl = ref<HTMLElement>()
+const inputEl = ref<HTMLInputElement>()
+
+const VALID_CATEGORIES = ['Roman', 'Greek', 'Byzantine', 'Modern', 'Other']
+const VALID_MATERIALS = ['Gold', 'Silver', 'Bronze', 'Copper', 'Electrum', 'Other']
+
+function scrollToBottom() {
+  nextTick(() => {
+    if (messagesEl.value) {
+      messagesEl.value.scrollTop = messagesEl.value.scrollHeight
+    }
+  })
+}
+
+function buildHistory(): AgentChatMessage[] {
+  return messages.value
+    .filter(m => m.role === 'user' || m.role === 'assistant')
+    .map(m => ({ role: m.role, content: m.content }))
+}
+
+async function sendMessage() {
+  const text = input.value.trim()
+  if (!text || loading.value) return
+
+  messages.value.push({ role: 'user', content: text })
+  const history = buildHistory().slice(0, -1) // Exclude current message from history
+  input.value = ''
+  loading.value = true
+  scrollToBottom()
+
+  try {
+    const res = await agentChat(text, history)
+    messages.value.push({
+      role: 'assistant',
+      content: res.data.message,
+      suggestions: res.data.suggestions || [],
+    })
+  } catch (err: any) {
+    const errMsg = err.response?.data?.error || 'Failed to get a response. Please try again.'
+    messages.value.push({
+      role: 'assistant',
+      content: errMsg,
+    })
+  } finally {
+    loading.value = false
+    scrollToBottom()
+  }
+}
+
+function sendExample(text: string) {
+  input.value = text
+  sendMessage()
+}
+
+async function addToWishlist(coin: CoinSuggestion, idx: string) {
+  if (addedSet.value.has(idx)) return
+  addingIdx.value = idx
+  try {
+    const category = VALID_CATEGORIES.includes(coin.category) ? coin.category as Category : 'Other'
+    const material = VALID_MATERIALS.includes(coin.material) ? coin.material as Material : 'Other'
+
+    await createCoin({
+      name: coin.name,
+      category,
+      material,
+      denomination: coin.denomination || '',
+      ruler: coin.ruler || '',
+      era: coin.era || '',
+      notes: coin.description || '',
+      referenceUrl: coin.sourceUrl || '',
+      referenceText: coin.sourceName || '',
+      isWishlist: true,
+      currentValue: parsePrice(coin.estPrice),
+    })
+    addedSet.value.add(idx)
+    emit('added')
+  } catch {
+    alert('Failed to add coin to wishlist')
+  } finally {
+    addingIdx.value = null
+  }
+}
+
+function parsePrice(price: string): number | null {
+  if (!price) return null
+  // Extract the first number from strings like "$150-300" or "$200"
+  const match = price.match(/[\d,]+(?:\.\d+)?/)
+  if (!match) return null
+  return parseFloat(match[0].replace(/,/g, ''))
+}
+
+function formatMessage(text: string): string {
+  // Basic markdown-like formatting
+  return text
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\n/g, '<br>')
+}
+
+function proxyImageUrl(url: string): string {
+  if (!url) return ''
+  return `/api/proxy-image?url=${encodeURIComponent(url)}`
+}
+
+function handleImgError(e: Event) {
+  const img = e.target as HTMLImageElement
+  img.style.display = 'none'
+}
+
+onMounted(() => {
+  inputEl.value?.focus()
+})
+</script>
+
+<style scoped>
+.chat-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 300;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.chat-drawer {
+  width: 480px;
+  max-width: 100%;
+  height: 100%;
+  background: var(--bg-primary);
+  display: flex;
+  flex-direction: column;
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.3);
+}
+
+.chat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.chat-header h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1rem;
+  margin: 0;
+  color: var(--accent-gold);
+}
+
+.chat-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+}
+
+.chat-close:hover {
+  color: var(--text-primary);
+  background: var(--bg-card);
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.chat-intro {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 2rem 1rem;
+  color: var(--text-secondary);
+  gap: 0.75rem;
+}
+
+.chat-intro p {
+  max-width: 300px;
+  line-height: 1.5;
+}
+
+.chat-examples {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  width: 100%;
+}
+
+.example-btn {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 0.75rem;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  cursor: pointer;
+  text-align: left;
+  transition: all var(--transition-fast);
+}
+
+.example-btn:hover {
+  border-color: var(--accent-gold);
+  color: var(--accent-gold);
+}
+
+.chat-bubble {
+  max-width: 85%;
+  padding: 0.65rem 0.85rem;
+  border-radius: var(--radius-md);
+  font-size: 0.88rem;
+  line-height: 1.5;
+  word-wrap: break-word;
+}
+
+.chat-bubble.user {
+  align-self: flex-end;
+  background: linear-gradient(135deg, var(--accent-gold), var(--accent-bronze));
+  color: var(--bg-primary);
+}
+
+.chat-bubble.assistant {
+  align-self: flex-start;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+}
+
+.thinking {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-gold);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+.dot:nth-child(2) { animation-delay: 0.2s; }
+.dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes pulse {
+  0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
+  40% { opacity: 1; transform: scale(1); }
+}
+
+.suggestions-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  width: 100%;
+}
+
+.suggestion-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  display: flex;
+  transition: border-color var(--transition-fast);
+}
+
+.suggestion-card:hover {
+  border-color: var(--accent-gold);
+}
+
+.suggestion-img {
+  width: 80px;
+  min-height: 80px;
+  flex-shrink: 0;
+  overflow: hidden;
+  background: var(--bg-body);
+}
+
+.suggestion-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.suggestion-body {
+  padding: 0.6rem 0.75rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.suggestion-body h4 {
+  font-size: 0.85rem;
+  margin: 0 0 0.25rem;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.suggestion-desc {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin: 0 0 0.4rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.suggestion-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-bottom: 0.4rem;
+}
+
+.meta-tag {
+  font-size: 0.7rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: var(--radius-full);
+  background: var(--bg-body);
+  color: var(--text-muted);
+  border: 1px solid var(--border-subtle);
+}
+
+.suggestion-price {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--accent-gold);
+  margin-bottom: 0.4rem;
+}
+
+.suggestion-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.source-link {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  transition: color var(--transition-fast);
+}
+
+.source-link:hover {
+  color: var(--accent-gold);
+}
+
+.add-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.72rem;
+  padding: 0.3rem 0.6rem;
+  flex-shrink: 0;
+}
+
+.chat-input-bar {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+  background: var(--bg-primary);
+}
+
+.chat-input {
+  flex: 1;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 0.75rem;
+  color: var(--text-primary);
+  font-size: 0.88rem;
+  outline: none;
+  transition: border-color var(--transition-fast);
+}
+
+.chat-input:focus {
+  border-color: var(--accent-gold);
+}
+
+.send-btn {
+  background: linear-gradient(135deg, var(--accent-gold), var(--accent-bronze));
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--bg-primary);
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+}
+
+.send-btn:hover:not(:disabled) {
+  box-shadow: 0 0 12px var(--accent-gold-dim);
+}
+
+.send-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+@media (max-width: 640px) {
+  .chat-drawer {
+    width: 100%;
+  }
+
+  .suggestion-card {
+    flex-direction: column;
+  }
+
+  .suggestion-img {
+    width: 100%;
+    height: 120px;
+  }
+}
+</style>

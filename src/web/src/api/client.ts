@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Coin, CoinListResponse, CoinImage, AuthResponse, StatsResponse, UserInfo, AppSettings, LogEntry, ApiKey, WebAuthnCredentialInfo, ValueSnapshot, CoinJournal, NumistaSearchResponse } from '@/types'
+import type { Coin, CoinListResponse, CoinImage, AuthResponse, StatsResponse, UserInfo, AppSettings, LogEntry, ApiKey, WebAuthnCredentialInfo, ValueSnapshot, CoinJournal, NumistaSearchResponse, AgentChatMessage, AgentChatResponse } from '@/types'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
@@ -133,6 +133,10 @@ export const deleteJournalEntry = (coinId: number, entryId: number) =>
 
 // Numista
 export const searchNumista = (q: string) => api.get<NumistaSearchResponse>('/numista/search', { params: { q } })
+
+// Agent
+export const agentChat = (message: string, history: AgentChatMessage[] = []) =>
+  api.post<AgentChatResponse>('/agent/chat', { message, history })
 
 // Images
 export const uploadImage = (coinId: number, file: File, imageType: string, isPrimary: boolean) => {

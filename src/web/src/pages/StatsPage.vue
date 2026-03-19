@@ -123,8 +123,8 @@
           <span class="legend-item"><span class="legend-line legend-invested"></span> Invested</span>
         </div>
         <div class="line-chart-dates">
-          <span>{{ formatShortDate(store.valueHistory[0]?.recordedAt) }}</span>
-          <span>{{ formatShortDate(store.valueHistory[store.valueHistory.length - 1]?.recordedAt) }}</span>
+          <span>{{ formatShortDate(store.valueHistory[0]?.recordedAt ?? '') }}</span>
+          <span>{{ formatShortDate(store.valueHistory[store.valueHistory.length - 1]?.recordedAt ?? '') }}</span>
         </div>
       </div>
 

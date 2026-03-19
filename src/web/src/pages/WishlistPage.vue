@@ -4,7 +4,8 @@
       <h1>Wishlist</h1>
       <div class="header-actions">
         <SortSelect v-model="sortKey" />
-        <router-link to="/add?wishlist=true" class="btn btn-primary"><CirclePlus :size="16" /> Add Coin</router-link>
+        <button class="btn btn-primary" @click="showChat = true"><Bot :size="16" /> Find Coins</button>
+        <router-link to="/add?wishlist=true" class="btn btn-secondary"><CirclePlus :size="16" /> Add Coin</router-link>
       </div>
     </div>
 
@@ -19,7 +20,12 @@
     <div v-else class="empty-state">
       <h3>Your wishlist is empty</h3>
       <p>Add coins to your wishlist to track what you're looking for</p>
+      <button class="btn btn-primary" @click="showChat = true" style="margin-top: 0.75rem">
+        <Bot :size="16" /> Search for Coins with AI
+      </button>
     </div>
+
+    <CoinSearchChat v-if="showChat" @close="showChat = false" @added="loadCoins" />
   </div>
 </template>
 
@@ -27,13 +33,15 @@
 import { ref, watch } from 'vue'
 import { useCoinsStore } from '@/stores/coins'
 import CoinCard from '@/components/CoinCard.vue'
+import CoinSearchChat from '@/components/CoinSearchChat.vue'
 import SortSelect from '@/components/SortSelect.vue'
 import { purchaseCoin } from '@/api/client'
 import type { Coin } from '@/types'
-import { CirclePlus } from 'lucide-vue-next'
+import { CirclePlus, Bot } from 'lucide-vue-next'
 
 const store = useCoinsStore()
 const sortKey = ref(localStorage.getItem('defaultSort') || 'updated_at_desc')
+const showChat = ref(false)
 
 function loadCoins() {
   const [sort, order] = sortKey.value.split('_').length === 3

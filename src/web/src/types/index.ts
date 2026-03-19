@@ -167,3 +167,27 @@ export interface ApiKey {
   lastUsedAt: string | null
   revokedAt: string | null
 }
+
+export interface AgentChatMessage {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+export interface CoinSuggestion {
+  name: string
+  description: string
+  category: string
+  era: string
+  ruler: string
+  material: string
+  denomination: string
+  estPrice: string
+  imageUrl: string
+  sourceUrl: string
+  sourceName: string
+}
+
+export interface AgentChatResponse {
+  message: string
+  suggestions: CoinSuggestion[]
+}

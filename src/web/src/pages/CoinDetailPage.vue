@@ -117,6 +117,39 @@
             </div>
           </div>
 
+          <div class="numista-section">
+            <div class="numista-header">
+              <h3>Numista Lookup</h3>
+              <button
+                class="btn btn-secondary btn-sm"
+                :disabled="numistaSearching"
+                @click="handleNumistaSearch"
+              >
+                {{ numistaSearching ? 'Searching...' : 'Search' }}
+              </button>
+            </div>
+            <p v-if="numistaError" class="numista-error">{{ numistaError }}</p>
+            <div v-if="numistaResults.length" class="numista-results">
+              <a
+                v-for="item in numistaResults"
+                :key="item.id"
+                :href="`https://en.numista.com/catalogue/pieces${item.id}.html`"
+                target="_blank"
+                rel="noopener"
+                class="numista-card"
+              >
+                <img v-if="item.obverse_thumbnail" :src="item.obverse_thumbnail" class="numista-thumb" />
+                <div class="numista-card-info">
+                  <span class="numista-card-title">{{ item.title }}</span>
+                  <span class="numista-card-meta">
+                    <template v-if="item.issuer?.name">{{ item.issuer.name }}</template>
+                    <template v-if="item.min_year"> · {{ item.min_year }}<template v-if="item.max_year && item.max_year !== item.min_year">–{{ item.max_year }}</template></template>
+                  </span>
+                </div>
+              </a>
+            </div>
+          </div>
+
           <div v-if="coin.notes" class="notes-section">
             <h3>Notes</h3>
             <p>{{ coin.notes }}</p>
@@ -151,42 +184,6 @@
             <a :href="coin.referenceUrl" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">
               🔗 {{ coin.referenceText || 'Reference Link' }}
             </a>
-          </div>
-        </div>
-
-        <!-- Numista Lookup -->
-        <div class="detail-numista">
-          <div class="numista-section">
-            <div class="numista-header">
-              <h4>Numista Catalog Lookup</h4>
-              <button
-                class="btn btn-secondary btn-sm"
-                :disabled="numistaSearching"
-                @click="handleNumistaSearch"
-              >
-                {{ numistaSearching ? 'Searching...' : '🔍 Search Numista' }}
-              </button>
-            </div>
-            <p v-if="numistaError" class="numista-error">{{ numistaError }}</p>
-            <div v-if="numistaResults.length" class="numista-results">
-              <a
-                v-for="item in numistaResults"
-                :key="item.id"
-                :href="`https://en.numista.com/catalogue/pieces${item.id}.html`"
-                target="_blank"
-                rel="noopener"
-                class="numista-card"
-              >
-                <img v-if="item.obverse_thumbnail" :src="item.obverse_thumbnail" class="numista-thumb" />
-                <div class="numista-card-info">
-                  <span class="numista-card-title">{{ item.title }}</span>
-                  <span class="numista-card-meta">
-                    <template v-if="item.issuer?.name">{{ item.issuer.name }}</template>
-                    <template v-if="item.min_year"> · {{ item.min_year }}<template v-if="item.max_year && item.max_year !== item.min_year">–{{ item.max_year }}</template></template>
-                  </span>
-                </div>
-              </a>
-            </div>
           </div>
         </div>
 
@@ -666,15 +663,8 @@ function formatCurrency(value: number) {
 }
 
 /* Numista */
-.detail-numista {
-  grid-column: 1 / -1;
-}
-
 .numista-section {
-  padding: 1rem;
-  background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
+  margin-bottom: 1.5rem;
 }
 
 .numista-header {
@@ -684,8 +674,9 @@ function formatCurrency(value: number) {
   margin-bottom: 0.75rem;
 }
 
-.numista-header h4 {
-  font-size: 0.9rem;
+.numista-header h3 {
+  font-size: 1rem;
+  margin: 0;
 }
 
 .numista-error {
