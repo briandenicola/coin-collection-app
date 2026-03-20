@@ -27,6 +27,7 @@
           <div v-if="coin.soldPrice && coin.purchasePrice" class="card-profit" :class="{ loss: coin.soldPrice < coin.purchasePrice }">
             {{ coin.soldPrice >= coin.purchasePrice ? '+' : '' }}{{ formatCurrency(coin.soldPrice - coin.purchasePrice) }}
           </div>
+          <div v-if="coin.soldTo" class="card-sold-to">To: {{ coin.soldTo }}</div>
         </div>
       </template>
       <div v-if="!sold && (coin.currentValue || coin.purchasePrice)" class="card-value">
@@ -49,13 +50,6 @@
       >
         <ShoppingCart :size="14" /> Purchased
       </button>
-      <button
-        v-if="!wishlist && !sold && !coin.isSold"
-        class="btn btn-secondary btn-sm card-sell-btn"
-        @click.stop="emit('sell', coin)"
-      >
-        <DollarSign :size="14" /> Sell
-      </button>
     </div>
   </div>
 </template>
@@ -63,7 +57,7 @@
 <script setup lang="ts">
 import type { Coin, ImageType } from '@/types'
 import { computed } from 'vue'
-import { Coins, ShoppingCart, DollarSign } from 'lucide-vue-next'
+import { Coins, ShoppingCart } from 'lucide-vue-next'
 
 const props = withDefaults(defineProps<{ coin: Coin; imageSide?: ImageType | null; wishlist?: boolean; sold?: boolean }>(), {
   imageSide: null,
@@ -73,7 +67,6 @@ const props = withDefaults(defineProps<{ coin: Coin; imageSide?: ImageType | nul
 
 const emit = defineEmits<{
   purchase: [coin: Coin]
-  sell: [coin: Coin]
 }>()
 
 const primaryImage = computed(() => {
@@ -243,6 +236,12 @@ function formatCurrency(value: number) {
 
 .card-profit.loss {
   color: #f87171;
+}
+
+.card-sold-to {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin-top: 0.15rem;
 }
 
 .category-roman { color: #b57edc; }

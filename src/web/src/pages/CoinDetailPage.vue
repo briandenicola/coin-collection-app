@@ -9,6 +9,7 @@
         <button class="btn btn-secondary btn-sm" @click="$router.back()">← Back</button>
         <div class="detail-actions">
           <button v-if="coin.isWishlist" class="btn btn-primary btn-sm" @click="handlePurchase">🛒 Mark as Purchased</button>
+          <button v-if="!coin.isWishlist && !coin.isSold" class="btn btn-secondary btn-sm" @click="showSellModal = true">Sell</button>
           <router-link :to="`/edit/${coin.id}`" class="btn btn-secondary btn-sm">Edit</router-link>
           <button class="btn btn-danger btn-sm" @click="handleDelete">Delete</button>
         </div>
@@ -257,6 +258,8 @@
         </div>
       </div>
     </div>
+
+    <SellModal v-if="showSellModal && coin" :coin="coin" @close="showSellModal = false" @confirm="confirmSell" />
   </div>
 </template>
 
@@ -265,7 +268,8 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useCoinsStore } from '@/stores/coins'
 import ImageGallery from '@/components/ImageGallery.vue'
-import { uploadImage, proxyImage, analyzeCoin, deleteAnalysis, deleteCoin, deleteImage, purchaseCoin, getOllamaStatus, getJournalEntries, addJournalEntry, deleteJournalEntry, searchNumista } from '@/api/client'
+import SellModal from '@/components/SellModal.vue'
+import { uploadImage, proxyImage, analyzeCoin, deleteAnalysis, deleteCoin, deleteImage, purchaseCoin, sellCoin, getOllamaStatus, getJournalEntries, addJournalEntry, deleteJournalEntry, searchNumista } from '@/api/client'
 import { removeBackground as removeBg } from '@imgly/background-removal'
 import type { CoinImage, CoinJournal, NumistaType } from '@/types'
 import MarkdownIt from 'markdown-it'
@@ -284,6 +288,7 @@ const analyzingSide = ref<string | null>(null)
 const ollamaAvailable = ref(true)
 const ollamaMessage = ref('')
 const removingBg = ref(false)
+const showSellModal = ref(false)
 
 // Journal
 const journalEntries = ref<CoinJournal[]>([])
@@ -491,6 +496,18 @@ async function handleDelete() {
   if (!coin.value || !confirm('Delete this coin from your collection?')) return
   await deleteCoin(coin.value.id)
   router.push('/')
+}
+
+async function confirmSell(soldPrice: number | null, soldTo: string) {
+  if (!coin.value) return
+  try {
+    await sellCoin(coin.value.id, soldPrice, soldTo)
+    showSellModal.value = false
+    router.push('/sold')
+  } catch {
+    alert('Failed to mark as sold')
+    showSellModal.value = false
+  }
 }
 
 async function handleDeleteAnalysis(side: 'obverse' | 'reverse') {
