@@ -310,6 +310,7 @@ func (h *CoinHandler) Sell(c *gin.Context) {
 
 	var body struct {
 		SoldPrice *float64 `json:"soldPrice"`
+		SoldTo    string   `json:"soldTo"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
@@ -327,6 +328,7 @@ func (h *CoinHandler) Sell(c *gin.Context) {
 		"is_sold":    true,
 		"sold_price": body.SoldPrice,
 		"sold_date":  &now,
+		"sold_to":    body.SoldTo,
 	}
 	if err := database.DB.Model(&coin).Updates(updates).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to mark as sold"})

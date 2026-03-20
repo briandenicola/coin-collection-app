@@ -27,6 +27,7 @@
           <div v-if="coin.soldPrice && coin.purchasePrice" class="card-profit" :class="{ loss: coin.soldPrice < coin.purchasePrice }">
             {{ coin.soldPrice >= coin.purchasePrice ? '+' : '' }}{{ formatCurrency(coin.soldPrice - coin.purchasePrice) }}
           </div>
+          <div v-if="coin.soldTo" class="card-sold-to">To: {{ coin.soldTo }}</div>
         </div>
       </template>
       <div v-if="!sold && (coin.currentValue || coin.purchasePrice)" class="card-value">
@@ -243,6 +244,12 @@ function formatCurrency(value: number) {
 
 .card-profit.loss {
   color: #f87171;
+}
+
+.card-sold-to {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin-top: 0.15rem;
 }
 
 .category-roman { color: #b57edc; }

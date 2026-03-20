@@ -29,6 +29,7 @@ export interface Coin {
   isSold: boolean
   soldPrice: number | null
   soldDate: string | null
+  soldTo: string
   userId: number
   images: CoinImage[]
   createdAt: string

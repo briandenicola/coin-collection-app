@@ -104,6 +104,8 @@
       <span class="page-info">Page {{ page }} of {{ Math.ceil(store.total / 50) }}</span>
       <button class="btn btn-secondary btn-sm" :disabled="page * 50 >= store.total" @click="page++">Next →</button>
     </div>
+
+    <SellModal v-if="sellTarget" :coin="sellTarget" @close="sellTarget = null" @confirm="confirmSell" />
   </div>
 </template>
 
@@ -117,6 +119,7 @@ import SwipeGallery from '@/components/SwipeGallery.vue'
 import CategoryFilter from '@/components/CategoryFilter.vue'
 import SearchBar from '@/components/SearchBar.vue'
 import SortSelect from '@/components/SortSelect.vue'
+import SellModal from '@/components/SellModal.vue'
 import { sellCoin } from '@/api/client'
 
 import { Layers, LayoutGrid, CirclePlus, Menu } from 'lucide-vue-next'
@@ -127,6 +130,7 @@ const search = ref(store.searchQuery)
 const page = ref(1)
 const sortKey = ref(localStorage.getItem('defaultSort') || 'updated_at_desc')
 const menuOpen = ref(false)
+const sellTarget = ref<Coin | null>(null)
 
 // Use saved preference if set, otherwise default to swipe in PWA mode
 const savedView = localStorage.getItem('defaultView') as 'grid' | 'swipe' | null
@@ -165,19 +169,19 @@ function loadCoins() {
   })
 }
 
-async function handleSell(coin: Coin) {
-  const priceStr = prompt(`Sell "${coin.name}"?\n\nEnter the sale price (or leave blank):`)
-  if (priceStr === null) return
-  const soldPrice = priceStr ? parseFloat(priceStr) : null
-  if (priceStr && isNaN(soldPrice!)) {
-    alert('Invalid price')
-    return
-  }
+function handleSell(coin: Coin) {
+  sellTarget.value = coin
+}
+
+async function confirmSell(soldPrice: number | null, soldTo: string) {
+  if (!sellTarget.value) return
   try {
-    await sellCoin(coin.id, soldPrice)
+    await sellCoin(sellTarget.value.id, soldPrice, soldTo)
+    sellTarget.value = null
     loadCoins()
   } catch {
     alert('Failed to mark as sold')
+    sellTarget.value = null
   }
 }
 

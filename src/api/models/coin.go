@@ -63,6 +63,7 @@ type Coin struct {
 	IsSold              bool       `gorm:"default:false" json:"isSold"`
 	SoldPrice           *float64   `json:"soldPrice"`
 	SoldDate            *time.Time `json:"soldDate"`
+	SoldTo              string     `json:"soldTo"`
 	UserID              uint       `gorm:"not null" json:"userId"`
 	User                User       `gorm:"foreignKey:UserID" json:"-"`
 	Images              []CoinImage `gorm:"foreignKey:CoinID" json:"images"`
