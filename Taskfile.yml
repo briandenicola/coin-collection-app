@@ -31,10 +31,10 @@ tasks:
   run-api:
     desc: Run the Go API server
     dir: src/api
+    dotenv: ['../../.env']
     cmds:
       - go run .
     env:
-      JWT_SECRET: dev-secret-key-change-in-production-min32chars
       DB_PATH: ./ancientcoins.db
 
   run-web:
