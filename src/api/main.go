@@ -128,6 +128,7 @@ func main() {
 		protected.POST("/coins", coinHandler.Create)
 		protected.PUT("/coins/:id", coinHandler.Update)
 		protected.POST("/coins/:id/purchase", coinHandler.Purchase)
+		protected.POST("/coins/:id/sell", coinHandler.Sell)
 		protected.DELETE("/coins/:id", coinHandler.Delete)
 
 		journalHandler := handlers.NewJournalHandler()
