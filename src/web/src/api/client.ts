@@ -207,6 +207,29 @@ export const getAnthropicModels = () => api.get<AnthropicModel[]>('/agent/models
 
 export const getAgentPrompt = () => api.get<{ prompt: string; default: string }>('/agent/prompt')
 
+// Agent Conversations
+export interface ConversationSummary {
+  id: number
+  title: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface SavedConversation {
+  id: number
+  userId: number
+  title: string
+  messages: string
+  createdAt: string
+  updatedAt: string
+}
+
+export const listConversations = () => api.get<ConversationSummary[]>('/agent/conversations')
+export const getConversation = (id: number) => api.get<SavedConversation>(`/agent/conversations/${id}`)
+export const saveConversation = (data: { id?: number; title: string; messages: string }) =>
+  api.post<SavedConversation>('/agent/conversations', data)
+export const deleteConversation = (id: number) => api.delete(`/agent/conversations/${id}`)
+
 // Images
 export const uploadImage = (coinId: number, file: File, imageType: string, isPrimary: boolean) => {
   const formData = new FormData()

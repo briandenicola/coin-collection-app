@@ -3,7 +3,19 @@
     <div class="chat-drawer">
       <div class="chat-header">
         <h3><Bot :size="18" /> Coin Search Agent</h3>
-        <button class="chat-close" @click="$emit('close')"><X :size="18" /></button>
+        <div class="chat-header-actions">
+          <button
+            v-if="messages.length > 0"
+            class="chat-save"
+            :disabled="saving"
+            @click="handleSave"
+            :title="conversationId ? 'Update saved conversation' : 'Save conversation'"
+          >
+            <Save :size="16" />
+            {{ saveLabel }}
+          </button>
+          <button class="chat-close" @click="$emit('close')"><X :size="18" /></button>
+        </div>
       </div>
 
       <div class="chat-messages" ref="messagesEl">
@@ -86,10 +98,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick, onMounted } from 'vue'
-import { agentChatStream, createCoin, proxyImage, uploadImage } from '@/api/client'
+import { ref, nextTick, onMounted, computed } from 'vue'
+import { agentChatStream, createCoin, proxyImage, uploadImage, saveConversation } from '@/api/client'
 import type { CoinSuggestion, AgentChatMessage, Category, Material } from '@/types'
-import { Bot, X, SendHorizontal, CirclePlus, ExternalLink } from 'lucide-vue-next'
+import { Bot, X, SendHorizontal, CirclePlus, ExternalLink, Save } from 'lucide-vue-next'
 
 interface ChatMsg {
   role: 'user' | 'assistant'
@@ -97,6 +109,10 @@ interface ChatMsg {
   suggestions?: CoinSuggestion[]
   streaming?: boolean
 }
+
+const props = defineProps<{
+  loadConversation?: { id: number; title: string; messages: string } | null
+}>()
 
 const emit = defineEmits<{
   close: []
@@ -110,6 +126,9 @@ const addingIdx = ref<string | null>(null)
 const addedSet = ref<Set<string>>(new Set())
 const messagesEl = ref<HTMLElement>()
 const inputEl = ref<HTMLInputElement>()
+const conversationId = ref<number | null>(null)
+const saving = ref(false)
+const saveLabel = ref('Save')
 
 const VALID_CATEGORIES = ['Roman', 'Greek', 'Byzantine', 'Modern', 'Other']
 const VALID_MATERIALS = ['Gold', 'Silver', 'Bronze', 'Copper', 'Electrum', 'Other']
@@ -169,6 +188,32 @@ async function sendMessage() {
 function sendExample(text: string) {
   input.value = text
   sendMessage()
+}
+
+async function handleSave() {
+  if (messages.value.length === 0 || saving.value) return
+  saving.value = true
+  saveLabel.value = 'Saving...'
+
+  try {
+    // Use first user message as title
+    const firstUserMsg = messages.value.find(m => m.role === 'user')
+    const title = firstUserMsg?.content.substring(0, 100) || 'Untitled conversation'
+
+    const res = await saveConversation({
+      id: conversationId.value || undefined,
+      title,
+      messages: JSON.stringify(messages.value),
+    })
+    conversationId.value = res.data.id
+    saveLabel.value = 'Saved!'
+    setTimeout(() => { saveLabel.value = 'Save' }, 2000)
+  } catch {
+    saveLabel.value = 'Failed'
+    setTimeout(() => { saveLabel.value = 'Save' }, 2000)
+  } finally {
+    saving.value = false
+  }
 }
 
 async function addToWishlist(coin: CoinSuggestion, idx: string) {
@@ -243,6 +288,13 @@ function handleImgError(e: Event) {
 
 onMounted(() => {
   inputEl.value?.focus()
+  if (props.loadConversation) {
+    conversationId.value = props.loadConversation.id
+    try {
+      messages.value = JSON.parse(props.loadConversation.messages)
+      scrollToBottom()
+    } catch { /* ignore parse errors */ }
+  }
 })
 </script>
 
@@ -282,6 +334,36 @@ onMounted(() => {
   font-size: 1rem;
   margin: 0;
   color: var(--accent-gold);
+}
+
+.chat-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.chat-save {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: none;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0.3rem 0.6rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  transition: all var(--transition-fast);
+}
+
+.chat-save:hover:not(:disabled) {
+  color: var(--accent-gold);
+  border-color: var(--accent-gold);
+}
+
+.chat-save:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 .chat-close {
