@@ -34,6 +34,23 @@
               </label>
             </div>
 
+            <div class="url-upload-row">
+              <input
+                v-model="imageUrl"
+                type="url"
+                class="form-input url-input"
+                placeholder="Or paste an image URL..."
+                @keydown.enter="handleUrlUpload"
+              />
+              <button
+                class="btn btn-secondary btn-sm"
+                :disabled="!imageUrl || urlLoading"
+                @click="handleUrlUpload"
+              >
+                {{ urlLoading ? 'Fetching...' : 'Fetch' }}
+              </button>
+            </div>
+
             <p v-if="uploadStatus" class="upload-status" :class="{ error: uploadError }">{{ uploadStatus }}</p>
           </div>
         </div>
@@ -248,7 +265,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useCoinsStore } from '@/stores/coins'
 import ImageGallery from '@/components/ImageGallery.vue'
-import { uploadImage, analyzeCoin, deleteAnalysis, deleteCoin, deleteImage, purchaseCoin, getOllamaStatus, getJournalEntries, addJournalEntry, deleteJournalEntry, searchNumista } from '@/api/client'
+import { uploadImage, proxyImage, analyzeCoin, deleteAnalysis, deleteCoin, deleteImage, purchaseCoin, getOllamaStatus, getJournalEntries, addJournalEntry, deleteJournalEntry, searchNumista } from '@/api/client'
 import { removeBackground as removeBg } from '@imgly/background-removal'
 import type { CoinImage, CoinJournal, NumistaType } from '@/types'
 import MarkdownIt from 'markdown-it'
@@ -260,6 +277,8 @@ const store = useCoinsStore()
 const uploadType = ref('obverse')
 const uploadStatus = ref('')
 const uploadError = ref(false)
+const imageUrl = ref('')
+const urlLoading = ref(false)
 const analyzing = ref(false)
 const analyzingSide = ref<string | null>(null)
 const ollamaAvailable = ref(true)
@@ -367,6 +386,35 @@ async function handleImageUpload(e: Event) {
   } catch {
     uploadStatus.value = 'Upload failed'
     uploadError.value = true
+  }
+}
+
+async function handleUrlUpload() {
+  if (!imageUrl.value || !coin.value) return
+
+  urlLoading.value = true
+  uploadStatus.value = 'Fetching image...'
+  uploadError.value = false
+
+  try {
+    const imgRes = await proxyImage(imageUrl.value)
+    const blob = imgRes.data as Blob
+    if (blob.size === 0) {
+      uploadStatus.value = 'No image data received from URL'
+      uploadError.value = true
+      return
+    }
+    const ext = blob.type.includes('png') ? '.png' : '.jpg'
+    const file = new File([blob], `${uploadType.value}${ext}`, { type: blob.type || 'image/jpeg' })
+    await uploadImage(coin.value!.id, file, uploadType.value, coin.value!.images?.length === 0)
+    uploadStatus.value = 'Image saved from URL!'
+    imageUrl.value = ''
+    store.fetchCoin(coin.value!.id)
+  } catch {
+    uploadStatus.value = 'Failed to fetch image from URL'
+    uploadError.value = true
+  } finally {
+    urlLoading.value = false
   }
 }
 
@@ -773,6 +821,18 @@ function formatCurrency(value: number) {
 
 .upload-status.error {
   color: #e74c3c;
+}
+
+.url-upload-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.url-input {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.82rem;
 }
 
 /* AI section */
