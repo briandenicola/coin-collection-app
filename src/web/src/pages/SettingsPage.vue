@@ -231,6 +231,37 @@
         </div>
         <p v-else-if="!registeringCredential" class="setting-desc" style="margin-top: 0.5rem">No biometric credentials registered.</p>
       </section>
+
+      <!-- Saved Conversations -->
+      <section class="settings-section card">
+        <h2>Saved Conversations</h2>
+        <p class="setting-desc" style="margin-bottom: 1rem">
+          Your saved AI coin search conversations. Open one to continue the search or review results.
+        </p>
+
+        <div v-if="conversationsLoading" class="loading-inline">Loading...</div>
+
+        <div v-else-if="conversations.length" class="apikey-list">
+          <div v-for="conv in conversations" :key="conv.id" class="apikey-item">
+            <div class="apikey-item-info" style="cursor: pointer" @click="openConversation(conv.id)">
+              <span class="apikey-item-name">{{ conv.title }}</span>
+              <span class="apikey-item-meta">{{ formatDate(conv.updatedAt) }}</span>
+            </div>
+            <div class="conv-actions">
+              <button class="btn btn-secondary btn-sm" @click="openConversation(conv.id)">Open</button>
+              <button class="btn btn-danger btn-sm" @click="handleDeleteConversation(conv.id)">Delete</button>
+            </div>
+          </div>
+        </div>
+        <p v-else class="setting-desc" style="margin-top: 0.5rem">No saved conversations yet. Use the Save button in the coin search chat to save a conversation.</p>
+      </section>
+
+      <CoinSearchChat
+        v-if="showChat"
+        :loadConversation="chatConversation"
+        @close="showChat = false; chatConversation = null"
+        @added="() => {}"
+      />
     </div>
   </div>
 </template>
@@ -243,8 +274,11 @@ import {
   generateApiKey, listApiKeys, revokeApiKey,
   webauthnRegisterBegin, webauthnRegisterFinish,
   webauthnListCredentials, webauthnDeleteCredential,
+  listConversations, getConversation, deleteConversation,
 } from '@/api/client'
+import type { ConversationSummary } from '@/api/client'
 import type { Coin, Theme, ApiKey, WebAuthnCredentialInfo } from '@/types'
+import CoinSearchChat from '@/components/CoinSearchChat.vue'
 
 
 const auth = useAuthStore()
@@ -519,8 +553,51 @@ async function handleDeleteCredential(id: number) {
   }
 }
 
+// Saved Conversations
+const conversations = ref<ConversationSummary[]>([])
+const conversationsLoading = ref(false)
+const showChat = ref(false)
+const chatConversation = ref<{ id: number; title: string; messages: string } | null>(null)
+
+async function loadConversations() {
+  conversationsLoading.value = true
+  try {
+    const res = await listConversations()
+    conversations.value = res.data
+  } catch {
+    // silently fail
+  } finally {
+    conversationsLoading.value = false
+  }
+}
+
+async function openConversation(id: number) {
+  try {
+    const res = await getConversation(id)
+    chatConversation.value = {
+      id: res.data.id,
+      title: res.data.title,
+      messages: res.data.messages,
+    }
+    showChat.value = true
+  } catch {
+    alert('Failed to load conversation')
+  }
+}
+
+async function handleDeleteConversation(id: number) {
+  if (!confirm('Delete this saved conversation?')) return
+  try {
+    await deleteConversation(id)
+    conversations.value = conversations.value.filter(c => c.id !== id)
+  } catch {
+    alert('Failed to delete conversation')
+  }
+}
+
 onMounted(() => {
   loadApiKeys()
+  loadConversations()
   if (supportsWebAuthn) loadCredentials()
 })
 </script>
@@ -741,5 +818,17 @@ onMounted(() => {
     flex-direction: column;
     align-items: stretch;
   }
+}
+
+.conv-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.loading-inline {
+  color: var(--text-muted);
+  font-style: italic;
+  padding: 0.5rem 0;
 }
 </style>

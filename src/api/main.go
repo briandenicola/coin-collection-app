@@ -159,6 +159,12 @@ func main() {
 		protected.GET("/agent/models", agentHandler.ListModels)
 		protected.GET("/agent/prompt", agentHandler.GetPrompt)
 
+		convHandler := handlers.NewConversationHandler()
+		protected.GET("/agent/conversations", convHandler.List)
+		protected.GET("/agent/conversations/:id", convHandler.Get)
+		protected.POST("/agent/conversations", convHandler.Save)
+		protected.DELETE("/agent/conversations/:id", convHandler.Delete)
+
 		// User self-service routes
 		userHandler := handlers.NewUserHandler(cfg.UploadDir)
 		protected.GET("/auth/me", userHandler.GetMe)
