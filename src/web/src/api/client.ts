@@ -274,6 +274,8 @@ export const changePassword = (currentPassword: string, newPassword: string) =>
 export const exportCollection = () => api.get('/user/export', { responseType: 'blob' })
 export const proxyImage = (url: string) =>
   api.get('/proxy-image', { params: { url }, responseType: 'blob' })
+export const scrapeImage = (url: string) =>
+  api.get<{ imageUrl: string }>('/scrape-image', { params: { url } })
 export const importCollection = (coins: Coin[]) => api.post('/user/import', coins)
 
 // API Keys

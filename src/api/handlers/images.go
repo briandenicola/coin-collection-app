@@ -15,6 +15,7 @@ import (
 	"github.com/briandenicola/ancient-coins-api/models"
 	"github.com/briandenicola/ancient-coins-api/services"
 	"github.com/gin-gonic/gin"
+	"golang.org/x/net/html"
 )
 
 type ImageHandler struct {
@@ -363,4 +364,188 @@ func (h *ImageHandler) ProxyImage(c *gin.Context) {
 	c.Header("Content-Type", contentType)
 	c.Status(http.StatusOK)
 	io.Copy(c.Writer, io.LimitReader(resp.Body, maxSize))
+}
+
+// ScrapeImage fetches a web page and extracts the primary image URL from meta tags.
+//
+//	@Summary		Scrape image URL from a web page
+//	@Description	Fetches a web page and extracts image URL from og:image, twitter:image, or other meta tags. Useful as a fallback when direct image URLs are unavailable.
+//	@Tags			Images
+//	@Produce		json
+//	@Param			url	query		string	true	"Web page URL to scrape"
+//	@Success		200	{object}	map[string]string
+//	@Failure		400	{object}	ErrorResponse
+//	@Failure		401	{object}	ErrorResponse
+//	@Failure		502	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/scrape-image [get]
+func (h *ImageHandler) ScrapeImage(c *gin.Context) {
+	logger := services.AppLogger
+
+	pageURL := c.Query("url")
+	if pageURL == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "url parameter is required"})
+		return
+	}
+
+	if !strings.HasPrefix(pageURL, "http://") && !strings.HasPrefix(pageURL, "https://") {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "URL must start with http:// or https://"})
+		return
+	}
+
+	logger.Debug("images", "Scraping image from page %s", pageURL)
+
+	req, err := http.NewRequest("GET", pageURL, nil)
+	if err != nil {
+		logger.Warn("images", "Failed to build scrape request for %s: %v", pageURL, err)
+		c.JSON(http.StatusBadGateway, gin.H{"error": "Failed to build request"})
+		return
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+
+	client := &http.Client{Timeout: 15 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		logger.Warn("images", "Failed to fetch page %s: %v", pageURL, err)
+		c.JSON(http.StatusBadGateway, gin.H{"error": "Failed to fetch page"})
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		logger.Warn("images", "Scrape page %s returned HTTP %d", pageURL, resp.StatusCode)
+		c.JSON(http.StatusBadGateway, gin.H{"error": fmt.Sprintf("Remote server returned %d", resp.StatusCode)})
+		return
+	}
+
+	// Limit HTML reading to 2MB
+	limitedBody := io.LimitReader(resp.Body, 2*1024*1024)
+	doc, err := html.Parse(limitedBody)
+	if err != nil {
+		logger.Warn("images", "Failed to parse HTML from %s: %v", pageURL, err)
+		c.JSON(http.StatusBadGateway, gin.H{"error": "Failed to parse page HTML"})
+		return
+	}
+
+	imageURL := extractImageFromHTML(doc)
+	if imageURL == "" {
+		logger.Info("images", "No og:image or meta image found on page %s", pageURL)
+		c.JSON(http.StatusOK, gin.H{"imageUrl": ""})
+		return
+	}
+
+	// Resolve relative URLs
+	if strings.HasPrefix(imageURL, "//") {
+		imageURL = "https:" + imageURL
+	} else if strings.HasPrefix(imageURL, "/") {
+		// Extract base URL from page URL
+		parts := strings.SplitN(pageURL, "://", 2)
+		if len(parts) == 2 {
+			slashIdx := strings.Index(parts[1], "/")
+			if slashIdx > 0 {
+				imageURL = parts[0] + "://" + parts[1][:slashIdx] + imageURL
+			} else {
+				imageURL = parts[0] + "://" + parts[1] + imageURL
+			}
+		}
+	}
+
+	logger.Info("images", "Scraped image URL from %s: %s", pageURL, imageURL)
+	c.JSON(http.StatusOK, gin.H{"imageUrl": imageURL})
+}
+
+// extractImageFromHTML walks the HTML tree looking for image URLs in meta tags.
+// Priority: og:image > twitter:image > link[rel=image_src] > first large <img>.
+func extractImageFromHTML(doc *html.Node) string {
+	var ogImage, twitterImage, linkImage, firstImg string
+
+	var walk func(*html.Node)
+	walk = func(n *html.Node) {
+		if n.Type == html.ElementNode {
+			switch n.Data {
+			case "meta":
+				var property, name, content string
+				for _, a := range n.Attr {
+					switch a.Key {
+					case "property":
+						property = strings.ToLower(a.Val)
+					case "name":
+						name = strings.ToLower(a.Val)
+					case "content":
+						content = a.Val
+					}
+				}
+				if content != "" {
+					if property == "og:image" || property == "og:image:url" {
+						ogImage = content
+					} else if name == "twitter:image" || property == "twitter:image" {
+						twitterImage = content
+					}
+				}
+			case "link":
+				var rel, href string
+				for _, a := range n.Attr {
+					switch a.Key {
+					case "rel":
+						rel = strings.ToLower(a.Val)
+					case "href":
+						href = a.Val
+					}
+				}
+				if rel == "image_src" && href != "" {
+					linkImage = href
+				}
+			case "img":
+				if firstImg == "" {
+					var src string
+					var width, height int
+					for _, a := range n.Attr {
+						switch a.Key {
+						case "src":
+							src = a.Val
+						case "data-src":
+							if src == "" {
+								src = a.Val
+							}
+						case "width":
+							w, _ := strconv.Atoi(a.Val)
+							width = w
+						case "height":
+							h, _ := strconv.Atoi(a.Val)
+							height = h
+						}
+					}
+					// Only use img tags that appear to be content images (not tiny icons)
+					if src != "" && (width >= 100 || height >= 100 || (width == 0 && height == 0)) {
+						lower := strings.ToLower(src)
+						isIcon := strings.Contains(lower, "icon") ||
+							strings.Contains(lower, "logo") ||
+							strings.Contains(lower, "favicon") ||
+							strings.Contains(lower, "sprite") ||
+							strings.Contains(lower, "pixel") ||
+							strings.Contains(lower, "spacer")
+						if !isIcon {
+							firstImg = src
+						}
+					}
+				}
+			}
+		}
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			walk(c)
+		}
+	}
+	walk(doc)
+
+	if ogImage != "" {
+		return ogImage
+	}
+	if twitterImage != "" {
+		return twitterImage
+	}
+	if linkImage != "" {
+		return linkImage
+	}
+	return firstImg
 }

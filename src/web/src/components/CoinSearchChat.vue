@@ -43,8 +43,8 @@
           <!-- Suggestions after assistant message -->
           <div v-if="msg.role === 'assistant' && msg.suggestions?.length" class="suggestions-grid">
             <div v-for="(coin, j) in msg.suggestions" :key="j" class="suggestion-card">
-              <div class="suggestion-img" v-if="coin.imageUrl">
-                <img :src="proxyImageUrl(coin.imageUrl)" :alt="coin.name" @error="handleImgError" />
+              <div class="suggestion-img" v-if="getSuggestionImageUrl(coin)">
+                <img :src="getSuggestionImageUrl(coin)" :alt="coin.name" @error="handleImgError" />
               </div>
               <div class="suggestion-body">
                 <h4>{{ coin.name }}</h4>
@@ -99,7 +99,7 @@
 
 <script setup lang="ts">
 import { ref, nextTick, onMounted, computed } from 'vue'
-import { agentChatStream, createCoin, proxyImage, uploadImage, saveConversation } from '@/api/client'
+import { agentChatStream, createCoin, proxyImage, scrapeImage, uploadImage, saveConversation } from '@/api/client'
 import type { CoinSuggestion, AgentChatMessage, Category, Material } from '@/types'
 import { Bot, X, SendHorizontal, CirclePlus, ExternalLink, Save } from 'lucide-vue-next'
 
@@ -128,6 +128,7 @@ const messagesEl = ref<HTMLElement>()
 const inputEl = ref<HTMLInputElement>()
 const conversationId = ref<number | null>(null)
 const saving = ref(false)
+const scrapedImages = ref<Map<string, string>>(new Map())
 const saveLabel = ref('Save')
 
 const VALID_CATEGORIES = ['Roman', 'Greek', 'Byzantine', 'Modern', 'Other']
@@ -240,19 +241,55 @@ async function addToWishlist(coin: CoinSuggestion, idx: string) {
       currentValue: parsePrice(coin.estPrice),
     })
 
-    // Download and attach coin image as obverse
-    if (coin.imageUrl) {
+    // Try to download and attach coin image as obverse
+    let imageAttached = false
+
+    // Primary: scrape og:image from the listing page (most reliable)
+    if (coin.sourceUrl) {
       try {
+        // Check if we already scraped this URL during preview
+        let scrapedUrl = scrapedImages.value.get(coin.sourceUrl) || ''
+        if (!scrapedUrl) {
+          const scraped = await scrapeImage(coin.sourceUrl)
+          scrapedUrl = scraped.data.imageUrl || ''
+        }
+        if (scrapedUrl) {
+          console.log('[agent] Downloading scraped image:', scrapedUrl)
+          const imgRes = await proxyImage(scrapedUrl)
+          const blob = imgRes.data as Blob
+          if (blob.size > 0) {
+            const ext = blob.type.includes('png') ? '.png' : '.jpg'
+            const file = new File([blob], `obverse${ext}`, { type: blob.type || 'image/jpeg' })
+            await uploadImage(created.data.id, file, 'obverse', true)
+            imageAttached = true
+            console.log('[agent] Image attached via scraping')
+          }
+        }
+      } catch (err) {
+        console.warn('[agent] Scrape-based image failed for', coin.sourceUrl, err)
+      }
+    }
+
+    // Fallback: try agent-provided imageUrl directly
+    if (!imageAttached && coin.imageUrl) {
+      try {
+        console.log('[agent] Trying agent imageUrl:', coin.imageUrl)
         const imgRes = await proxyImage(coin.imageUrl)
         const blob = imgRes.data as Blob
         if (blob.size > 0) {
           const ext = blob.type.includes('png') ? '.png' : '.jpg'
           const file = new File([blob], `obverse${ext}`, { type: blob.type || 'image/jpeg' })
           await uploadImage(created.data.id, file, 'obverse', true)
+          imageAttached = true
+          console.log('[agent] Image attached via agent imageUrl')
         }
-      } catch {
-        console.warn('Image download failed for', coin.imageUrl)
+      } catch (err) {
+        console.warn('[agent] Agent imageUrl download failed:', coin.imageUrl, err)
       }
+    }
+
+    if (!imageAttached) {
+      console.warn('[agent] No image could be attached for coin:', coin.name)
     }
 
     addedSet.value.add(idx)
@@ -284,8 +321,41 @@ function proxyImageUrl(url: string): string {
   return `/api/proxy-image?url=${encodeURIComponent(url)}`
 }
 
+function getSuggestionImageUrl(coin: CoinSuggestion): string {
+  // Always prefer scraped image from sourceUrl (og:image is most reliable)
+  if (coin.sourceUrl) {
+    const cached = scrapedImages.value.get(coin.sourceUrl)
+    if (cached) return proxyImageUrl(cached)
+    if (cached === undefined) {
+      scrapedImages.value.set(coin.sourceUrl, '')
+      scrapeImage(coin.sourceUrl).then((res) => {
+        if (res.data.imageUrl) {
+          console.log('[agent] Scraped image from', coin.sourceUrl, '→', res.data.imageUrl)
+          scrapedImages.value.set(coin.sourceUrl, res.data.imageUrl)
+        } else if (coin.imageUrl) {
+          // Scrape returned nothing — fall back to agent-provided URL
+          console.log('[agent] Scrape empty, using agent imageUrl:', coin.imageUrl)
+          scrapedImages.value.set(coin.sourceUrl, coin.imageUrl)
+        }
+      }).catch(() => {
+        // Scrape failed — fall back to agent-provided URL
+        if (coin.imageUrl) {
+          console.log('[agent] Scrape failed, using agent imageUrl:', coin.imageUrl)
+          scrapedImages.value.set(coin.sourceUrl, coin.imageUrl)
+        }
+      })
+    }
+    return ''
+  }
+
+  // No sourceUrl — try agent imageUrl directly
+  if (coin.imageUrl) return proxyImageUrl(coin.imageUrl)
+  return ''
+}
+
 function handleImgError(e: Event) {
   const img = e.target as HTMLImageElement
+  console.warn('[agent] Image failed to load:', img.src)
   img.style.display = 'none'
 }
 
