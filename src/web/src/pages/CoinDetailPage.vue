@@ -33,6 +33,10 @@
                 Choose File
                 <input type="file" accept="image/*" hidden @change="handleImageUpload" />
               </label>
+              <label v-if="isPwa" class="btn btn-secondary btn-sm upload-btn camera-btn">
+                <Camera :size="14" /> Photo
+                <input type="file" accept="image/*" capture="environment" hidden @change="handleImageUpload" />
+              </label>
             </div>
 
             <div class="url-upload-row">
@@ -273,10 +277,13 @@ import { uploadImage, proxyImage, analyzeCoin, deleteAnalysis, deleteCoin, delet
 import { removeBackground as removeBg } from '@imgly/background-removal'
 import type { CoinImage, CoinJournal, NumistaType } from '@/types'
 import MarkdownIt from 'markdown-it'
+import { Camera } from 'lucide-vue-next'
 
 const route = useRoute()
 const router = useRouter()
 const store = useCoinsStore()
+const isPwa = window.matchMedia('(display-mode: standalone)').matches
+  || (window.navigator as any).standalone === true
 
 const uploadType = ref('obverse')
 const uploadStatus = ref('')
@@ -828,6 +835,12 @@ function formatCurrency(value: number) {
 .upload-btn {
   white-space: nowrap;
   cursor: pointer;
+}
+
+.camera-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
 }
 
 .upload-status {
