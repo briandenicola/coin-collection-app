@@ -87,7 +87,7 @@
     <template v-else-if="store.coins.length">
       <SwipeGallery v-if="viewMode === 'swipe'" :coins="store.coins" />
       <div v-else class="coins-grid">
-        <CoinCard v-for="coin in store.coins" :key="coin.id" :coin="coin" :image-side="gridSide" @sell="handleSell" />
+        <CoinCard v-for="coin in store.coins" :key="coin.id" :coin="coin" :image-side="gridSide" />
       </div>
     </template>
 
@@ -104,23 +104,19 @@
       <span class="page-info">Page {{ page }} of {{ Math.ceil(store.total / 50) }}</span>
       <button class="btn btn-secondary btn-sm" :disabled="page * 50 >= store.total" @click="page++">Next →</button>
     </div>
-
-    <SellModal v-if="sellTarget" :coin="sellTarget" @close="sellTarget = null" @confirm="confirmSell" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, watch, onMounted } from 'vue'
 import { useCoinsStore } from '@/stores/coins'
-import type { Coin, ImageType } from '@/types'
+import type { ImageType } from '@/types'
 import { usePullToRefresh } from '@/composables/usePullToRefresh'
 import CoinCard from '@/components/CoinCard.vue'
 import SwipeGallery from '@/components/SwipeGallery.vue'
 import CategoryFilter from '@/components/CategoryFilter.vue'
 import SearchBar from '@/components/SearchBar.vue'
 import SortSelect from '@/components/SortSelect.vue'
-import SellModal from '@/components/SellModal.vue'
-import { sellCoin } from '@/api/client'
 
 import { Layers, LayoutGrid, CirclePlus, Menu } from 'lucide-vue-next'
 
@@ -130,7 +126,6 @@ const search = ref(store.searchQuery)
 const page = ref(1)
 const sortKey = ref(localStorage.getItem('defaultSort') || 'updated_at_desc')
 const menuOpen = ref(false)
-const sellTarget = ref<Coin | null>(null)
 
 // Use saved preference if set, otherwise default to swipe in PWA mode
 const savedView = localStorage.getItem('defaultView') as 'grid' | 'swipe' | null
@@ -167,22 +162,6 @@ function loadCoins() {
     sort,
     order,
   })
-}
-
-function handleSell(coin: Coin) {
-  sellTarget.value = coin
-}
-
-async function confirmSell(soldPrice: number | null, soldTo: string) {
-  if (!sellTarget.value) return
-  try {
-    await sellCoin(sellTarget.value.id, soldPrice, soldTo)
-    sellTarget.value = null
-    loadCoins()
-  } catch {
-    alert('Failed to mark as sold')
-    sellTarget.value = null
-  }
 }
 
 watch(selectedCategory, () => {

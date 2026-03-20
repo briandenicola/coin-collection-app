@@ -50,13 +50,6 @@
       >
         <ShoppingCart :size="14" /> Purchased
       </button>
-      <button
-        v-if="!wishlist && !sold && !coin.isSold"
-        class="btn btn-secondary btn-sm card-sell-btn"
-        @click.stop="emit('sell', coin)"
-      >
-        <DollarSign :size="14" /> Sell
-      </button>
     </div>
   </div>
 </template>
@@ -64,7 +57,7 @@
 <script setup lang="ts">
 import type { Coin, ImageType } from '@/types'
 import { computed } from 'vue'
-import { Coins, ShoppingCart, DollarSign } from 'lucide-vue-next'
+import { Coins, ShoppingCart } from 'lucide-vue-next'
 
 const props = withDefaults(defineProps<{ coin: Coin; imageSide?: ImageType | null; wishlist?: boolean; sold?: boolean }>(), {
   imageSide: null,
@@ -74,7 +67,6 @@ const props = withDefaults(defineProps<{ coin: Coin; imageSide?: ImageType | nul
 
 const emit = defineEmits<{
   purchase: [coin: Coin]
-  sell: [coin: Coin]
 }>()
 
 const primaryImage = computed(() => {
