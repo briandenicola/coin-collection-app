@@ -430,7 +430,7 @@ func (h *ImageHandler) ScrapeImage(c *gin.Context) {
 
 	imageURL := extractImageFromHTML(doc)
 	if imageURL == "" {
-		logger.Debug("images", "No image found on page %s", pageURL)
+		logger.Info("images", "No og:image or meta image found on page %s", pageURL)
 		c.JSON(http.StatusOK, gin.H{"imageUrl": ""})
 		return
 	}
@@ -451,7 +451,7 @@ func (h *ImageHandler) ScrapeImage(c *gin.Context) {
 		}
 	}
 
-	logger.Debug("images", "Scraped image URL from %s: %s", pageURL, imageURL)
+	logger.Info("images", "Scraped image URL from %s: %s", pageURL, imageURL)
 	c.JSON(http.StatusOK, gin.H{"imageUrl": imageURL})
 }
 
