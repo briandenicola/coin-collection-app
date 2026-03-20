@@ -81,6 +81,35 @@
             <span class="form-hint">Time limit for AI analysis calls. Default: 300 (5 minutes)</span>
           </div>
           <div class="form-group">
+            <label class="form-label">Anthropic API Key</label>
+            <input v-model="settings.AnthropicAPIKey" class="form-input" type="password" placeholder="Enter your Anthropic API key" />
+            <span class="form-hint">Required for the AI coin search agent. Get a key at <a href="https://console.anthropic.com/" target="_blank" rel="noopener">console.anthropic.com</a></span>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Anthropic Model</label>
+            <select v-model="settings.AnthropicModel" class="form-input">
+              <option v-for="m in anthropicModels" :key="m.id" :value="m.id">{{ m.name }}</option>
+            </select>
+            <span class="form-hint">Model used for the coin search agent</span>
+          </div>
+          <div class="form-group">
+            <div class="prompt-header">
+              <label class="form-label">Agent Search Prompt</label>
+              <button
+                type="button"
+                class="btn btn-ghost btn-xs"
+                :disabled="settings.AgentPrompt === agentPromptDefault"
+                @click="settings.AgentPrompt = agentPromptDefault"
+              >Revert to Default</button>
+            </div>
+            <textarea
+              v-model="settings.AgentPrompt"
+              class="form-textarea"
+              rows="8"
+            />
+            <span class="form-hint">System prompt for the AI coin search agent. Controls how it searches and formats results.</span>
+          </div>
+          <div class="form-group">
             <div class="prompt-header">
               <label class="form-label">Obverse Analysis Prompt</label>
               <button
@@ -167,6 +196,11 @@
             {{ settingsSaving ? 'Saving...' : 'Save System Settings' }}
           </button>
         </form>
+        <div class="version-info">
+          <span class="version-label">Version</span>
+          <span class="version-value">{{ appVersion }}</span>
+          <span v-if="buildDate" class="version-date">Built {{ buildDate }}</span>
+        </div>
       </section>
 
       <!-- Logs Tab -->
@@ -229,12 +263,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, type Component } from 'vue'
+import { ref, computed, onMounted, onUnmounted, type Component } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import {
   getUsers, deleteUser, resetUserPassword,
   getAppSettings, getAppSettingDefaults, updateAppSettings, getAdminLogs, getOllamaStatus,
+  getAnthropicModels, getAgentPrompt,
 } from '@/api/client'
+import type { AnthropicModel } from '@/api/client'
 import { LOG_LEVELS } from '@/types'
 import type { UserInfo, AppSettings, LogEntry } from '@/types'
 import { Users, Cpu, Wrench, ScrollText } from 'lucide-vue-next'
@@ -242,6 +278,21 @@ import { Users, Cpu, Wrench, ScrollText } from 'lucide-vue-next'
 const tabIcons: Record<string, Component> = { users: Users, ai: Cpu, system: Wrench, logs: ScrollText }
 
 const auth = useAuthStore()
+
+const rawVersion = import.meta.env.VITE_APP_VERSION || 'dev'
+const appVersion = computed(() => {
+  if (rawVersion === 'dev') return 'dev'
+  return rawVersion.length > 8 ? rawVersion.substring(0, 7) : rawVersion
+})
+const buildDate = computed(() => {
+  const raw = import.meta.env.VITE_BUILD_DATE
+  if (!raw) return ''
+  try {
+    return new Date(raw).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+  } catch {
+    return raw
+  }
+})
 
 const tabs = [
   { id: 'users', icon: 'users', label: 'Users' },
@@ -330,6 +381,12 @@ const settingsSaving = ref(false)
 const ollamaTesting = ref(false)
 const ollamaTestResult = ref('')
 const ollamaTestOk = ref(false)
+const anthropicModels = ref<AnthropicModel[]>([
+  { id: 'claude-sonnet-4-20250514', name: 'Claude Sonnet 4' },
+  { id: 'claude-haiku-4-20250414', name: 'Claude Haiku 4' },
+  { id: 'claude-opus-4-20250514', name: 'Claude Opus 4' },
+])
+const agentPromptDefault = ref('')
 
 async function loadSettings() {
   try {
@@ -339,6 +396,23 @@ async function loadSettings() {
     ])
     settingDefaults.value = { ...settingDefaults.value, ...defaultsRes.data }
     settings.value = { ...settings.value, ...settingsRes.data }
+
+    // Load Anthropic models and agent prompt in parallel
+    const [modelsRes, promptRes] = await Promise.all([
+      getAnthropicModels().catch(() => null),
+      getAgentPrompt().catch(() => null),
+    ])
+
+    if (modelsRes?.data?.length) {
+      anthropicModels.value = modelsRes.data
+    }
+
+    if (promptRes?.data) {
+      agentPromptDefault.value = promptRes.data.default
+      if (!settings.value.AgentPrompt) {
+        settings.value.AgentPrompt = promptRes.data.prompt
+      }
+    }
   } catch { /* use defaults */ }
 }
 
@@ -707,4 +781,30 @@ onUnmounted(() => {
 .log-debug .log-level-badge { color: #3498db; }
 .log-trace .log-level-badge { color: #7f8c8d; }
 .log-info .log-level-badge { color: #2ecc71; }
+
+.version-info {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.version-label {
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.version-value {
+  font-family: 'Courier New', Courier, monospace;
+  color: var(--text-secondary);
+}
+
+.version-date {
+  margin-left: 0.25rem;
+}
 </style>

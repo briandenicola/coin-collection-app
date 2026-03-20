@@ -9,6 +9,7 @@
         <button class="btn btn-secondary btn-sm" @click="$router.back()">← Back</button>
         <div class="detail-actions">
           <button v-if="coin.isWishlist" class="btn btn-primary btn-sm" @click="handlePurchase">🛒 Mark as Purchased</button>
+          <button v-if="!coin.isWishlist && !coin.isSold" class="btn btn-secondary btn-sm" @click="showSellModal = true">Sell</button>
           <router-link :to="`/edit/${coin.id}`" class="btn btn-secondary btn-sm">Edit</router-link>
           <button class="btn btn-danger btn-sm" @click="handleDelete">Delete</button>
         </div>
@@ -32,6 +33,27 @@
                 Choose File
                 <input type="file" accept="image/*" hidden @change="handleImageUpload" />
               </label>
+              <label v-if="isPwa" class="btn btn-secondary btn-sm upload-btn camera-btn">
+                <Camera :size="14" /> Photo
+                <input type="file" accept="image/*" capture="environment" hidden @change="handleImageUpload" />
+              </label>
+            </div>
+
+            <div class="url-upload-row">
+              <input
+                v-model="imageUrl"
+                type="url"
+                class="form-input url-input"
+                placeholder="Or paste an image URL..."
+                @keydown.enter="handleUrlUpload"
+              />
+              <button
+                class="btn btn-secondary btn-sm"
+                :disabled="!imageUrl || urlLoading"
+                @click="handleUrlUpload"
+              >
+                {{ urlLoading ? 'Fetching...' : 'Fetch' }}
+              </button>
             </div>
 
             <p v-if="uploadStatus" class="upload-status" :class="{ error: uploadError }">{{ uploadStatus }}</p>
@@ -240,6 +262,8 @@
         </div>
       </div>
     </div>
+
+    <SellModal v-if="showSellModal && coin" :coin="coin" @close="showSellModal = false" @confirm="confirmSell" />
   </div>
 </template>
 
@@ -248,23 +272,30 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useCoinsStore } from '@/stores/coins'
 import ImageGallery from '@/components/ImageGallery.vue'
-import { uploadImage, analyzeCoin, deleteAnalysis, deleteCoin, deleteImage, purchaseCoin, getOllamaStatus, getJournalEntries, addJournalEntry, deleteJournalEntry, searchNumista } from '@/api/client'
+import SellModal from '@/components/SellModal.vue'
+import { uploadImage, proxyImage, analyzeCoin, deleteAnalysis, deleteCoin, deleteImage, purchaseCoin, sellCoin, getOllamaStatus, getJournalEntries, addJournalEntry, deleteJournalEntry, searchNumista } from '@/api/client'
 import { removeBackground as removeBg } from '@imgly/background-removal'
 import type { CoinImage, CoinJournal, NumistaType } from '@/types'
 import MarkdownIt from 'markdown-it'
+import { Camera } from 'lucide-vue-next'
 
 const route = useRoute()
 const router = useRouter()
 const store = useCoinsStore()
+const isPwa = window.matchMedia('(display-mode: standalone)').matches
+  || (window.navigator as any).standalone === true
 
 const uploadType = ref('obverse')
 const uploadStatus = ref('')
 const uploadError = ref(false)
+const imageUrl = ref('')
+const urlLoading = ref(false)
 const analyzing = ref(false)
 const analyzingSide = ref<string | null>(null)
 const ollamaAvailable = ref(true)
 const ollamaMessage = ref('')
 const removingBg = ref(false)
+const showSellModal = ref(false)
 
 // Journal
 const journalEntries = ref<CoinJournal[]>([])
@@ -370,6 +401,35 @@ async function handleImageUpload(e: Event) {
   }
 }
 
+async function handleUrlUpload() {
+  if (!imageUrl.value || !coin.value) return
+
+  urlLoading.value = true
+  uploadStatus.value = 'Fetching image...'
+  uploadError.value = false
+
+  try {
+    const imgRes = await proxyImage(imageUrl.value)
+    const blob = imgRes.data as Blob
+    if (blob.size === 0) {
+      uploadStatus.value = 'No image data received from URL'
+      uploadError.value = true
+      return
+    }
+    const ext = blob.type.includes('png') ? '.png' : '.jpg'
+    const file = new File([blob], `${uploadType.value}${ext}`, { type: blob.type || 'image/jpeg' })
+    await uploadImage(coin.value!.id, file, uploadType.value, coin.value!.images?.length === 0)
+    uploadStatus.value = 'Image saved from URL!'
+    imageUrl.value = ''
+    store.fetchCoin(coin.value!.id)
+  } catch {
+    uploadStatus.value = 'Failed to fetch image from URL'
+    uploadError.value = true
+  } finally {
+    urlLoading.value = false
+  }
+}
+
 async function handleRemoveBackground(image: CoinImage) {
   if (!coin.value) return
   removingBg.value = true
@@ -443,6 +503,18 @@ async function handleDelete() {
   if (!coin.value || !confirm('Delete this coin from your collection?')) return
   await deleteCoin(coin.value.id)
   router.push('/')
+}
+
+async function confirmSell(soldPrice: number | null, soldTo: string) {
+  if (!coin.value) return
+  try {
+    await sellCoin(coin.value.id, soldPrice, soldTo)
+    showSellModal.value = false
+    router.push('/sold')
+  } catch {
+    alert('Failed to mark as sold')
+    showSellModal.value = false
+  }
 }
 
 async function handleDeleteAnalysis(side: 'obverse' | 'reverse') {
@@ -765,6 +837,12 @@ function formatCurrency(value: number) {
   cursor: pointer;
 }
 
+.camera-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
 .upload-status {
   margin-top: 0.5rem;
   font-size: 0.8rem;
@@ -773,6 +851,18 @@ function formatCurrency(value: number) {
 
 .upload-status.error {
   color: #e74c3c;
+}
+
+.url-upload-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.url-input {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.82rem;
 }
 
 /* AI section */

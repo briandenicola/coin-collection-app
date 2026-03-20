@@ -157,6 +157,7 @@ function loadCoins() {
     category: selectedCategory.value || undefined,
     search: search.value || undefined,
     wishlist: 'false',
+    sold: 'false',
     page: page.value,
     sort,
     order,

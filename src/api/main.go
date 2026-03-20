@@ -128,6 +128,7 @@ func main() {
 		protected.POST("/coins", coinHandler.Create)
 		protected.PUT("/coins/:id", coinHandler.Update)
 		protected.POST("/coins/:id/purchase", coinHandler.Purchase)
+		protected.POST("/coins/:id/sell", coinHandler.Sell)
 		protected.DELETE("/coins/:id", coinHandler.Delete)
 
 		journalHandler := handlers.NewJournalHandler()
@@ -144,6 +145,7 @@ func main() {
 		protected.POST("/coins/:id/images/base64", imageHandler.UploadBase64)
 		protected.DELETE("/coins/:id/images/:imageId", imageHandler.Delete)
 		protected.GET("/proxy-image", imageHandler.ProxyImage)
+		protected.GET("/scrape-image", imageHandler.ScrapeImage)
 
 		analysisHandler := handlers.NewAnalysisHandler()
 		protected.POST("/coins/:id/analyze", analysisHandler.Analyze)
@@ -153,6 +155,17 @@ func main() {
 
 		numistaHandler := handlers.NewNumistaHandler()
 		protected.GET("/numista/search", numistaHandler.Search)
+
+		agentHandler := handlers.NewAgentHandler()
+		protected.POST("/agent/chat", agentHandler.ChatStream)
+		protected.GET("/agent/models", agentHandler.ListModels)
+		protected.GET("/agent/prompt", agentHandler.GetPrompt)
+
+		convHandler := handlers.NewConversationHandler()
+		protected.GET("/agent/conversations", convHandler.List)
+		protected.GET("/agent/conversations/:id", convHandler.Get)
+		protected.POST("/agent/conversations", convHandler.Save)
+		protected.DELETE("/agent/conversations/:id", convHandler.Delete)
 
 		// User self-service routes
 		userHandler := handlers.NewUserHandler(cfg.UploadDir)

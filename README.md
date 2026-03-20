@@ -2,11 +2,11 @@
 
 > **Note:** This application is 100% vibe coded. It's exclusively for me to learn and experiment with GitHub Copilot CLI.
 
-Ancient Coins is a full-stack web application for cataloging and managing your personal coin collection. Track details like denomination, ruler, era, mint, material, grade, inscriptions, RIC rarity ratings, photos, and more — with optional AI-powered coin analysis via Ollama vision models. Every coin is scoped to your authenticated account using JWT-based authentication.
+Ancient Coins is a full-stack web application for cataloging and managing your personal coin collection. Track details like denomination, ruler, era, mint, material, grade, inscriptions, RIC rarity ratings, photos, and more — with AI-powered coin analysis via Ollama vision models and an Anthropic-powered coin search agent. Every coin is scoped to your authenticated account using JWT-based authentication.
 
-It also includes a **wish list** for tracking coins you want to acquire, and a **stats dashboard** with collection value summaries, category breakdowns, and material distribution charts.
+It includes a **wish list** with an AI search agent for discovering coins, a **stats dashboard** with grade distribution charts and portfolio value tracking over time, per-coin **activity journals**, **Numista catalog lookups**, and collection **export/import**.
 
-On first launch, the first user to register is automatically assigned as the admin and can configure application settings including Ollama AI integration.
+On first launch, the first user to register is automatically assigned as the admin and can configure application settings including AI integrations.
 
 ## Architecture
 
@@ -157,18 +157,31 @@ The application will be available on `http://localhost:8080`. On first launch, t
 
 ### Collection Management
 
-The main collection page supports browsing your coins with filtering and search:
+The main collection page supports browsing your coins with filtering, search, and sorting:
 
 - **Card Gallery** — Responsive card grid showing each coin's primary image with name, ruler, denomination, and category. Supports filtering by category (Roman, Greek, Byzantine, Modern) and full-text search across all fields.
+- **Sorting** — Sort by date added, date last updated, or current value (ascending or descending).
+- **Swipe / Grid Toggle** — Switch between a swipeable card carousel (ideal for mobile/PWA) and a traditional grid layout. Default view preference is configurable in Settings.
 - **Pagination** — Coins are loaded with pagination for large collections.
 - **Category Colors** — Each category has a distinct color accent: purple for Roman, olive for Greek, red for Byzantine, and steel blue for Modern.
 
 ### Wish List
 
-Track coins you'd like to acquire without cluttering your main collection:
+Track coins you'd like to acquire with an AI-powered search agent:
 
 - **Add to Wish List** — When creating a coin, toggle the "Wishlist" flag. The coin appears in the dedicated Wish List view instead of the main collection.
-- **Wish List Gallery** — A separate page showing only wishlist items with the same card layout.
+- **AI Coin Search Agent** — Click "Find Coins" to open a chat drawer powered by Anthropic Claude with web search. Describe the coins you're looking for (e.g., "Roman silver denarii of Julius Caesar under $500") and the agent searches the web for real listings and references. Results appear as cards with images, metadata, estimated prices, and source links — each with an "Add to Wishlist" button for one-click import.
+- **Purchase** — Move a wishlist coin to your main collection when you acquire it.
+- **Wish List Gallery** — A separate page showing only wishlist items with sorting support.
+
+### Sold Coins
+
+Track coins you've sold with profit/loss visibility:
+
+- **Sell from Detail Page** — Click "Sell" on any collection coin's detail page. A styled modal prompts for the sale price and buyer name.
+- **Profit / Loss Tracking** — Sold coins display the sale price, original cost basis, and calculated profit or loss (green for profit, red for loss).
+- **Sold Gallery** — A dedicated gallery page showing all sold coins with their sale history, accessible from the navigation bar.
+- **Stats Integration** — Sold coins are excluded from active collection totals while their sold values are tracked separately.
 
 ### Coin Details
 
@@ -177,13 +190,16 @@ Each coin can store:
 - **Core fields** — Name, denomination, ruler/authority, year/era, category, material, weight, diameter
 - **Numismatic details** — Mint mark, obverse/reverse inscriptions, grade, RIC number, rarity rating
 - **Financial data** — Purchase price, current value, acquisition date, dealer/source
-- **Images** — Multiple image uploads per coin (obverse, reverse, edge, detail, full) with a gallery viewer
-- **AI Analysis** — Markdown-formatted analysis from Ollama, stored with the coin
+- **Images** — Multiple image uploads per coin (obverse, reverse, edge, detail, full) with a gallery viewer. Supports file upload, paste-from-URL (fetched via server proxy), and direct camera capture in PWA mode.
+- **Camera Capture (PWA)** — In PWA/mobile mode, a "Photo" button appears on upload sections letting you take coin photos directly with the rear camera. Available on the coin detail page and the add/edit form.
+- **AI Analysis** — Markdown-formatted analysis from Ollama, stored with the coin (obverse and reverse analyzed separately)
+- **Activity Journal** — Timestamped log entries per coin (e.g., "cleaned", "sent to NGC for grading", "displayed at coin show"). Add and delete entries directly from the detail page.
+- **Numista Catalog Lookup** — Search the Numista coin catalog directly from a coin's detail page. Results show thumbnails, title, issuer, and year range with links to the full Numista catalog entry.
 - **Notes** — Free-text notes field
 
 ### AI Coin Analysis
 
-Upload photos of a coin and click **Analyze with AI** to get an AI-powered numismatic analysis via Ollama. The analysis covers identification, obverse/reverse descriptions, inscriptions, condition assessment, historical context, and estimated market value. If accepted, the analysis is saved to the coin's record.
+Upload photos of a coin and click **Analyze with AI** to get an AI-powered numismatic analysis via Ollama. The analysis covers identification, obverse/reverse descriptions, inscriptions, condition assessment, historical context, and estimated market value. Obverse and reverse sides are analyzed separately with dedicated prompts. If accepted, the analysis is saved to the coin's record.
 
 To enable AI analysis:
 
@@ -191,41 +207,94 @@ To enable AI analysis:
 2. Start Ollama: `ollama serve`
 3. Configure the Ollama URL and model in **Admin → AI Configuration**
 
+### AI Coin Search Agent
+
+Chat with an AI agent that searches the web for coins matching your description. Powered by Anthropic Claude with the web search tool, the agent returns structured coin suggestions with names, categories, materials, price estimates, and source links. Each suggestion can be added to your wishlist with one click.
+
+Key features:
+
+- **Streaming Responses** — Agent replies stream in real-time via Server-Sent Events (SSE) with a progressive text display and blinking cursor, so you see results as they arrive.
+- **Automatic Image Extraction** — When you add a coin to your wishlist, the system automatically extracts the listing's primary image using `og:image` meta tag scraping from the source page. Falls back to the agent-provided image URL if scraping finds nothing.
+- **Paste Image URL** — If automatic extraction misses an image, you can paste an image URL directly on the coin detail page to fetch and attach it.
+- **Save Conversations** — Save search conversations for later reference. Saved chats appear in the Settings → Conversations tab where you can reopen or delete them.
+- **Configurable Model & Prompt** — Admins can select the Claude model from a dropdown populated from the Anthropic API, and customize the agent's system prompt.
+
+To enable the search agent:
+
+1. Get an API key from [console.anthropic.com](https://console.anthropic.com/)
+2. Configure it in **Admin → AI Configuration → Anthropic API Key**
+3. Optionally select a different model or customize the agent prompt in Admin settings
+
+### Numista Catalog Integration
+
+Look up coins in the [Numista](https://en.numista.com/) catalog directly from any coin's detail page. The search uses the coin's name, denomination, and ruler to find matching entries, displaying thumbnails and linking to full catalog pages.
+
+To enable Numista lookup:
+
+1. Get a free API key at [numista.com/api](https://en.numista.com/api/) (2,000 requests/month free)
+2. Configure it in **Admin → AI Configuration → Numista API Key**
+
 ### Collection Statistics
 
 The **Stats** page shows:
 
 - **Summary cards** — Total coins, total value, average value, unique rulers
-- **Category breakdown** — Pie-style distribution across Roman, Greek, Byzantine, Modern, and Other
+- **Category breakdown** — Distribution across Roman, Greek, Byzantine, Modern, and Other
 - **Material distribution** — Breakdown by gold, silver, bronze, copper, and electrum
+- **Grade distribution** — Bar chart showing coin counts by grade (VF, EF, AU, etc.) with a blue gradient
+- **Value over time** — SVG line chart tracking total portfolio value and total invested over time, built from automatic snapshots recorded after every coin create, update, or delete
 - **Top coins by value** — Ranked list of the most valuable coins in your collection
+
+### Image Text Extraction
+
+Upload photos of store cards, certificates, or coin holder labels and extract text via OCR powered by Ollama. Useful for quickly capturing dealer information, grades, and reference numbers when adding coins.
 
 ### User Settings
 
-All authenticated users can access **Settings** to configure:
+All authenticated users can access **Settings**, organized in a tabbed layout:
 
-- **Change Password** — Update your account password (requires current password).
-- **Theme** — Switch between dark (museum) and light mode. Persists across sessions.
-- **Time Zone** — Select your preferred time zone for date/time display.
-- **Export / Import** — Export your entire collection as JSON, or import coins from a JSON file. See the [Getting Started Guide](docs/getting-started.md#import--export) for the full import file format and field reference.
+- **Account** — Change password (requires current password) and register WebAuthn/FIDO2 passkeys for passwordless login.
+- **Appearance** — Switch between dark (museum) and light theme, set time zone, choose default gallery view (swipe or grid), and default sort order. Preferences persist across sessions.
+- **Data** — Export your entire collection as JSON, import coins from a JSON file, and manage API keys for programmatic access. See the [Getting Started Guide](docs/getting-started.md#import--export) for the full import file format.
+- **Conversations** — View, reopen, or delete saved AI search agent conversations.
 
 ### Admin Settings
 
 The first registered user is the admin. Admins can access **Admin** to manage:
 
 - **Users** — View all registered users, delete accounts, and reset passwords.
-- **AI Configuration** — Set the Ollama URL, vision model name, and custom analysis prompt. The Ollama URL is configured here (not via environment variable).
+- **AI Configuration** — Configure Ollama (URL, vision model, timeout, analysis prompts), Anthropic (API key, model dropdown, editable agent prompt for the search agent), and Numista (API key for catalog lookups).
 - **System** — Set the application log level (trace, debug, info, warn, error).
 - **Logs** — View real-time application logs with level filtering and auto-refresh.
 
 ### Environment Variables
 
-| Variable       | Default                         | Description |
-| -------------- | ------------------------------- | ----------- |
-| `JWT_SECRET`   | *(auto-generated for dev)*      | JWT signing key (`openssl rand -base64 48`) |
-| `DB_PATH`      | `./ancientcoins.db`             | SQLite database file path |
-| `PORT`         | `8080`                          | HTTP server port |
-| `UPLOAD_DIR`   | `./uploads`                     | Directory for uploaded coin images |
+| Variable          | Default                         | Description |
+| ----------------- | ------------------------------- | ----------- |
+| `JWT_SECRET`      | *(auto-generated for dev)*      | JWT signing key (`openssl rand -base64 48`) |
+| `DB_PATH`         | `./ancientcoins.db`             | SQLite database file path |
+| `PORT`            | `8080`                          | HTTP server port |
+| `UPLOAD_DIR`      | `./uploads`                     | Directory for uploaded coin images |
+| `WEBAUTHN_RP_ID`  | `localhost`                     | Relying Party ID for FIDO2/WebAuthn |
+| `WEBAUTHN_ORIGIN` | `http://localhost:8080`         | Origin URL for WebAuthn |
+
+#### Admin-Managed Settings
+
+These are configured in the Admin UI (not environment variables) and stored in the database:
+
+| Setting              | Description |
+| -------------------- | ----------- |
+| `OllamaURL`          | Ollama server URL for AI coin analysis (default: `http://localhost:11434`) |
+| `OllamaModel`        | Vision model name (default: `llava`) |
+| `OllamaTimeout`      | AI request timeout in seconds (default: `300`) |
+| `AnthropicAPIKey`     | API key for the Claude-powered coin search agent |
+| `AnthropicModel`      | Claude model to use (default: `claude-sonnet-4-20250514`) |
+| `AgentPrompt`         | Custom system prompt for the AI coin search agent |
+| `NumistaAPIKey`       | Numista catalog API key for coin lookups |
+| `ObversePrompt`       | Custom prompt for obverse image analysis |
+| `ReversePrompt`       | Custom prompt for reverse image analysis |
+| `TextExtractionPrompt`| Custom prompt for OCR text extraction |
+| `LogLevel`            | Application log level (trace/debug/info/warn/error) |
 
 ## Project Structure
 
@@ -240,20 +309,49 @@ AncientCoins/
 │   │   ├── main.go                   # App entry point & route wiring
 │   │   ├── config/                   # Environment-based configuration
 │   │   ├── database/                 # SQLite connection (pure-Go driver)
-│   │   ├── handlers/                 # HTTP handlers (auth, coins, images, analysis, admin, user)
-│   │   ├── middleware/               # JWT auth middleware
-│   │   ├── models/                   # GORM entities (Coin, User, CoinImage, AppSetting)
-│   │   └── services/                 # Business logic (Ollama, settings)
+│   │   ├── handlers/                 # HTTP handlers
+│   │   │   ├── auth.go               # Registration, login, token refresh
+│   │   │   ├── coins.go              # Coin CRUD, list/filter/sort, stats, sell, value history
+│   │   │   ├── images.go             # Image upload/delete, proxy, scrape
+│   │   │   ├── analysis.go           # Ollama AI coin analysis & OCR
+│   │   │   ├── agent.go              # Anthropic chat agent with SSE streaming
+│   │   │   ├── conversations.go      # Saved agent conversation CRUD
+│   │   │   ├── journal.go            # Per-coin activity log
+│   │   │   ├── numista.go            # Numista catalog search proxy
+│   │   │   ├── snapshots.go          # Portfolio value snapshots
+│   │   │   ├── admin.go              # User/settings management
+│   │   │   ├── user.go               # Password change, profile
+│   │   │   ├── export.go             # Collection export/import
+│   │   │   ├── api_keys.go           # API key management
+│   │   │   └── webauthn.go           # FIDO2/WebAuthn auth
+│   │   ├── middleware/               # JWT & API key auth middleware
+│   │   ├── models/                   # GORM entities (Coin, User, CoinJournal, AgentConversation, ValueSnapshot, etc.)
+│   │   └── services/                 # Business logic (Ollama, settings, logger)
 │   └── web/                          # Vue 3 SPA
 │       ├── src/
 │       │   ├── api/                  # Axios API client
 │       │   ├── assets/styles/        # CSS variables & global styles
-│       │   ├── components/           # Reusable components (CoinCard, CoinForm, etc.)
-│       │   ├── pages/                # Route pages (Collection, CoinDetail, Stats, Settings, Admin)
+│       │   ├── components/           # Reusable components
+│       │   │   ├── CoinCard.vue      # Gallery card (collection + wishlist + sold variants)
+│       │   │   ├── CoinForm.vue      # Shared create/edit form with autocomplete & camera
+│       │   │   ├── CoinSearchChat.vue # AI agent chat drawer with streaming
+│       │   │   ├── SellModal.vue     # Sell coin dialog with price & buyer fields
+│       │   │   ├── SearchBar.vue     # Search input
+│       │   │   ├── CategoryFilter.vue # Category pill filters
+│       │   │   ├── SortSelect.vue    # Sort dropdown
+│       │   │   ├── ImageGallery.vue  # Image grid with lightbox
+│       │   │   ├── SwipeGallery.vue  # Mobile swipe carousel
+│       │   │   ├── ImageProcessor.vue # Store card OCR upload
+│       │   │   └── AutocompleteInput.vue
+│       │   ├── pages/                # Route pages
 │       │   ├── stores/               # Pinia stores (auth, coins)
+│       │   ├── router/               # Vue Router configuration
 │       │   └── types/                # TypeScript type definitions
 │       ├── public/                   # PWA icons & coin logo
 │       └── vite.config.ts
+├── docs/
+│   └── getting-started.md            # User walkthrough guide
+├── instructions.md                   # Agent instructions for AI coding assistants
 ├── Dockerfile                        # Multi-stage build (Vue + Go → Alpine)
 ├── Taskfile.yml                      # Task runner configuration
 ├── docker-compose.yaml               # Container orchestration
@@ -262,15 +360,32 @@ AncientCoins/
 
 ## Backlog
 
-Future feature ideas for the app:
+Feature ideas and completed enhancements:
 
-- [x] **CI/CD Pipeline** — GitHub Actions workflow to build and push Docker image to Docker Hub
-- [ ] **Wear Heatmap** — GitHub-style heatmap for tracking when coins were viewed or handled
+- [x] **CI/CD Pipeline** — GitHub Actions workflow to build and push Docker image
+- [x] **Sorting** — Sort coins by date added, date updated, or value
+- [x] **Swipe / Grid Toggle** — Mobile-friendly view preference with PWA support
+- [x] **PWA Viewport Stability** — Fixed scrolling/interaction wobble in installed PWA
+- [x] **Grade Distribution Chart** — Bar chart of coins by grade
+- [x] **Value Over Time Chart** — SVG line chart tracking portfolio value and investment
+- [x] **Activity Journal** — Per-coin timestamped activity log
+- [x] **Numista Catalog Lookup** — Search the Numista coin database from detail pages
+- [x] **AI Coin Search Agent** — Anthropic-powered chat agent with web search for discovering coins
+- [x] **Streaming Agent Responses** — Real-time SSE streaming for AI search results
+- [x] **Saved Conversations** — Save and reopen AI search agent conversations
+- [x] **Sold Coins** — Track sold coins with price, buyer, and profit/loss display
+- [x] **Camera Capture** — Take coin photos directly in PWA mode with rear camera
+- [x] **Image Scraping** — Automatic og:image extraction for wishlist coin images
+- [x] **Paste Image URL** — Fetch and attach coin images from external URLs
+- [x] **Tabbed Settings** — Reorganized user settings into Account, Appearance, Data, Conversations tabs
+- [x] **Build Version Display** — Version and build date injected at build time and shown in Admin settings
 - [ ] **Collection Timeline** — Visual timeline of when each coin was acquired
 - [ ] **Coin Comparison** — Side-by-side spec comparison of any two coins
 - [ ] **Advanced Search** — Filter by date range, price range, grade, material
 - [ ] **Batch Import** — Import coins from CSV or numismatic database exports
 - [ ] **PWA Icons** — Generate proper PWA icons from the EID MAR coin logo
+- [ ] **Price Alerts** — Notifications when watched coins appear below a target price
+- [ ] **Share Collection** — Public shareable link for a subset of your collection
 
 ## License
 

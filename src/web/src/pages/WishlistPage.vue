@@ -3,8 +3,8 @@
     <div class="page-header">
       <h1>Wishlist</h1>
       <div class="header-actions">
-        <SortSelect v-model="sortKey" />
-        <router-link to="/add?wishlist=true" class="btn btn-primary"><CirclePlus :size="16" /> Add Coin</router-link>
+        <button class="btn btn-primary" @click="showChat = true"><Bot :size="16" /> Find Coins</button>
+        <router-link to="/add?wishlist=true" class="btn btn-secondary"><CirclePlus :size="16" /> Add Coin</router-link>
       </div>
     </div>
 
@@ -19,27 +19,29 @@
     <div v-else class="empty-state">
       <h3>Your wishlist is empty</h3>
       <p>Add coins to your wishlist to track what you're looking for</p>
+      <button class="btn btn-primary" @click="showChat = true" style="margin-top: 0.75rem">
+        <Bot :size="16" /> Search for Coins with AI
+      </button>
     </div>
+
+    <CoinSearchChat v-if="showChat" @close="showChat = false" @added="loadCoins" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref } from 'vue'
 import { useCoinsStore } from '@/stores/coins'
 import CoinCard from '@/components/CoinCard.vue'
-import SortSelect from '@/components/SortSelect.vue'
+import CoinSearchChat from '@/components/CoinSearchChat.vue'
 import { purchaseCoin } from '@/api/client'
 import type { Coin } from '@/types'
-import { CirclePlus } from 'lucide-vue-next'
+import { CirclePlus, Bot } from 'lucide-vue-next'
 
 const store = useCoinsStore()
-const sortKey = ref(localStorage.getItem('defaultSort') || 'updated_at_desc')
+const showChat = ref(false)
 
 function loadCoins() {
-  const [sort, order] = sortKey.value.split('_').length === 3
-    ? [sortKey.value.split('_').slice(0, 2).join('_'), sortKey.value.split('_')[2]]
-    : [sortKey.value.split('_')[0], sortKey.value.split('_')[1]]
-  store.fetchCoins({ wishlist: 'true', sort, order })
+  store.fetchCoins({ wishlist: 'true', sort: 'updated_at', order: 'desc' })
 }
 
 async function handlePurchase(coin: Coin) {
@@ -52,7 +54,6 @@ async function handlePurchase(coin: Coin) {
   }
 }
 
-watch(sortKey, loadCoins)
 loadCoins()
 </script>
 
@@ -61,6 +62,5 @@ loadCoins()
   display: flex;
   gap: 0.75rem;
   align-items: center;
-  flex-wrap: wrap;
 }
 </style>

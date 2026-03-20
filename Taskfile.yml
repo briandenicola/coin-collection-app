@@ -62,8 +62,14 @@ tasks:
     vars:
       COMMIT_SHA:
         sh: git rev-parse --short HEAD
+      BUILD_DATE:
+        sh: date -u +"%Y-%m-%dT%H:%M:%SZ"
     cmds:
-      - docker build -t {{.DOCKER_REPO}}/ancient-coins:{{.COMMIT_SHA}} -t {{.DOCKER_REPO}}/ancient-coins:latest .
+      - docker build
+        --build-arg APP_VERSION={{.COMMIT_SHA}}
+        --build-arg BUILD_DATE={{.BUILD_DATE}}
+        -t {{.DOCKER_REPO}}/ancient-coins:{{.COMMIT_SHA}}
+        -t {{.DOCKER_REPO}}/ancient-coins:latest .
 
   docker-run:
     desc: Run the Docker container locally

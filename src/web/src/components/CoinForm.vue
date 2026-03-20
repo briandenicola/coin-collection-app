@@ -79,7 +79,13 @@
               <img :src="obversePreview || existingObverse!" alt="Obverse" class="image-preview" />
               <button type="button" class="image-remove-btn" @click="clearObverse" title="Remove"><X :size="12" /></button>
             </div>
-            <input type="file" accept=".jpg,.jpeg,.png" class="form-input file-input" @change="onObverseFile" ref="obverseInput" />
+            <div class="file-input-row">
+              <input type="file" accept=".jpg,.jpeg,.png" class="form-input file-input" @change="onObverseFile" ref="obverseInput" />
+              <label v-if="isPwa" class="btn btn-secondary btn-sm camera-btn">
+                <Camera :size="14" /> Photo
+                <input type="file" accept="image/*" capture="environment" hidden @change="onObverseFile" />
+              </label>
+            </div>
           </div>
           <div class="form-group">
             <label class="form-label">Reverse Image</label>
@@ -87,7 +93,13 @@
               <img :src="reversePreview || existingReverse!" alt="Reverse" class="image-preview" />
               <button type="button" class="image-remove-btn" @click="clearReverse" title="Remove"><X :size="12" /></button>
             </div>
-            <input type="file" accept=".jpg,.jpeg,.png" class="form-input file-input" @change="onReverseFile" ref="reverseInput" />
+            <div class="file-input-row">
+              <input type="file" accept=".jpg,.jpeg,.png" class="form-input file-input" @change="onReverseFile" ref="reverseInput" />
+              <label v-if="isPwa" class="btn btn-secondary btn-sm camera-btn">
+                <Camera :size="14" /> Photo
+                <input type="file" accept="image/*" capture="environment" hidden @change="onReverseFile" />
+              </label>
+            </div>
           </div>
         </div>
         <div class="form-row">
@@ -170,7 +182,10 @@ import { ref, computed, onMounted } from 'vue'
 import { CATEGORIES, MATERIALS } from '@/types'
 import type { Coin } from '@/types'
 import AutocompleteInput from '@/components/AutocompleteInput.vue'
-import { X } from 'lucide-vue-next'
+import { X, Camera } from 'lucide-vue-next'
+
+const isPwa = window.matchMedia('(display-mode: standalone)').matches
+  || (window.navigator as any).standalone === true
 
 const props = defineProps<{
   form: Partial<Coin>
@@ -323,6 +338,25 @@ legend {
 .file-input {
   font-size: 0.9rem;
   padding: 0.6rem 0.8rem;
+}
+
+.file-input-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.file-input-row .file-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.camera-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  white-space: nowrap;
+  cursor: pointer;
 }
 
 .image-preview-box {

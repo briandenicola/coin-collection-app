@@ -15,6 +15,10 @@
             <Bookmark :size="18" />
             <span class="nav-label">Wishlist</span>
           </router-link>
+          <router-link to="/sold" class="nav-link" active-class="active">
+            <BadgeDollarSign :size="18" />
+            <span class="nav-label">Sold</span>
+          </router-link>
           <router-link to="/stats" class="nav-link" active-class="active">
             <BarChart3 :size="18" />
             <span class="nav-label">Stats</span>
@@ -52,7 +56,7 @@
 <script setup lang="ts">
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
-import { Landmark, Bookmark, BarChart3, CirclePlus, Scissors, Settings, ShieldCheck, LogOut } from 'lucide-vue-next'
+import { Landmark, Bookmark, BadgeDollarSign, BarChart3, CirclePlus, Scissors, Settings, ShieldCheck, LogOut } from 'lucide-vue-next'
 
 const auth = useAuthStore()
 const router = useRouter()

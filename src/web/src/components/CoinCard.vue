@@ -6,7 +6,7 @@
     </div>
     <div class="card-body">
       <h3 class="card-title">{{ coin.name }}</h3>
-      <template v-if="!wishlist">
+      <template v-if="!wishlist && !sold">
         <div class="card-meta">
           <span v-if="coin.ruler" class="meta-item">{{ coin.ruler }}</span>
           <span v-if="coin.era" class="meta-item">{{ coin.era }}</span>
@@ -20,7 +20,17 @@
         </div>
         <div v-if="coin.grade" class="card-grade">{{ coin.grade }}</div>
       </template>
-      <div v-if="coin.currentValue || coin.purchasePrice" class="card-value">
+      <template v-if="sold">
+        <div class="card-sold-info">
+          <div v-if="coin.soldPrice" class="card-sold-price">Sold: {{ formatCurrency(coin.soldPrice) }}</div>
+          <div v-if="coin.purchasePrice" class="card-cost-basis">Paid: {{ formatCurrency(coin.purchasePrice) }}</div>
+          <div v-if="coin.soldPrice && coin.purchasePrice" class="card-profit" :class="{ loss: coin.soldPrice < coin.purchasePrice }">
+            {{ coin.soldPrice >= coin.purchasePrice ? '+' : '' }}{{ formatCurrency(coin.soldPrice - coin.purchasePrice) }}
+          </div>
+          <div v-if="coin.soldTo" class="card-sold-to">To: {{ coin.soldTo }}</div>
+        </div>
+      </template>
+      <div v-if="!sold && (coin.currentValue || coin.purchasePrice)" class="card-value">
         {{ formatCurrency(coin.currentValue || coin.purchasePrice || 0) }}
       </div>
       <a
@@ -49,9 +59,10 @@ import type { Coin, ImageType } from '@/types'
 import { computed } from 'vue'
 import { Coins, ShoppingCart } from 'lucide-vue-next'
 
-const props = withDefaults(defineProps<{ coin: Coin; imageSide?: ImageType | null; wishlist?: boolean }>(), {
+const props = withDefaults(defineProps<{ coin: Coin; imageSide?: ImageType | null; wishlist?: boolean; sold?: boolean }>(), {
   imageSide: null,
   wishlist: false,
+  sold: false,
 })
 
 const emit = defineEmits<{
@@ -187,6 +198,50 @@ function formatCurrency(value: number) {
   width: 100%;
   justify-content: center;
   font-size: 0.8rem;
+}
+
+.card-sell-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+  width: 100%;
+  justify-content: center;
+  font-size: 0.8rem;
+}
+
+.card-sold-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin-top: 0.25rem;
+  font-size: 0.82rem;
+}
+
+.card-sold-price {
+  font-weight: 600;
+  color: var(--accent-gold);
+}
+
+.card-cost-basis {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.card-profit {
+  font-weight: 600;
+  color: #4ade80;
+  font-size: 0.82rem;
+}
+
+.card-profit.loss {
+  color: #f87171;
+}
+
+.card-sold-to {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin-top: 0.15rem;
 }
 
 .category-roman { color: #b57edc; }

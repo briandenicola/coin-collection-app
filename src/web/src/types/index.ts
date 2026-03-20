@@ -26,6 +26,10 @@ export interface Coin {
   referenceUrl: string
   referenceText: string
   isWishlist: boolean
+  isSold: boolean
+  soldPrice: number | null
+  soldDate: string | null
+  soldTo: string
   userId: number
   images: CoinImage[]
   createdAt: string
@@ -166,4 +170,28 @@ export interface ApiKey {
   createdAt: string
   lastUsedAt: string | null
   revokedAt: string | null
+}
+
+export interface AgentChatMessage {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+export interface CoinSuggestion {
+  name: string
+  description: string
+  category: string
+  era: string
+  ruler: string
+  material: string
+  denomination: string
+  estPrice: string
+  imageUrl: string
+  sourceUrl: string
+  sourceName: string
+}
+
+export interface AgentChatResponse {
+  message: string
+  suggestions: CoinSuggestion[]
 }

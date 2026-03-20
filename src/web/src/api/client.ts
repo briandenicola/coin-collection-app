@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Coin, CoinListResponse, CoinImage, AuthResponse, StatsResponse, UserInfo, AppSettings, LogEntry, ApiKey, WebAuthnCredentialInfo, ValueSnapshot, CoinJournal, NumistaSearchResponse } from '@/types'
+import type { Coin, CoinListResponse, CoinImage, AuthResponse, StatsResponse, UserInfo, AppSettings, LogEntry, ApiKey, WebAuthnCredentialInfo, ValueSnapshot, CoinJournal, NumistaSearchResponse, AgentChatMessage, AgentChatResponse, CoinSuggestion } from '@/types'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
@@ -92,6 +92,7 @@ export const getCoins = (params?: {
   category?: string
   search?: string
   wishlist?: string
+  sold?: string
   page?: number
   limit?: number
   sort?: string
@@ -122,6 +123,8 @@ export const getCoin = (id: number) => api.get<Coin>(`/coins/${id}`)
 export const createCoin = (coin: Partial<Coin>) => api.post<Coin>('/coins', sanitizeCoin(coin))
 export const updateCoin = (id: number, coin: Partial<Coin>) => api.put<Coin>(`/coins/${id}`, sanitizeCoin(coin))
 export const purchaseCoin = (id: number) => api.post<Coin>(`/coins/${id}/purchase`)
+export const sellCoin = (id: number, soldPrice: number | null, soldTo: string) =>
+  api.post<Coin>(`/coins/${id}/sell`, { soldPrice, soldTo })
 export const deleteCoin = (id: number) => api.delete(`/coins/${id}`)
 
 // Journal
@@ -133,6 +136,102 @@ export const deleteJournalEntry = (coinId: number, entryId: number) =>
 
 // Numista
 export const searchNumista = (q: string) => api.get<NumistaSearchResponse>('/numista/search', { params: { q } })
+
+// Agent
+export const agentChat = (message: string, history: AgentChatMessage[] = []) =>
+  api.post<AgentChatResponse>('/agent/chat', { message, history })
+
+export async function agentChatStream(
+  message: string,
+  history: AgentChatMessage[],
+  onText: (text: string) => void,
+  onDone: (message: string, suggestions: CoinSuggestion[]) => void,
+  onError: (error: string) => void,
+) {
+  const token = localStorage.getItem('token')
+  const baseURL = import.meta.env.VITE_API_BASE_URL || ''
+  try {
+    const resp = await fetch(`${baseURL}/api/agent/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ message, history }),
+    })
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ error: `HTTP ${resp.status}` }))
+      onError(err.error || `HTTP ${resp.status}`)
+      return
+    }
+
+    const reader = resp.body?.getReader()
+    if (!reader) { onError('No response body'); return }
+
+    const decoder = new TextDecoder()
+    let buffer = ''
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue
+        const data = line.slice(6).trim()
+        if (!data || data === '[DONE]') continue
+
+        try {
+          const event = JSON.parse(data)
+          if (event.type === 'text') {
+            onText(event.text)
+          } else if (event.type === 'done') {
+            onDone(event.message, event.suggestions || [])
+          }
+        } catch { /* skip malformed events */ }
+      }
+    }
+  } catch (err: unknown) {
+    onError(err instanceof Error ? err.message : 'Stream failed')
+  }
+}
+
+export interface AnthropicModel {
+  id: string
+  name: string
+}
+
+export const getAnthropicModels = () => api.get<AnthropicModel[]>('/agent/models')
+
+export const getAgentPrompt = () => api.get<{ prompt: string; default: string }>('/agent/prompt')
+
+// Agent Conversations
+export interface ConversationSummary {
+  id: number
+  title: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface SavedConversation {
+  id: number
+  userId: number
+  title: string
+  messages: string
+  createdAt: string
+  updatedAt: string
+}
+
+export const listConversations = () => api.get<ConversationSummary[]>('/agent/conversations')
+export const getConversation = (id: number) => api.get<SavedConversation>(`/agent/conversations/${id}`)
+export const saveConversation = (data: { id?: number; title: string; messages: string }) =>
+  api.post<SavedConversation>('/agent/conversations', data)
+export const deleteConversation = (id: number) => api.delete(`/agent/conversations/${id}`)
 
 // Images
 export const uploadImage = (coinId: number, file: File, imageType: string, isPrimary: boolean) => {
@@ -175,6 +274,8 @@ export const changePassword = (currentPassword: string, newPassword: string) =>
 export const exportCollection = () => api.get('/user/export', { responseType: 'blob' })
 export const proxyImage = (url: string) =>
   api.get('/proxy-image', { params: { url }, responseType: 'blob' })
+export const scrapeImage = (url: string) =>
+  api.get<{ imageUrl: string }>('/scrape-image', { params: { url } })
 export const importCollection = (coins: Coin[]) => api.post('/user/import', coins)
 
 // API Keys
