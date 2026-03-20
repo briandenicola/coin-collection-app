@@ -197,11 +197,13 @@ async function addToWishlist(coin: CoinSuggestion, idx: string) {
       try {
         const imgRes = await proxyImage(coin.imageUrl)
         const blob = imgRes.data as Blob
-        const ext = blob.type.includes('png') ? '.png' : '.jpg'
-        const file = new File([blob], `obverse${ext}`, { type: blob.type })
-        await uploadImage(created.data.id, file, 'obverse', true)
+        if (blob.size > 0) {
+          const ext = blob.type.includes('png') ? '.png' : '.jpg'
+          const file = new File([blob], `obverse${ext}`, { type: blob.type || 'image/jpeg' })
+          await uploadImage(created.data.id, file, 'obverse', true)
+        }
       } catch {
-        // Image download failed — coin is still added, just without the image
+        console.warn('Image download failed for', coin.imageUrl)
       }
     }
 

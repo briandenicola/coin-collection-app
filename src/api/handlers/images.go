@@ -305,8 +305,17 @@ func (h *ImageHandler) ProxyImage(c *gin.Context) {
 
 	logger.Debug("images", "Proxying image from %s", imageURL)
 
+	req, err := http.NewRequest("GET", imageURL, nil)
+	if err != nil {
+		logger.Warn("images", "Failed to build proxy request for %s: %v", imageURL, err)
+		c.JSON(http.StatusBadGateway, gin.H{"error": "Failed to build request"})
+		return
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+	req.Header.Set("Accept", "image/*, */*")
+
 	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Get(imageURL)
+	resp, err := client.Do(req)
 	if err != nil {
 		logger.Warn("images", "Failed to fetch image from %s: %v", imageURL, err)
 		c.JSON(http.StatusBadGateway, gin.H{"error": "Failed to fetch image"})
@@ -315,14 +324,38 @@ func (h *ImageHandler) ProxyImage(c *gin.Context) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
+		logger.Warn("images", "Proxy image %s returned HTTP %d", imageURL, resp.StatusCode)
 		c.JSON(http.StatusBadGateway, gin.H{"error": fmt.Sprintf("Remote server returned %d", resp.StatusCode)})
 		return
 	}
 
 	contentType := resp.Header.Get("Content-Type")
-	if !strings.HasPrefix(contentType, "image/") {
+	// Accept image/* and common binary types that may contain images
+	isImage := strings.HasPrefix(contentType, "image/") ||
+		contentType == "application/octet-stream" ||
+		contentType == "binary/octet-stream" ||
+		contentType == ""
+	if !isImage {
+		logger.Warn("images", "Proxy image %s has non-image content-type: %s", imageURL, contentType)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "URL does not point to an image"})
 		return
+	}
+
+	// If content type is ambiguous, try to detect from URL extension
+	if !strings.HasPrefix(contentType, "image/") {
+		lower := strings.ToLower(imageURL)
+		switch {
+		case strings.Contains(lower, ".jpg"), strings.Contains(lower, ".jpeg"):
+			contentType = "image/jpeg"
+		case strings.Contains(lower, ".png"):
+			contentType = "image/png"
+		case strings.Contains(lower, ".webp"):
+			contentType = "image/webp"
+		case strings.Contains(lower, ".gif"):
+			contentType = "image/gif"
+		default:
+			contentType = "image/jpeg"
+		}
 	}
 
 	// Limit to 20MB
