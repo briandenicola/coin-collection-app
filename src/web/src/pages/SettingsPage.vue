@@ -5,8 +5,19 @@
     </div>
 
     <div class="settings-layout">
-      <!-- Account -->
-      <section class="settings-section card">
+      <!-- Tab Nav -->
+      <div class="tab-nav">
+        <button
+          v-for="tab in tabs"
+          :key="tab.id"
+          class="tab-btn"
+          :class="{ active: activeTab === tab.id }"
+          @click="activeTab = tab.id"
+        ><component :is="tabIcons[tab.id]" :size="16" /> {{ tab.label }}</button>
+      </div>
+
+      <!-- Account Tab -->
+      <section v-if="activeTab === 'account'" class="settings-section card">
         <h2>Account</h2>
         <div class="setting-item">
           <div class="setting-info">
@@ -42,10 +53,37 @@
             {{ passwordLoading ? 'Changing...' : 'Change Password' }}
           </button>
         </form>
+
+        <template v-if="supportsWebAuthn">
+          <h3>Biometric Login</h3>
+          <p class="setting-desc" style="margin-bottom: 0.75rem">
+            Register Face ID, Touch ID, or fingerprint for quick sign-in on this device.
+          </p>
+
+          <button
+            class="btn btn-primary btn-sm"
+            :disabled="registeringCredential"
+            @click="handleRegisterCredential"
+          >
+            {{ registeringCredential ? 'Registering...' : '🔐 Register Biometric' }}
+          </button>
+          <p v-if="credentialMsg" class="msg" :class="{ error: credentialError }" style="margin-top: 0.5rem">{{ credentialMsg }}</p>
+
+          <div v-if="webauthnCredentials.length" class="apikey-list">
+            <div v-for="cred in webauthnCredentials" :key="cred.id" class="apikey-item">
+              <div class="apikey-item-info">
+                <span class="apikey-item-name">{{ cred.name }}</span>
+                <span class="apikey-item-meta">Registered {{ formatDate(cred.createdAt) }}</span>
+              </div>
+              <button class="btn btn-danger btn-sm" @click="handleDeleteCredential(cred.id)">Remove</button>
+            </div>
+          </div>
+          <p v-else-if="!registeringCredential" class="setting-desc" style="margin-top: 0.5rem">No biometric credentials registered.</p>
+        </template>
       </section>
 
-      <!-- Appearance -->
-      <section class="settings-section card">
+      <!-- Appearance Tab -->
+      <section v-if="activeTab === 'appearance'" class="settings-section card">
         <h2>Appearance</h2>
         <div class="setting-item">
           <div class="setting-info">
@@ -110,8 +148,8 @@
         </div>
       </section>
 
-      <!-- Data Management -->
-      <section class="settings-section card">
+      <!-- Data Tab -->
+      <section v-if="activeTab === 'data'" class="settings-section card">
         <h2>Data Management</h2>
         <div class="setting-item">
           <div class="setting-info">
@@ -133,16 +171,12 @@
           </label>
         </div>
         <p v-if="dataMsg" class="msg" :class="{ error: dataError }">{{ dataMsg }}</p>
-      </section>
 
-      <!-- API Keys -->
-      <section class="settings-section card">
-        <h2>API Keys</h2>
+        <h3>API Keys</h3>
         <p class="setting-desc" style="margin-bottom: 1rem">
           Generate API keys to access your collection from external tools and scripts. Use the <code>X-API-Key</code> header to authenticate.
         </p>
 
-        <!-- Generate form -->
         <div class="apikey-generate">
           <input
             v-model="apiKeyName"
@@ -160,7 +194,6 @@
           </button>
         </div>
 
-        <!-- Newly generated key (shown once) -->
         <div v-if="newlyGeneratedKey" class="apikey-reveal">
           <p class="apikey-reveal-warning">
             ⚠️ Copy this key now — it will not be shown again.
@@ -175,7 +208,6 @@
 
         <p v-if="apiKeyMsg" class="msg" :class="{ error: apiKeyError }">{{ apiKeyMsg }}</p>
 
-        <!-- Existing keys list -->
         <div v-if="apiKeys.length" class="apikey-list">
           <div
             v-for="key in apiKeys"
@@ -204,36 +236,8 @@
         <p v-else-if="!generatingKey" class="setting-desc" style="margin-top: 0.5rem">No API keys yet.</p>
       </section>
 
-      <!-- Biometric Login -->
-      <section v-if="supportsWebAuthn" class="settings-section card">
-        <h2>Biometric Login</h2>
-        <p class="setting-desc" style="margin-bottom: 1rem">
-          Register Face ID, Touch ID, or fingerprint for quick sign-in on this device.
-        </p>
-
-        <button
-          class="btn btn-primary btn-sm"
-          :disabled="registeringCredential"
-          @click="handleRegisterCredential"
-        >
-          {{ registeringCredential ? 'Registering...' : '🔐 Register Biometric' }}
-        </button>
-        <p v-if="credentialMsg" class="msg" :class="{ error: credentialError }" style="margin-top: 0.5rem">{{ credentialMsg }}</p>
-
-        <div v-if="webauthnCredentials.length" class="apikey-list">
-          <div v-for="cred in webauthnCredentials" :key="cred.id" class="apikey-item">
-            <div class="apikey-item-info">
-              <span class="apikey-item-name">{{ cred.name }}</span>
-              <span class="apikey-item-meta">Registered {{ formatDate(cred.createdAt) }}</span>
-            </div>
-            <button class="btn btn-danger btn-sm" @click="handleDeleteCredential(cred.id)">Remove</button>
-          </div>
-        </div>
-        <p v-else-if="!registeringCredential" class="setting-desc" style="margin-top: 0.5rem">No biometric credentials registered.</p>
-      </section>
-
-      <!-- Saved Conversations -->
-      <section class="settings-section card">
+      <!-- Conversations Tab -->
+      <section v-if="activeTab === 'conversations'" class="settings-section card">
         <h2>Saved Conversations</h2>
         <p class="setting-desc" style="margin-bottom: 1rem">
           Your saved AI coin search conversations. Open one to continue the search or review results.
@@ -267,7 +271,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, type Component } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import {
   changePassword, exportCollection, importCollection,
@@ -279,6 +283,22 @@ import {
 import type { ConversationSummary } from '@/api/client'
 import type { Coin, Theme, ApiKey, WebAuthnCredentialInfo } from '@/types'
 import CoinSearchChat from '@/components/CoinSearchChat.vue'
+import { User, Palette, Database, MessageSquare } from 'lucide-vue-next'
+
+const tabIcons: Record<string, Component> = {
+  account: User,
+  appearance: Palette,
+  data: Database,
+  conversations: MessageSquare,
+}
+
+const tabs = [
+  { id: 'account', label: 'Account' },
+  { id: 'appearance', label: 'Appearance' },
+  { id: 'data', label: 'Data' },
+  { id: 'conversations', label: 'Conversations' },
+]
+const activeTab = ref('account')
 
 
 const auth = useAuthStore()
@@ -604,12 +624,47 @@ onMounted(() => {
 
 <style scoped>
 .settings-layout {
-  max-width: 700px;
+  max-width: 800px;
   margin-left: auto;
   margin-right: auto;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+}
+
+.tab-nav {
+  display: flex;
+  gap: 0.25rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 0.3rem;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 0.6rem 1rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.tab-btn.active {
+  background: var(--accent-gold-dim);
+  color: var(--accent-gold);
+}
+
+.tab-btn:hover:not(.active) {
+  color: var(--text-primary);
 }
 
 .settings-section h2 {
@@ -817,6 +872,15 @@ onMounted(() => {
   .setting-item {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .tab-nav {
+    flex-wrap: wrap;
+  }
+
+  .tab-btn {
+    font-size: 0.78rem;
+    padding: 0.5rem 0.6rem;
   }
 }
 
