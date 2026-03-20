@@ -166,19 +166,22 @@ async function sendMessage() {
     text,
     history,
     (chunk: string) => {
-      messages.value[assistantIdx].content += chunk
+      const msg = messages.value[assistantIdx]!
+      msg.content += chunk
       scrollToBottom()
     },
     (message: string, suggestions: CoinSuggestion[]) => {
-      messages.value[assistantIdx].content = message
-      messages.value[assistantIdx].suggestions = suggestions
-      messages.value[assistantIdx].streaming = false
+      const msg = messages.value[assistantIdx]!
+      msg.content = message
+      msg.suggestions = suggestions
+      msg.streaming = false
       loading.value = false
       scrollToBottom()
     },
     (error: string) => {
-      messages.value[assistantIdx].content = error || 'Failed to get a response. Please try again.'
-      messages.value[assistantIdx].streaming = false
+      const msg = messages.value[assistantIdx]!
+      msg.content = error || 'Failed to get a response. Please try again.'
+      msg.streaming = false
       loading.value = false
       scrollToBottom()
     },
