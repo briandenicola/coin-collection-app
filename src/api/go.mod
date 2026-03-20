@@ -11,7 +11,7 @@ require (
 	github.com/swaggo/gin-swagger v1.6.1
 	github.com/swaggo/swag v1.16.6
 	golang.org/x/crypto v0.49.0
-	golang.org/x/net v0.51.0
+	golang.org/x/net v0.52.0
 	gorm.io/gorm v1.30.5
 )
 

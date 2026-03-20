@@ -83,8 +83,14 @@ func (h *ImageHandler) Upload(c *gin.Context) {
 		return
 	}
 
-	// Generate unique filename
-	ext := filepath.Ext(file.Filename)
+	// Generate unique filename with safe extension
+	ext := strings.ToLower(filepath.Ext(file.Filename))
+	allowedExts := map[string]bool{".jpg": true, ".jpeg": true, ".png": true, ".gif": true, ".webp": true}
+	if !allowedExts[ext] {
+		logger.Warn("images", "Rejected upload with disallowed extension: %s", ext)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "File type not allowed. Accepted: .jpg, .jpeg, .png, .gif, .webp"})
+		return
+	}
 	filename := fmt.Sprintf("%d-%s%s", time.Now().UnixNano(), imageType, ext)
 	filePath := filepath.Join(coinDir, filename)
 

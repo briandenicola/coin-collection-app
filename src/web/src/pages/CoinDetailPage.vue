@@ -277,6 +277,7 @@ import { uploadImage, proxyImage, analyzeCoin, deleteAnalysis, deleteCoin, delet
 import { removeBackground as removeBg } from '@imgly/background-removal'
 import type { CoinImage, CoinJournal, NumistaType } from '@/types'
 import MarkdownIt from 'markdown-it'
+import DOMPurify from 'dompurify'
 import { Camera } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -306,12 +307,12 @@ const numistaResults = ref<NumistaType[]>([])
 const numistaSearching = ref(false)
 const numistaError = ref('')
 
-const md = new MarkdownIt()
+const md = new MarkdownIt({ html: false })
 
 const coin = computed(() => store.currentCoin)
-const renderedObverse = computed(() => (coin.value?.obverseAnalysis ? md.render(coin.value.obverseAnalysis) : ''))
-const renderedReverse = computed(() => (coin.value?.reverseAnalysis ? md.render(coin.value.reverseAnalysis) : ''))
-const renderedLegacy = computed(() => (coin.value?.aiAnalysis ? md.render(coin.value.aiAnalysis) : ''))
+const renderedObverse = computed(() => (coin.value?.obverseAnalysis ? DOMPurify.sanitize(md.render(coin.value.obverseAnalysis)) : ''))
+const renderedReverse = computed(() => (coin.value?.reverseAnalysis ? DOMPurify.sanitize(md.render(coin.value.reverseAnalysis)) : ''))
+const renderedLegacy = computed(() => (coin.value?.aiAnalysis ? DOMPurify.sanitize(md.render(coin.value.aiAnalysis)) : ''))
 const hasObverse = computed(() => coin.value?.images?.some(i => i.imageType === 'obverse'))
 const hasReverse = computed(() => coin.value?.images?.some(i => i.imageType === 'reverse'))
 

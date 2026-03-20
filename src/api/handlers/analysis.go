@@ -173,7 +173,16 @@ func (h *AnalysisHandler) DeleteAnalysis(c *gin.Context) {
 		return
 	}
 
-	column := side + "_analysis"
+	// Whitelist column names to prevent SQL injection
+	columnMap := map[string]string{
+		"obverse": "obverse_analysis",
+		"reverse": "reverse_analysis",
+	}
+	column, ok := columnMap[side]
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid side value"})
+		return
+	}
 	database.DB.Model(&coin).Update(column, "")
 	logger.Info("analysis", "Cleared %s analysis for coin %d", side, coinID)
 

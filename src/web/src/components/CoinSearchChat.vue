@@ -102,6 +102,7 @@ import { ref, nextTick, onMounted, computed } from 'vue'
 import { agentChatStream, createCoin, proxyImage, scrapeImage, uploadImage, saveConversation } from '@/api/client'
 import type { CoinSuggestion, AgentChatMessage, Category, Material } from '@/types'
 import { Bot, X, SendHorizontal, CirclePlus, ExternalLink, Save } from 'lucide-vue-next'
+import DOMPurify from 'dompurify'
 
 interface ChatMsg {
   role: 'user' | 'assistant'
@@ -310,10 +311,10 @@ function parsePrice(price: string): number | null {
 }
 
 function formatMessage(text: string): string {
-  // Basic markdown-like formatting
-  return text
+  const formatted = text
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/\n/g, '<br>')
+  return DOMPurify.sanitize(formatted, { ALLOWED_TAGS: ['strong', 'br'] })
 }
 
 function proxyImageUrl(url: string): string {

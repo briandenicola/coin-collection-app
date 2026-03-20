@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/briandenicola/ancient-coins-api/config"
 	"github.com/briandenicola/ancient-coins-api/database"
@@ -50,16 +51,23 @@ func main() {
 
 	r := gin.Default()
 
-	// CORS middleware
+	// CORS middleware — restrict to configured origins
+	allowedOrigins := cfg.AllowedOrigins()
 	r.Use(func(c *gin.Context) {
 		origin := c.GetHeader("Origin")
-		if origin == "" {
-			origin = "*"
+		allowed := false
+		for _, o := range allowedOrigins {
+			if o == origin {
+				allowed = true
+				break
+			}
 		}
-		c.Header("Access-Control-Allow-Origin", origin)
+		if allowed {
+			c.Header("Access-Control-Allow-Origin", origin)
+			c.Header("Access-Control-Allow-Credentials", "true")
+		}
 		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		c.Header("Access-Control-Allow-Credentials", "true")
+		c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-API-Key")
 
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(204)
@@ -98,23 +106,25 @@ func main() {
 	// Swagger docs
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
-	// Auth routes (public)
+	// Auth routes (public) — rate limited to prevent brute force
 	authHandler := handlers.NewAuthHandler(cfg.JWTSecret)
 	webauthnHandler, err := handlers.NewWebAuthnHandler(cfg.WebAuthnID, cfg.WebAuthnOrigin, authHandler)
 	if err != nil {
 		log.Fatalf("Failed to initialize WebAuthn: %v", err)
 	}
 
+	authRateLimit := middleware.RateLimit(10, 1*time.Minute)
+
 	api := r.Group("/api")
 	{
 		api.GET("/auth/setup", authHandler.NeedsSetup)
-		api.POST("/auth/register", authHandler.Register)
-		api.POST("/auth/login", authHandler.Login)
-		api.POST("/auth/refresh", authHandler.Refresh)
+		api.POST("/auth/register", authRateLimit, authHandler.Register)
+		api.POST("/auth/login", authRateLimit, authHandler.Login)
+		api.POST("/auth/refresh", authRateLimit, authHandler.Refresh)
 
 		// WebAuthn public routes (login ceremony)
-		api.POST("/auth/webauthn/login/begin", webauthnHandler.LoginBegin)
-		api.POST("/auth/webauthn/login/finish", webauthnHandler.LoginFinish)
+		api.POST("/auth/webauthn/login/begin", authRateLimit, webauthnHandler.LoginBegin)
+		api.POST("/auth/webauthn/login/finish", authRateLimit, webauthnHandler.LoginFinish)
 		api.GET("/auth/webauthn/check", webauthnHandler.CheckCredentials)
 	}
 
