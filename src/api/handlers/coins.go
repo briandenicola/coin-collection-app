@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/briandenicola/ancient-coins-api/database"
 	"github.com/briandenicola/ancient-coins-api/models"
@@ -26,6 +27,7 @@ func NewCoinHandler() *CoinHandler {
 //	@Param			category	query		string	false	"Filter by category (Roman, Greek, Byzantine, Modern, Other)"
 //	@Param			search		query		string	false	"Search across name, denomination, ruler, era, mint, inscriptions, notes"
 //	@Param			wishlist	query		string	false	"Filter by wishlist status"	Enums(true, false)
+//	@Param			sold		query		string	false	"Filter by sold status"	Enums(true, false)
 //	@Param			page		query		int		false	"Page number"	default(1)
 //	@Param			limit		query		int		false	"Items per page (max 100)"	default(50)
 //	@Param			sort		query		string	false	"Sort field"	Enums(created_at, updated_at, current_value)	default(updated_at)
@@ -40,6 +42,7 @@ func (h *CoinHandler) List(c *gin.Context) {
 	category := c.Query("category")
 	search := c.Query("search")
 	wishlist := c.Query("wishlist")
+	sold := c.Query("sold")
 	sortField := c.DefaultQuery("sort", "updated_at")
 	sortOrder := c.DefaultQuery("order", "desc")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -63,6 +66,12 @@ func (h *CoinHandler) List(c *gin.Context) {
 		query = query.Where("is_wishlist = ?", true)
 	} else if wishlist == "false" {
 		query = query.Where("is_wishlist = ?", false)
+	}
+
+	if sold == "true" {
+		query = query.Where("is_sold = ?", true)
+	} else if sold == "false" {
+		query = query.Where("is_sold = ?", false)
 	}
 
 	if search != "" {
@@ -275,6 +284,60 @@ func (h *CoinHandler) Purchase(c *gin.Context) {
 	c.JSON(http.StatusOK, coin)
 }
 
+// Sell marks a collection coin as sold with a sale price.
+//
+//	@Summary		Mark coin as sold
+//	@Description	Sets isSold to true with a sold price and date, moving the coin from collection to sold gallery.
+//	@Tags			Coins
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		int						true	"Coin ID"
+//	@Param			body	body		object{soldPrice float64}	true	"Sale details"
+//	@Success		200		{object}	models.Coin
+//	@Failure		400		{object}	ErrorResponse
+//	@Failure		401		{object}	ErrorResponse
+//	@Failure		404		{object}	ErrorResponse
+//	@Failure		500		{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/coins/{id}/sell [post]
+func (h *CoinHandler) Sell(c *gin.Context) {
+	userID := c.GetUint("userId")
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid coin ID"})
+		return
+	}
+
+	var body struct {
+		SoldPrice *float64 `json:"soldPrice"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+
+	var coin models.Coin
+	if err := database.DB.Where("id = ? AND user_id = ?", id, userID).First(&coin).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Coin not found"})
+		return
+	}
+
+	now := time.Now()
+	updates := map[string]interface{}{
+		"is_sold":    true,
+		"sold_price": body.SoldPrice,
+		"sold_date":  &now,
+	}
+	if err := database.DB.Model(&coin).Updates(updates).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to mark as sold"})
+		return
+	}
+
+	database.DB.Preload("Images").First(&coin, coin.ID)
+	RecordValueSnapshot(userID)
+	c.JSON(http.StatusOK, coin)
+}
+
 // Delete removes a coin and its associated images.
 //
 //	@Summary		Delete a coin
@@ -324,8 +387,10 @@ func (h *CoinHandler) Stats(c *gin.Context) {
 
 	var totalCoins int64
 	var totalWishlist int64
-	database.DB.Model(&models.Coin{}).Where("user_id = ? AND is_wishlist = ?", userID, false).Count(&totalCoins)
+	var totalSold int64
+	database.DB.Model(&models.Coin{}).Where("user_id = ? AND is_wishlist = ? AND is_sold = ?", userID, false, false).Count(&totalCoins)
 	database.DB.Model(&models.Coin{}).Where("user_id = ? AND is_wishlist = ?", userID, true).Count(&totalWishlist)
+	database.DB.Model(&models.Coin{}).Where("user_id = ? AND is_sold = ?", userID, true).Count(&totalSold)
 
 	type categoryCount struct {
 		Category string `json:"category"`
@@ -334,7 +399,7 @@ func (h *CoinHandler) Stats(c *gin.Context) {
 	var byCategory []categoryCount
 	database.DB.Model(&models.Coin{}).
 		Select("category, count(*) as count").
-		Where("user_id = ? AND is_wishlist = ?", userID, false).
+		Where("user_id = ? AND is_wishlist = ? AND is_sold = ?", userID, false, false).
 		Group("category").
 		Scan(&byCategory)
 
@@ -345,7 +410,7 @@ func (h *CoinHandler) Stats(c *gin.Context) {
 	var byMaterial []materialCount
 	database.DB.Model(&models.Coin{}).
 		Select("material, count(*) as count").
-		Where("user_id = ? AND is_wishlist = ?", userID, false).
+		Where("user_id = ? AND is_wishlist = ? AND is_sold = ?", userID, false, false).
 		Group("material").
 		Scan(&byMaterial)
 
@@ -356,7 +421,7 @@ func (h *CoinHandler) Stats(c *gin.Context) {
 	var byGrade []gradeCount
 	database.DB.Model(&models.Coin{}).
 		Select("grade, count(*) as count").
-		Where("user_id = ? AND is_wishlist = ? AND grade != ''", userID, false).
+		Where("user_id = ? AND is_wishlist = ? AND is_sold = ? AND grade != ''", userID, false, false).
 		Group("grade").
 		Order("count DESC").
 		Scan(&byGrade)
@@ -370,16 +435,29 @@ func (h *CoinHandler) Stats(c *gin.Context) {
 	var values valueSummary
 	database.DB.Model(&models.Coin{}).
 		Select("COALESCE(SUM(purchase_price), 0) as total_purchase_price, COALESCE(SUM(current_value), 0) as total_current_value, COALESCE(AVG(purchase_price), 0) as avg_purchase_price, COALESCE(AVG(current_value), 0) as avg_current_value").
-		Where("user_id = ? AND is_wishlist = ?", userID, false).
+		Where("user_id = ? AND is_wishlist = ? AND is_sold = ?", userID, false, false).
 		Scan(&values)
+
+	// Sold coins value summary
+	type soldSummary struct {
+		TotalSoldPrice    float64 `json:"totalSoldPrice"`
+		TotalPurchaseCost float64 `json:"totalPurchaseCost"`
+	}
+	var soldValues soldSummary
+	database.DB.Model(&models.Coin{}).
+		Select("COALESCE(SUM(sold_price), 0) as total_sold_price, COALESCE(SUM(purchase_price), 0) as total_purchase_cost").
+		Where("user_id = ? AND is_sold = ?", userID, true).
+		Scan(&soldValues)
 
 	c.JSON(http.StatusOK, gin.H{
 		"totalCoins":    totalCoins,
 		"totalWishlist": totalWishlist,
+		"totalSold":     totalSold,
 		"byCategory":    byCategory,
 		"byMaterial":    byMaterial,
 		"byGrade":       byGrade,
 		"values":        values,
+		"soldValues":    soldValues,
 	})
 }
 

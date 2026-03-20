@@ -87,7 +87,7 @@
     <template v-else-if="store.coins.length">
       <SwipeGallery v-if="viewMode === 'swipe'" :coins="store.coins" />
       <div v-else class="coins-grid">
-        <CoinCard v-for="coin in store.coins" :key="coin.id" :coin="coin" :image-side="gridSide" />
+        <CoinCard v-for="coin in store.coins" :key="coin.id" :coin="coin" :image-side="gridSide" @sell="handleSell" />
       </div>
     </template>
 
@@ -110,13 +110,14 @@
 <script setup lang="ts">
 import { ref, watch, onMounted } from 'vue'
 import { useCoinsStore } from '@/stores/coins'
-import type { ImageType } from '@/types'
+import type { Coin, ImageType } from '@/types'
 import { usePullToRefresh } from '@/composables/usePullToRefresh'
 import CoinCard from '@/components/CoinCard.vue'
 import SwipeGallery from '@/components/SwipeGallery.vue'
 import CategoryFilter from '@/components/CategoryFilter.vue'
 import SearchBar from '@/components/SearchBar.vue'
 import SortSelect from '@/components/SortSelect.vue'
+import { sellCoin } from '@/api/client'
 
 import { Layers, LayoutGrid, CirclePlus, Menu } from 'lucide-vue-next'
 
@@ -157,10 +158,27 @@ function loadCoins() {
     category: selectedCategory.value || undefined,
     search: search.value || undefined,
     wishlist: 'false',
+    sold: 'false',
     page: page.value,
     sort,
     order,
   })
+}
+
+async function handleSell(coin: Coin) {
+  const priceStr = prompt(`Sell "${coin.name}"?\n\nEnter the sale price (or leave blank):`)
+  if (priceStr === null) return
+  const soldPrice = priceStr ? parseFloat(priceStr) : null
+  if (priceStr && isNaN(soldPrice!)) {
+    alert('Invalid price')
+    return
+  }
+  try {
+    await sellCoin(coin.id, soldPrice)
+    loadCoins()
+  } catch {
+    alert('Failed to mark as sold')
+  }
 }
 
 watch(selectedCategory, () => {

@@ -26,6 +26,9 @@ export interface Coin {
   referenceUrl: string
   referenceText: string
   isWishlist: boolean
+  isSold: boolean
+  soldPrice: number | null
+  soldDate: string | null
   userId: number
   images: CoinImage[]
   createdAt: string
