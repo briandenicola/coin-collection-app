@@ -177,6 +177,11 @@
             {{ settingsSaving ? 'Saving...' : 'Save System Settings' }}
           </button>
         </form>
+        <div class="version-info">
+          <span class="version-label">Version</span>
+          <span class="version-value">{{ appVersion }}</span>
+          <span v-if="buildDate" class="version-date">Built {{ buildDate }}</span>
+        </div>
       </section>
 
       <!-- Logs Tab -->
@@ -239,7 +244,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, type Component } from 'vue'
+import { ref, computed, onMounted, onUnmounted, type Component } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import {
   getUsers, deleteUser, resetUserPassword,
@@ -252,6 +257,21 @@ import { Users, Cpu, Wrench, ScrollText } from 'lucide-vue-next'
 const tabIcons: Record<string, Component> = { users: Users, ai: Cpu, system: Wrench, logs: ScrollText }
 
 const auth = useAuthStore()
+
+const rawVersion = import.meta.env.VITE_APP_VERSION || 'dev'
+const appVersion = computed(() => {
+  if (rawVersion === 'dev') return 'dev'
+  return rawVersion.length > 8 ? rawVersion.substring(0, 7) : rawVersion
+})
+const buildDate = computed(() => {
+  const raw = import.meta.env.VITE_BUILD_DATE
+  if (!raw) return ''
+  try {
+    return new Date(raw).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+  } catch {
+    return raw
+  }
+})
 
 const tabs = [
   { id: 'users', icon: 'users', label: 'Users' },
@@ -717,4 +737,30 @@ onUnmounted(() => {
 .log-debug .log-level-badge { color: #3498db; }
 .log-trace .log-level-badge { color: #7f8c8d; }
 .log-info .log-level-badge { color: #2ecc71; }
+
+.version-info {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.version-label {
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.version-value {
+  font-family: 'Courier New', Courier, monospace;
+  color: var(--text-secondary);
+}
+
+.version-date {
+  margin-left: 0.25rem;
+}
 </style>
