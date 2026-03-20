@@ -24,7 +24,7 @@
         </div>
 
         <template v-for="(msg, i) in messages" :key="i">
-          <div class="chat-bubble" :class="msg.role">
+          <div class="chat-bubble" :class="[msg.role, { streaming: msg.streaming }]">
             <div class="bubble-content" v-html="formatMessage(msg.content)"></div>
           </div>
 
@@ -61,7 +61,7 @@
           </div>
         </template>
 
-        <div v-if="loading" class="chat-bubble assistant">
+        <div v-if="loading && !messages[messages.length-1]?.streaming" class="chat-bubble assistant">
           <div class="bubble-content thinking">
             <span class="dot"></span><span class="dot"></span><span class="dot"></span>
             Searching the web for coins...
@@ -87,7 +87,7 @@
 
 <script setup lang="ts">
 import { ref, nextTick, onMounted } from 'vue'
-import { agentChat, createCoin, proxyImage, uploadImage } from '@/api/client'
+import { agentChatStream, createCoin, proxyImage, uploadImage } from '@/api/client'
 import type { CoinSuggestion, AgentChatMessage, Category, Material } from '@/types'
 import { Bot, X, SendHorizontal, CirclePlus, ExternalLink } from 'lucide-vue-next'
 
@@ -95,6 +95,7 @@ interface ChatMsg {
   role: 'user' | 'assistant'
   content: string
   suggestions?: CoinSuggestion[]
+  streaming?: boolean
 }
 
 const emit = defineEmits<{
@@ -132,28 +133,37 @@ async function sendMessage() {
   if (!text || loading.value) return
 
   messages.value.push({ role: 'user', content: text })
-  const history = buildHistory().slice(0, -1) // Exclude current message from history
+  const history = buildHistory().slice(0, -1)
   input.value = ''
   loading.value = true
   scrollToBottom()
 
-  try {
-    const res = await agentChat(text, history)
-    messages.value.push({
-      role: 'assistant',
-      content: res.data.message,
-      suggestions: res.data.suggestions || [],
-    })
-  } catch (err: any) {
-    const errMsg = err.response?.data?.error || 'Failed to get a response. Please try again.'
-    messages.value.push({
-      role: 'assistant',
-      content: errMsg,
-    })
-  } finally {
-    loading.value = false
-    scrollToBottom()
-  }
+  // Add a streaming assistant bubble
+  const assistantIdx = messages.value.length
+  messages.value.push({ role: 'assistant', content: '', streaming: true })
+  scrollToBottom()
+
+  await agentChatStream(
+    text,
+    history,
+    (chunk: string) => {
+      messages.value[assistantIdx].content += chunk
+      scrollToBottom()
+    },
+    (message: string, suggestions: CoinSuggestion[]) => {
+      messages.value[assistantIdx].content = message
+      messages.value[assistantIdx].suggestions = suggestions
+      messages.value[assistantIdx].streaming = false
+      loading.value = false
+      scrollToBottom()
+    },
+    (error: string) => {
+      messages.value[assistantIdx].content = error || 'Failed to get a response. Please try again.'
+      messages.value[assistantIdx].streaming = false
+      loading.value = false
+      scrollToBottom()
+    },
+  )
 }
 
 function sendExample(text: string) {
@@ -187,11 +197,13 @@ async function addToWishlist(coin: CoinSuggestion, idx: string) {
       try {
         const imgRes = await proxyImage(coin.imageUrl)
         const blob = imgRes.data as Blob
-        const ext = blob.type.includes('png') ? '.png' : '.jpg'
-        const file = new File([blob], `obverse${ext}`, { type: blob.type })
-        await uploadImage(created.data.id, file, 'obverse', true)
+        if (blob.size > 0) {
+          const ext = blob.type.includes('png') ? '.png' : '.jpg'
+          const file = new File([blob], `obverse${ext}`, { type: blob.type || 'image/jpeg' })
+          await uploadImage(created.data.id, file, 'obverse', true)
+        }
       } catch {
-        // Image download failed — coin is still added, just without the image
+        console.warn('Image download failed for', coin.imageUrl)
       }
     }
 
@@ -380,6 +392,16 @@ onMounted(() => {
 @keyframes pulse {
   0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
   40% { opacity: 1; transform: scale(1); }
+}
+
+.chat-bubble.assistant.streaming .bubble-content::after {
+  content: '▊';
+  animation: blink 1s step-end infinite;
+  color: var(--accent-gold);
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
 }
 
 .suggestions-grid {

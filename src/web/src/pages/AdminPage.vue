@@ -87,8 +87,27 @@
           </div>
           <div class="form-group">
             <label class="form-label">Anthropic Model</label>
-            <input v-model="settings.AnthropicModel" class="form-input" placeholder="claude-sonnet-4-20250514" />
-            <span class="form-hint">Model used for the coin search agent (default: claude-sonnet-4-20250514)</span>
+            <select v-model="settings.AnthropicModel" class="form-input">
+              <option v-for="m in anthropicModels" :key="m.id" :value="m.id">{{ m.name }}</option>
+            </select>
+            <span class="form-hint">Model used for the coin search agent</span>
+          </div>
+          <div class="form-group">
+            <div class="prompt-header">
+              <label class="form-label">Agent Search Prompt</label>
+              <button
+                type="button"
+                class="btn btn-ghost btn-xs"
+                :disabled="settings.AgentPrompt === agentPromptDefault"
+                @click="settings.AgentPrompt = agentPromptDefault"
+              >Revert to Default</button>
+            </div>
+            <textarea
+              v-model="settings.AgentPrompt"
+              class="form-textarea"
+              rows="8"
+            />
+            <span class="form-hint">System prompt for the AI coin search agent. Controls how it searches and formats results.</span>
           </div>
           <div class="form-group">
             <div class="prompt-header">
@@ -249,7 +268,9 @@ import { useAuthStore } from '@/stores/auth'
 import {
   getUsers, deleteUser, resetUserPassword,
   getAppSettings, getAppSettingDefaults, updateAppSettings, getAdminLogs, getOllamaStatus,
+  getAnthropicModels, getAgentPrompt,
 } from '@/api/client'
+import type { AnthropicModel } from '@/api/client'
 import { LOG_LEVELS } from '@/types'
 import type { UserInfo, AppSettings, LogEntry } from '@/types'
 import { Users, Cpu, Wrench, ScrollText } from 'lucide-vue-next'
@@ -360,6 +381,12 @@ const settingsSaving = ref(false)
 const ollamaTesting = ref(false)
 const ollamaTestResult = ref('')
 const ollamaTestOk = ref(false)
+const anthropicModels = ref<AnthropicModel[]>([
+  { id: 'claude-sonnet-4-20250514', name: 'Claude Sonnet 4' },
+  { id: 'claude-haiku-4-20250414', name: 'Claude Haiku 4' },
+  { id: 'claude-opus-4-20250514', name: 'Claude Opus 4' },
+])
+const agentPromptDefault = ref('')
 
 async function loadSettings() {
   try {
@@ -369,6 +396,23 @@ async function loadSettings() {
     ])
     settingDefaults.value = { ...settingDefaults.value, ...defaultsRes.data }
     settings.value = { ...settings.value, ...settingsRes.data }
+
+    // Load Anthropic models and agent prompt in parallel
+    const [modelsRes, promptRes] = await Promise.all([
+      getAnthropicModels().catch(() => null),
+      getAgentPrompt().catch(() => null),
+    ])
+
+    if (modelsRes?.data?.length) {
+      anthropicModels.value = modelsRes.data
+    }
+
+    if (promptRes?.data) {
+      agentPromptDefault.value = promptRes.data.default
+      if (!settings.value.AgentPrompt) {
+        settings.value.AgentPrompt = promptRes.data.prompt
+      }
+    }
   } catch { /* use defaults */ }
 }
 
