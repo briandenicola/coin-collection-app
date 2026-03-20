@@ -155,7 +155,9 @@ func main() {
 		protected.GET("/numista/search", numistaHandler.Search)
 
 		agentHandler := handlers.NewAgentHandler()
-		protected.POST("/agent/chat", agentHandler.Chat)
+		protected.POST("/agent/chat", agentHandler.ChatStream)
+		protected.GET("/agent/models", agentHandler.ListModels)
+		protected.GET("/agent/prompt", agentHandler.GetPrompt)
 
 		// User self-service routes
 		userHandler := handlers.NewUserHandler(cfg.UploadDir)

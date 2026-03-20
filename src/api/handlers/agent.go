@@ -1,11 +1,13 @@
 package handlers
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/briandenicola/ancient-coins-api/services"
@@ -18,7 +20,7 @@ type AgentHandler struct {
 
 func NewAgentHandler() *AgentHandler {
 	return &AgentHandler{
-		client: &http.Client{Timeout: 120 * time.Second},
+		client: &http.Client{Timeout: 300 * time.Second},
 	}
 }
 
@@ -56,11 +58,12 @@ type AgentChatResponse struct {
 // Anthropic API types
 
 type anthropicRequest struct {
-	Model     string               `json:"model"`
-	MaxTokens int                  `json:"max_tokens"`
-	System    string               `json:"system"`
-	Tools     []anthropicTool      `json:"tools"`
-	Messages  []anthropicMessage   `json:"messages"`
+	Model     string             `json:"model"`
+	MaxTokens int                `json:"max_tokens"`
+	Stream    bool               `json:"stream"`
+	System    string             `json:"system"`
+	Tools     []anthropicTool    `json:"tools"`
+	Messages  []anthropicMessage `json:"messages"`
 }
 
 type anthropicTool struct {
@@ -89,7 +92,20 @@ type anthropicError struct {
 	Message string `json:"message"`
 }
 
-const agentSystemPrompt = `You are a knowledgeable numismatist with a focus on Greek and Roman coinage up through the Byzantine Era. You specialize in finding that rare gem of a coin for just the right price. You know how to spot a fake but also a great deal. You are enthusiastic but informative, helpful and friendly.
+// SSE stream event types
+type streamEvent struct {
+	Type         string          `json:"type"`
+	Index        int             `json:"index,omitempty"`
+	ContentBlock *anthropicContent `json:"content_block,omitempty"`
+	Delta        *streamDelta    `json:"delta,omitempty"`
+}
+
+type streamDelta struct {
+	Type string `json:"type"`
+	Text string `json:"text,omitempty"`
+}
+
+const DefaultAgentPrompt = `You are a knowledgeable numismatist with a focus on Greek and Roman coinage up through the Byzantine Era. You specialize in finding that rare gem of a coin for just the right price. You know how to spot a fake but also a great deal. You are enthusiastic but informative, helpful and friendly.
 
 Core Capabilities:
 - Discover current and upcoming auctions and dealer listings
@@ -151,20 +167,28 @@ Example format:
 
 Only include coins you actually found in your search results. Quality over quantity — 2 verified results are better than 5 fabricated ones.`
 
-// Chat handles a conversation with the AI agent.
+func (h *AgentHandler) getSystemPrompt() string {
+	prompt := services.GetSetting(services.SettingAgentPrompt)
+	if prompt == "" {
+		return DefaultAgentPrompt
+	}
+	return prompt
+}
+
+// ChatStream handles a streaming conversation with the AI agent via SSE.
 //
-//	@Summary		Chat with coin search agent
-//	@Description	Send a message to the AI agent that searches the web for coins matching your description.
+//	@Summary		Chat with coin search agent (streaming)
+//	@Description	Send a message to the AI agent. Response is streamed as Server-Sent Events.
 //	@Tags			Agent
 //	@Accept			json
-//	@Produce		json
+//	@Produce		text/event-stream
 //	@Param			body	body		AgentChatRequest	true	"Chat message"
 //	@Success		200		{object}	AgentChatResponse
 //	@Failure		400		{object}	ErrorResponse
 //	@Failure		503		{object}	ErrorResponse
 //	@Security		BearerAuth
 //	@Router			/agent/chat [post]
-func (h *AgentHandler) Chat(c *gin.Context) {
+func (h *AgentHandler) ChatStream(c *gin.Context) {
 	logger := services.AppLogger
 
 	apiKey := services.GetSetting(services.SettingAnthropicAPIKey)
@@ -202,7 +226,8 @@ func (h *AgentHandler) Chat(c *gin.Context) {
 	anthropicReq := anthropicRequest{
 		Model:     model,
 		MaxTokens: 4096,
-		System:    agentSystemPrompt,
+		Stream:    true,
+		System:    h.getSystemPrompt(),
 		Tools: []anthropicTool{
 			{
 				Type:    "web_search_20250305",
@@ -238,14 +263,8 @@ func (h *AgentHandler) Chat(c *gin.Context) {
 	}
 	defer resp.Body.Close()
 
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		logger.Error("agent", "Failed to read response: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read response"})
-		return
-	}
-
 	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
 		logger.Error("agent", "Anthropic API returned %d: %s", resp.StatusCode, string(respBody))
 		c.JSON(http.StatusServiceUnavailable, gin.H{
 			"error": fmt.Sprintf("Anthropic API error (HTTP %d)", resp.StatusCode),
@@ -253,38 +272,154 @@ func (h *AgentHandler) Chat(c *gin.Context) {
 		return
 	}
 
-	var anthropicResp anthropicResponse
-	if err := json.Unmarshal(respBody, &anthropicResp); err != nil {
-		logger.Error("agent", "Failed to parse response: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse response"})
+	// Set SSE headers
+	c.Header("Content-Type", "text/event-stream")
+	c.Header("Cache-Control", "no-cache")
+	c.Header("Connection", "keep-alive")
+	c.Header("X-Accel-Buffering", "no")
+
+	flusher, ok := c.Writer.(http.Flusher)
+	if !ok {
+		logger.Error("agent", "Response writer does not support flushing")
 		return
 	}
 
-	if anthropicResp.Error != nil {
-		logger.Error("agent", "Anthropic error: %s", anthropicResp.Error.Message)
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": anthropicResp.Error.Message})
-		return
-	}
+	var fullText strings.Builder
 
-	// Extract text content from response
-	var fullText string
-	for _, block := range anthropicResp.Content {
-		if block.Type == "text" {
-			fullText += block.Text
+	scanner := bufio.NewScanner(resp.Body)
+	// Increase buffer for large SSE events
+	buf := make([]byte, 0, 64*1024)
+	scanner.Buffer(buf, 1024*1024)
+
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		if !strings.HasPrefix(line, "data: ") {
+			continue
+		}
+
+		data := strings.TrimPrefix(line, "data: ")
+		if data == "[DONE]" {
+			break
+		}
+
+		var event streamEvent
+		if err := json.Unmarshal([]byte(data), &event); err != nil {
+			continue
+		}
+
+		switch event.Type {
+		case "content_block_delta":
+			if event.Delta != nil && event.Delta.Type == "text_delta" && event.Delta.Text != "" {
+				fullText.WriteString(event.Delta.Text)
+				// Send text chunk to client
+				chunk, _ := json.Marshal(map[string]string{
+					"type": "text",
+					"text": event.Delta.Text,
+				})
+				fmt.Fprintf(c.Writer, "data: %s\n\n", chunk)
+				flusher.Flush()
+			}
+
+		case "message_stop":
+			// Parse suggestions from full accumulated text
+			text := fullText.String()
+			suggestions := extractSuggestions(text)
+			cleanMessage := removeJSONBlock(text)
+
+			done, _ := json.Marshal(map[string]interface{}{
+				"type":        "done",
+				"message":     cleanMessage,
+				"suggestions": suggestions,
+			})
+			fmt.Fprintf(c.Writer, "data: %s\n\n", done)
+			flusher.Flush()
+
+			logger.Info("agent", "Stream complete: %d suggestions found", len(suggestions))
 		}
 	}
+}
 
-	// Parse coin suggestions from JSON block in the response
-	suggestions := extractSuggestions(fullText)
+// ListModels returns the list of available Anthropic models.
+//
+//	@Summary		List available Anthropic models
+//	@Description	Returns a curated list of Anthropic models suitable for the coin search agent.
+//	@Tags			Agent
+//	@Produce		json
+//	@Success		200	{array}	object
+//	@Security		BearerAuth
+//	@Router			/agent/models [get]
+func (h *AgentHandler) ListModels(c *gin.Context) {
+	apiKey := services.GetSetting(services.SettingAnthropicAPIKey)
+	if apiKey == "" {
+		// Return defaults if no API key
+		c.JSON(http.StatusOK, getDefaultModels())
+		return
+	}
 
-	// Clean the message text by removing the JSON block
-	cleanMessage := removeJSONBlock(fullText)
+	// Try to fetch from Anthropic API
+	req, err := http.NewRequest("GET", "https://api.anthropic.com/v1/models", nil)
+	if err != nil {
+		c.JSON(http.StatusOK, getDefaultModels())
+		return
+	}
+	req.Header.Set("x-api-key", apiKey)
+	req.Header.Set("anthropic-version", "2023-06-01")
 
-	logger.Info("agent", "Chat response: %d suggestions found", len(suggestions))
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil || resp.StatusCode != http.StatusOK {
+		c.JSON(http.StatusOK, getDefaultModels())
+		return
+	}
+	defer resp.Body.Close()
 
-	c.JSON(http.StatusOK, AgentChatResponse{
-		Message:     cleanMessage,
-		Suggestions: suggestions,
+	var result struct {
+		Data []struct {
+			ID          string `json:"id"`
+			DisplayName string `json:"display_name"`
+		} `json:"data"`
+	}
+	body, _ := io.ReadAll(resp.Body)
+	if err := json.Unmarshal(body, &result); err != nil || len(result.Data) == 0 {
+		c.JSON(http.StatusOK, getDefaultModels())
+		return
+	}
+
+	models := make([]map[string]string, 0, len(result.Data))
+	for _, m := range result.Data {
+		models = append(models, map[string]string{
+			"id":   m.ID,
+			"name": m.DisplayName,
+		})
+	}
+	c.JSON(http.StatusOK, models)
+}
+
+func getDefaultModels() []map[string]string {
+	return []map[string]string{
+		{"id": "claude-sonnet-4-20250514", "name": "Claude Sonnet 4"},
+		{"id": "claude-haiku-4-20250414", "name": "Claude Haiku 4"},
+		{"id": "claude-opus-4-20250514", "name": "Claude Opus 4"},
+	}
+}
+
+// GetPrompt returns the current agent prompt.
+//
+//	@Summary		Get agent prompt
+//	@Tags			Agent
+//	@Produce		json
+//	@Success		200	{object}	object
+//	@Security		BearerAuth
+//	@Router			/agent/prompt [get]
+func (h *AgentHandler) GetPrompt(c *gin.Context) {
+	prompt := services.GetSetting(services.SettingAgentPrompt)
+	if prompt == "" {
+		prompt = DefaultAgentPrompt
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"prompt":  prompt,
+		"default": DefaultAgentPrompt,
 	})
 }
 

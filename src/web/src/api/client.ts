@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Coin, CoinListResponse, CoinImage, AuthResponse, StatsResponse, UserInfo, AppSettings, LogEntry, ApiKey, WebAuthnCredentialInfo, ValueSnapshot, CoinJournal, NumistaSearchResponse, AgentChatMessage, AgentChatResponse } from '@/types'
+import type { Coin, CoinListResponse, CoinImage, AuthResponse, StatsResponse, UserInfo, AppSettings, LogEntry, ApiKey, WebAuthnCredentialInfo, ValueSnapshot, CoinJournal, NumistaSearchResponse, AgentChatMessage, AgentChatResponse, CoinSuggestion } from '@/types'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
@@ -137,6 +137,75 @@ export const searchNumista = (q: string) => api.get<NumistaSearchResponse>('/num
 // Agent
 export const agentChat = (message: string, history: AgentChatMessage[] = []) =>
   api.post<AgentChatResponse>('/agent/chat', { message, history })
+
+export async function agentChatStream(
+  message: string,
+  history: AgentChatMessage[],
+  onText: (text: string) => void,
+  onDone: (message: string, suggestions: CoinSuggestion[]) => void,
+  onError: (error: string) => void,
+) {
+  const token = localStorage.getItem('token')
+  const baseURL = import.meta.env.VITE_API_BASE_URL || ''
+  try {
+    const resp = await fetch(`${baseURL}/api/agent/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ message, history }),
+    })
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ error: `HTTP ${resp.status}` }))
+      onError(err.error || `HTTP ${resp.status}`)
+      return
+    }
+
+    const reader = resp.body?.getReader()
+    if (!reader) { onError('No response body'); return }
+
+    const decoder = new TextDecoder()
+    let buffer = ''
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue
+        const data = line.slice(6).trim()
+        if (!data || data === '[DONE]') continue
+
+        try {
+          const event = JSON.parse(data)
+          if (event.type === 'text') {
+            onText(event.text)
+          } else if (event.type === 'done') {
+            onDone(event.message, event.suggestions || [])
+          }
+        } catch { /* skip malformed events */ }
+      }
+    }
+  } catch (err: unknown) {
+    onError(err instanceof Error ? err.message : 'Stream failed')
+  }
+}
+
+export interface AnthropicModel {
+  id: string
+  name: string
+}
+
+export const getAnthropicModels = () => api.get<AnthropicModel[]>('/agent/models')
+
+export const getAgentPrompt = () => api.get<{ prompt: string; default: string }>('/agent/prompt')
 
 // Images
 export const uploadImage = (coinId: number, file: File, imageType: string, isPrimary: boolean) => {
