@@ -2,10 +2,10 @@
   <div class="app">
     <nav v-if="auth.isAuthenticated" class="nav-bar">
       <div class="nav-content">
-        <router-link to="/" class="nav-brand">
+        <component :is="isPwa ? 'button' : 'router-link'" :to="isPwa ? undefined : '/'" class="nav-brand" @click="isPwa ? (showLogoutModal = true) : undefined">
           <img src="/coin-logo.jpg" alt="Ancient Coins" class="nav-logo" />
           <span class="nav-title">Ancient Coins</span>
-        </router-link>
+        </component>
         <div class="nav-links">
           <router-link to="/" class="nav-link" active-class="active">
             <Landmark :size="18" />
@@ -19,13 +19,13 @@
             <BadgeDollarSign :size="18" />
             <span class="nav-label">Sold</span>
           </router-link>
-          <router-link to="/stats" class="nav-link" active-class="active">
-            <BarChart3 :size="18" />
-            <span class="nav-label">Stats</span>
-          </router-link>
           <router-link v-if="isPwa" to="/add" class="nav-link add-link" active-class="active">
             <CirclePlus :size="18" />
             <span class="nav-label">Add</span>
+          </router-link>
+          <router-link to="/stats" class="nav-link" active-class="active">
+            <BarChart3 :size="18" />
+            <span class="nav-label">Stats</span>
           </router-link>
           <router-link to="/process-image" class="nav-link" active-class="active">
             <Scissors :size="18" />
@@ -41,7 +41,7 @@
             <ShieldCheck :size="18" />
             <span class="nav-label">Admin</span>
           </router-link>
-          <button class="btn-logout" @click="handleLogout">
+          <button v-if="!isPwa" class="btn-logout" @click="handleLogout">
             <LogOut :size="16" />
           </button>
         </div>
@@ -50,10 +50,23 @@
     <main class="main-content" :class="{ 'with-nav': auth.isAuthenticated }">
       <router-view />
     </main>
+
+    <!-- PWA logout modal -->
+    <div v-if="showLogoutModal" class="modal-overlay" @click.self="showLogoutModal = false">
+      <div class="modal card">
+        <h3>Log Out</h3>
+        <p>Are you sure you want to log out?</p>
+        <div class="modal-actions">
+          <button class="btn btn-secondary" @click="showLogoutModal = false">Cancel</button>
+          <button class="btn btn-primary" @click="handleLogout">Log Out</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
 import { Landmark, Bookmark, BadgeDollarSign, BarChart3, CirclePlus, Scissors, Settings, ShieldCheck, LogOut } from 'lucide-vue-next'
@@ -62,8 +75,10 @@ const auth = useAuthStore()
 const router = useRouter()
 const isPwa = window.matchMedia('(display-mode: standalone)').matches
   || (window.navigator as any).standalone === true
+const showLogoutModal = ref(false)
 
 function handleLogout() {
+  showLogoutModal.value = false
   auth.logout()
   router.push('/login')
 }
@@ -101,6 +116,10 @@ function handleLogout() {
   align-items: center;
   gap: 0.6rem;
   text-decoration: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
 }
 
 .nav-logo {
@@ -180,5 +199,38 @@ function handleLogout() {
   .nav-label { display: none; }
   .nav-link { padding: 0.5rem; }
   .nav-icon { font-size: 1.2rem; }
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal {
+  max-width: 360px;
+  width: 90%;
+  padding: 2rem;
+}
+
+.modal h3 {
+  margin-bottom: 0.5rem;
+}
+
+.modal p {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin-bottom: 0;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  margin-top: 1.5rem;
 }
 </style>

@@ -232,7 +232,7 @@ Look up coins in the [Numista](https://en.numista.com/) catalog directly from an
 To enable Numista lookup:
 
 1. Get a free API key at [numista.com/api](https://en.numista.com/api/) (2,000 requests/month free)
-2. Configure it in **Admin → AI Configuration → Numista API Key**
+2. Configure it in **Admin → System Settings → Numista API Key**
 
 ### Collection Statistics
 
@@ -263,9 +263,31 @@ All authenticated users can access **Settings**, organized in a tabbed layout:
 The first registered user is the admin. Admins can access **Admin** to manage:
 
 - **Users** — View all registered users, delete accounts, and reset passwords.
-- **AI Configuration** — Configure Ollama (URL, vision model, timeout, analysis prompts), Anthropic (API key, model dropdown, editable agent prompt for the search agent), and Numista (API key for catalog lookups).
-- **System** — Set the application log level (trace, debug, info, warn, error).
+- **AI Configuration** — Configure Ollama (URL, vision model, timeout, analysis prompts) and Anthropic (API key, model dropdown, editable agent prompt for the search agent).
+- **System** — Set the application log level (trace, debug, info, warn, error) and configure the Numista API key for catalog lookups.
 - **Logs** — View real-time application logs with level filtering and auto-refresh.
+
+### Authentication
+
+The application supports multiple authentication methods for flexibility and security:
+
+- **JWT + Refresh Tokens** — 15-minute access tokens with 30-day rolling refresh tokens. The frontend silently refreshes expired tokens so users stay logged in.
+- **WebAuthn / Passkeys** — FIDO2 biometric authentication (Face ID, Touch ID, fingerprint). Register a passkey in Settings → Account, then use it to log in without a password. Requires HTTPS in production.
+- **API Keys** — Generate API keys in Settings → Data for programmatic access. Keys use the `X-API-Key` header and are checked before JWT.
+
+For a detailed walkthrough of each auth method, see the [Authentication Guide](docs/authentication.md).
+
+### PWA Features
+
+The app is a Progressive Web App installable on iOS, Android, and desktop:
+
+- **Swipe Gallery** — Touch-based card carousel for browsing coins on mobile, with position persistence across navigation.
+- **Pull-to-Refresh** — Pull down from the top of the gallery to refresh the coin list.
+- **Camera Capture** — Take coin photos directly with the device camera from upload sections.
+- **Hamburger Menu** — Gallery controls (filters, sort, view) in a compact popover menu.
+- **Background Removal** — Remove image backgrounds in-place on the coin detail page using client-side ML.
+
+For installation instructions and a full feature guide, see the [PWA Guide](docs/pwa-guide.md).
 
 ### Environment Variables
 
@@ -350,7 +372,11 @@ AncientCoins/
 │       ├── public/                   # PWA icons & coin logo
 │       └── vite.config.ts
 ├── docs/
-│   └── getting-started.md            # User walkthrough guide
+│   ├── getting-started.md            # User walkthrough guide
+│   ├── authentication.md             # JWT, refresh tokens, WebAuthn, API keys
+│   ├── api-reference.md              # Complete REST API reference
+│   ├── deployment.md                 # Production deployment guide
+│   └── pwa-guide.md                  # PWA features & installation
 ├── instructions.md                   # Agent instructions for AI coding assistants
 ├── Dockerfile                        # Multi-stage build (Vue + Go → Alpine)
 ├── Taskfile.yml                      # Task runner configuration
@@ -379,6 +405,16 @@ Feature ideas and completed enhancements:
 - [x] **Paste Image URL** — Fetch and attach coin images from external URLs
 - [x] **Tabbed Settings** — Reorganized user settings into Account, Appearance, Data, Conversations tabs
 - [x] **Build Version Display** — Version and build date injected at build time and shown in Admin settings
+- [x] **Refresh Tokens** — 30-day rolling refresh tokens with silent frontend renewal
+- [x] **WebAuthn / Passkeys** — Face ID, Touch ID, and fingerprint login via FIDO2
+- [x] **API Keys** — Per-user API keys for programmatic access with `X-API-Key` header
+- [x] **Pull-to-Refresh** — Swipe-down refresh gesture in PWA mode
+- [x] **Background Removal** — Client-side ML-powered image background removal on detail page
+- [x] **Base64 Image Upload** — Upload images as base64-encoded data via API
+- [x] **Gallery Image Side Toggle** — Switch between primary, obverse, and reverse images in grid view
+- [x] **PWA Hamburger Menu** — Compact popover menu for gallery controls in PWA mode
+- [x] **Default Sort Setting** — Configurable default sort order in user settings
+- [x] **Swipe Position Persistence** — Returning from detail view preserves swipe gallery position
 - [ ] **Collection Timeline** — Visual timeline of when each coin was acquired
 - [ ] **Coin Comparison** — Side-by-side spec comparison of any two coins
 - [ ] **Advanced Search** — Filter by date range, price range, grade, material

@@ -24,7 +24,7 @@ Click **Register** and create your account. The **first user** to register is au
 As admin, click **Admin** in the navigation bar to configure:
 
 - **AI Configuration** — Set the Ollama URL, the vision model name (default `llava`), and optionally a custom analysis prompt. The Ollama URL is configured here (default `http://localhost:11434`).
-- **System** — Set the log level (`trace`, `debug`, `info`, `warn`, `error`)
+- **System** — Set the log level (`trace`, `debug`, `info`, `warn`, `error`) and configure the Numista API key for catalog lookups.
 - **Logs** — View real-time application logs with level filtering and auto-refresh
 
 ### 4. Start Adding Coins
