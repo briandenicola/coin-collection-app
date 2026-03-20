@@ -43,8 +43,8 @@
           <!-- Suggestions after assistant message -->
           <div v-if="msg.role === 'assistant' && msg.suggestions?.length" class="suggestions-grid">
             <div v-for="(coin, j) in msg.suggestions" :key="j" class="suggestion-card">
-              <div class="suggestion-img" v-if="coin.imageUrl">
-                <img :src="proxyImageUrl(coin.imageUrl)" :alt="coin.name" @error="handleImgError" />
+              <div class="suggestion-img" v-if="getSuggestionImageUrl(coin)">
+                <img :src="getSuggestionImageUrl(coin)" :alt="coin.name" @error="handleImgError" />
               </div>
               <div class="suggestion-body">
                 <h4>{{ coin.name }}</h4>
@@ -99,7 +99,7 @@
 
 <script setup lang="ts">
 import { ref, nextTick, onMounted, computed } from 'vue'
-import { agentChatStream, createCoin, proxyImage, uploadImage, saveConversation } from '@/api/client'
+import { agentChatStream, createCoin, proxyImage, scrapeImage, uploadImage, saveConversation } from '@/api/client'
 import type { CoinSuggestion, AgentChatMessage, Category, Material } from '@/types'
 import { Bot, X, SendHorizontal, CirclePlus, ExternalLink, Save } from 'lucide-vue-next'
 
@@ -128,6 +128,7 @@ const messagesEl = ref<HTMLElement>()
 const inputEl = ref<HTMLInputElement>()
 const conversationId = ref<number | null>(null)
 const saving = ref(false)
+const scrapedImages = ref<Map<string, string>>(new Map())
 const saveLabel = ref('Save')
 
 const VALID_CATEGORIES = ['Roman', 'Greek', 'Byzantine', 'Modern', 'Other']
@@ -240,7 +241,10 @@ async function addToWishlist(coin: CoinSuggestion, idx: string) {
       currentValue: parsePrice(coin.estPrice),
     })
 
-    // Download and attach coin image as obverse
+    // Try to download and attach coin image as obverse
+    let imageAttached = false
+
+    // First try: use agent-provided imageUrl
     if (coin.imageUrl) {
       try {
         const imgRes = await proxyImage(coin.imageUrl)
@@ -249,9 +253,29 @@ async function addToWishlist(coin: CoinSuggestion, idx: string) {
           const ext = blob.type.includes('png') ? '.png' : '.jpg'
           const file = new File([blob], `obverse${ext}`, { type: blob.type || 'image/jpeg' })
           await uploadImage(created.data.id, file, 'obverse', true)
+          imageAttached = true
         }
       } catch {
-        console.warn('Image download failed for', coin.imageUrl)
+        console.warn('Direct image download failed for', coin.imageUrl)
+      }
+    }
+
+    // Fallback: scrape image from the listing page URL
+    if (!imageAttached && coin.sourceUrl) {
+      try {
+        const scraped = await scrapeImage(coin.sourceUrl)
+        const scrapedUrl = scraped.data.imageUrl
+        if (scrapedUrl) {
+          const imgRes = await proxyImage(scrapedUrl)
+          const blob = imgRes.data as Blob
+          if (blob.size > 0) {
+            const ext = blob.type.includes('png') ? '.png' : '.jpg'
+            const file = new File([blob], `obverse${ext}`, { type: blob.type || 'image/jpeg' })
+            await uploadImage(created.data.id, file, 'obverse', true)
+          }
+        }
+      } catch {
+        console.warn('Image scrape fallback failed for', coin.sourceUrl)
       }
     }
 
@@ -282,6 +306,26 @@ function formatMessage(text: string): string {
 function proxyImageUrl(url: string): string {
   if (!url) return ''
   return `/api/proxy-image?url=${encodeURIComponent(url)}`
+}
+
+function getSuggestionImageUrl(coin: CoinSuggestion): string {
+  if (coin.imageUrl) return proxyImageUrl(coin.imageUrl)
+
+  // If no imageUrl but we have a sourceUrl, try scraping
+  if (coin.sourceUrl) {
+    const cached = scrapedImages.value.get(coin.sourceUrl)
+    if (cached) return proxyImageUrl(cached)
+    if (cached === undefined) {
+      // Mark as loading (empty string = in-progress)
+      scrapedImages.value.set(coin.sourceUrl, '')
+      scrapeImage(coin.sourceUrl).then((res) => {
+        if (res.data.imageUrl) {
+          scrapedImages.value.set(coin.sourceUrl, res.data.imageUrl)
+        }
+      }).catch(() => { /* ignore */ })
+    }
+  }
+  return ''
 }
 
 function handleImgError(e: Event) {

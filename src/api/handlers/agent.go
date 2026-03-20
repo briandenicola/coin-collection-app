@@ -137,8 +137,8 @@ Important Rules:
 4. Include the actual listed price, not an estimate or a past realized price.
 5. Mention the dealer/auction house reputation if known.
 6. Flag any concerns about authenticity or condition.
-7. ALWAYS include an imageUrl for every coin suggestion — use the direct image URL (ending in .jpg, .png, etc.) from the listing page. The image is saved as the coin's obverse photo when added to the wishlist. Only omit imageUrl if absolutely no image exists.
-8. For imageUrl, prefer direct image file URLs (e.g., https://example.com/images/coin123.jpg) rather than page URLs. Look at the coin photo's actual src attribute from the listing.
+7. For imageUrl: if you can see a direct image URL (ending in .jpg, .png, etc.) in your search results, include it. If you cannot find a direct image URL — for example because the page uses dynamic/lazy image loading — set imageUrl to an empty string "". The system will automatically extract the image from the listing page. Do NOT skip a coin suggestion just because you cannot find its image URL.
+8. The sourceUrl is the most important link — always provide the direct URL to the listing page. The system uses it to extract images automatically when imageUrl is unavailable.
 
 After searching, provide an enthusiastic but informative response about what you found. Include a JSON block with structured coin suggestions. The JSON block MUST be wrapped in ` + "```json" + ` and ` + "```" + ` markers.
 
@@ -151,7 +151,7 @@ The JSON should be an array of objects with these fields:
 - material: One of "Gold", "Silver", "Bronze", "Copper", "Electrum", or "Other"
 - denomination: Coin denomination (e.g., "Denarius", "Tetradrachm")
 - estPrice: Actual listed price from the listing (e.g., "$150", "$200-300") — NOT a past realized price
-- imageUrl: Direct URL to the coin image file (e.g., .jpg/.png) — required for wishlist integration
+- imageUrl: Direct URL to the coin image file if available, or empty string "" if not found (the system will auto-extract from the listing page)
 - sourceUrl: Direct URL to the actual listing page (required — must be a real link from your search)
 - sourceName: Name of the dealer, auction house, or website
 
