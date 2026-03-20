@@ -170,9 +170,18 @@ The main collection page supports browsing your coins with filtering, search, an
 Track coins you'd like to acquire with an AI-powered search agent:
 
 - **Add to Wish List** — When creating a coin, toggle the "Wishlist" flag. The coin appears in the dedicated Wish List view instead of the main collection.
-- **AI Coin Search Agent** — Click "Find Coins" to open a chat drawer powered by Anthropic Claude with web search. Describe the coins you're looking for (e.g., "Roman silver denarii of Julius Caesar under $500") and the agent searches the web for real listings and references. Results appear as cards with metadata, estimated prices, and source links — each with an "Add to Wishlist" button for one-click import.
+- **AI Coin Search Agent** — Click "Find Coins" to open a chat drawer powered by Anthropic Claude with web search. Describe the coins you're looking for (e.g., "Roman silver denarii of Julius Caesar under $500") and the agent searches the web for real listings and references. Results appear as cards with images, metadata, estimated prices, and source links — each with an "Add to Wishlist" button for one-click import.
 - **Purchase** — Move a wishlist coin to your main collection when you acquire it.
 - **Wish List Gallery** — A separate page showing only wishlist items with sorting support.
+
+### Sold Coins
+
+Track coins you've sold with profit/loss visibility:
+
+- **Sell from Detail Page** — Click "Sell" on any collection coin's detail page. A styled modal prompts for the sale price and buyer name.
+- **Profit / Loss Tracking** — Sold coins display the sale price, original cost basis, and calculated profit or loss (green for profit, red for loss).
+- **Sold Gallery** — A dedicated gallery page showing all sold coins with their sale history, accessible from the navigation bar.
+- **Stats Integration** — Sold coins are excluded from active collection totals while their sold values are tracked separately.
 
 ### Coin Details
 
@@ -181,7 +190,8 @@ Each coin can store:
 - **Core fields** — Name, denomination, ruler/authority, year/era, category, material, weight, diameter
 - **Numismatic details** — Mint mark, obverse/reverse inscriptions, grade, RIC number, rarity rating
 - **Financial data** — Purchase price, current value, acquisition date, dealer/source
-- **Images** — Multiple image uploads per coin (obverse, reverse, edge, detail, full) with a gallery viewer
+- **Images** — Multiple image uploads per coin (obverse, reverse, edge, detail, full) with a gallery viewer. Supports file upload, paste-from-URL (fetched via server proxy), and direct camera capture in PWA mode.
+- **Camera Capture (PWA)** — In PWA/mobile mode, a "Photo" button appears on upload sections letting you take coin photos directly with the rear camera. Available on the coin detail page and the add/edit form.
 - **AI Analysis** — Markdown-formatted analysis from Ollama, stored with the coin (obverse and reverse analyzed separately)
 - **Activity Journal** — Timestamped log entries per coin (e.g., "cleaned", "sent to NGC for grading", "displayed at coin show"). Add and delete entries directly from the detail page.
 - **Numista Catalog Lookup** — Search the Numista coin catalog directly from a coin's detail page. Results show thumbnails, title, issuer, and year range with links to the full Numista catalog entry.
@@ -201,10 +211,19 @@ To enable AI analysis:
 
 Chat with an AI agent that searches the web for coins matching your description. Powered by Anthropic Claude with the web search tool, the agent returns structured coin suggestions with names, categories, materials, price estimates, and source links. Each suggestion can be added to your wishlist with one click.
 
+Key features:
+
+- **Streaming Responses** — Agent replies stream in real-time via Server-Sent Events (SSE) with a progressive text display and blinking cursor, so you see results as they arrive.
+- **Automatic Image Extraction** — When you add a coin to your wishlist, the system automatically extracts the listing's primary image using `og:image` meta tag scraping from the source page. Falls back to the agent-provided image URL if scraping finds nothing.
+- **Paste Image URL** — If automatic extraction misses an image, you can paste an image URL directly on the coin detail page to fetch and attach it.
+- **Save Conversations** — Save search conversations for later reference. Saved chats appear in the Settings → Conversations tab where you can reopen or delete them.
+- **Configurable Model & Prompt** — Admins can select the Claude model from a dropdown populated from the Anthropic API, and customize the agent's system prompt.
+
 To enable the search agent:
 
 1. Get an API key from [console.anthropic.com](https://console.anthropic.com/)
 2. Configure it in **Admin → AI Configuration → Anthropic API Key**
+3. Optionally select a different model or customize the agent prompt in Admin settings
 
 ### Numista Catalog Integration
 
@@ -232,22 +251,19 @@ Upload photos of store cards, certificates, or coin holder labels and extract te
 
 ### User Settings
 
-All authenticated users can access **Settings** to configure:
+All authenticated users can access **Settings**, organized in a tabbed layout:
 
-- **Change Password** — Update your account password (requires current password).
-- **Theme** — Switch between dark (museum) and light mode. Persists across sessions.
-- **Default View** — Choose between swipe carousel or grid layout for the collection gallery on mobile/PWA.
-- **Time Zone** — Select your preferred time zone for date/time display.
-- **WebAuthn / Passkeys** — Register FIDO2 credentials for passwordless login.
-- **API Keys** — Generate and manage API keys for programmatic access.
-- **Export / Import** — Export your entire collection as JSON, or import coins from a JSON file. See the [Getting Started Guide](docs/getting-started.md#import--export) for the full import file format and field reference.
+- **Account** — Change password (requires current password) and register WebAuthn/FIDO2 passkeys for passwordless login.
+- **Appearance** — Switch between dark (museum) and light theme, set time zone, choose default gallery view (swipe or grid), and default sort order. Preferences persist across sessions.
+- **Data** — Export your entire collection as JSON, import coins from a JSON file, and manage API keys for programmatic access. See the [Getting Started Guide](docs/getting-started.md#import--export) for the full import file format.
+- **Conversations** — View, reopen, or delete saved AI search agent conversations.
 
 ### Admin Settings
 
 The first registered user is the admin. Admins can access **Admin** to manage:
 
 - **Users** — View all registered users, delete accounts, and reset passwords.
-- **AI Configuration** — Configure Ollama (URL, vision model, timeout, analysis prompts), Anthropic (API key, model for search agent), and Numista (API key for catalog lookups).
+- **AI Configuration** — Configure Ollama (URL, vision model, timeout, analysis prompts), Anthropic (API key, model dropdown, editable agent prompt for the search agent), and Numista (API key for catalog lookups).
 - **System** — Set the application log level (trace, debug, info, warn, error).
 - **Logs** — View real-time application logs with level filtering and auto-refresh.
 
@@ -273,6 +289,7 @@ These are configured in the Admin UI (not environment variables) and stored in t
 | `OllamaTimeout`      | AI request timeout in seconds (default: `300`) |
 | `AnthropicAPIKey`     | API key for the Claude-powered coin search agent |
 | `AnthropicModel`      | Claude model to use (default: `claude-sonnet-4-20250514`) |
+| `AgentPrompt`         | Custom system prompt for the AI coin search agent |
 | `NumistaAPIKey`       | Numista catalog API key for coin lookups |
 | `ObversePrompt`       | Custom prompt for obverse image analysis |
 | `ReversePrompt`       | Custom prompt for reverse image analysis |
@@ -294,10 +311,11 @@ AncientCoins/
 │   │   ├── database/                 # SQLite connection (pure-Go driver)
 │   │   ├── handlers/                 # HTTP handlers
 │   │   │   ├── auth.go               # Registration, login, token refresh
-│   │   │   ├── coins.go              # Coin CRUD, list/filter/sort, stats, value history
-│   │   │   ├── images.go             # Image upload/delete
+│   │   │   ├── coins.go              # Coin CRUD, list/filter/sort, stats, sell, value history
+│   │   │   ├── images.go             # Image upload/delete, proxy, scrape
 │   │   │   ├── analysis.go           # Ollama AI coin analysis & OCR
-│   │   │   ├── agent.go              # Anthropic chat agent with web search
+│   │   │   ├── agent.go              # Anthropic chat agent with SSE streaming
+│   │   │   ├── conversations.go      # Saved agent conversation CRUD
 │   │   │   ├── journal.go            # Per-coin activity log
 │   │   │   ├── numista.go            # Numista catalog search proxy
 │   │   │   ├── snapshots.go          # Portfolio value snapshots
@@ -307,16 +325,17 @@ AncientCoins/
 │   │   │   ├── api_keys.go           # API key management
 │   │   │   └── webauthn.go           # FIDO2/WebAuthn auth
 │   │   ├── middleware/               # JWT & API key auth middleware
-│   │   ├── models/                   # GORM entities (Coin, User, CoinJournal, ValueSnapshot, etc.)
+│   │   ├── models/                   # GORM entities (Coin, User, CoinJournal, AgentConversation, ValueSnapshot, etc.)
 │   │   └── services/                 # Business logic (Ollama, settings, logger)
 │   └── web/                          # Vue 3 SPA
 │       ├── src/
 │       │   ├── api/                  # Axios API client
 │       │   ├── assets/styles/        # CSS variables & global styles
 │       │   ├── components/           # Reusable components
-│       │   │   ├── CoinCard.vue      # Gallery card (collection + wishlist variants)
-│       │   │   ├── CoinForm.vue      # Shared create/edit form with autocomplete
-│       │   │   ├── CoinSearchChat.vue # AI agent chat drawer
+│       │   │   ├── CoinCard.vue      # Gallery card (collection + wishlist + sold variants)
+│       │   │   ├── CoinForm.vue      # Shared create/edit form with autocomplete & camera
+│       │   │   ├── CoinSearchChat.vue # AI agent chat drawer with streaming
+│       │   │   ├── SellModal.vue     # Sell coin dialog with price & buyer fields
 │       │   │   ├── SearchBar.vue     # Search input
 │       │   │   ├── CategoryFilter.vue # Category pill filters
 │       │   │   ├── SortSelect.vue    # Sort dropdown
@@ -352,6 +371,14 @@ Feature ideas and completed enhancements:
 - [x] **Activity Journal** — Per-coin timestamped activity log
 - [x] **Numista Catalog Lookup** — Search the Numista coin database from detail pages
 - [x] **AI Coin Search Agent** — Anthropic-powered chat agent with web search for discovering coins
+- [x] **Streaming Agent Responses** — Real-time SSE streaming for AI search results
+- [x] **Saved Conversations** — Save and reopen AI search agent conversations
+- [x] **Sold Coins** — Track sold coins with price, buyer, and profit/loss display
+- [x] **Camera Capture** — Take coin photos directly in PWA mode with rear camera
+- [x] **Image Scraping** — Automatic og:image extraction for wishlist coin images
+- [x] **Paste Image URL** — Fetch and attach coin images from external URLs
+- [x] **Tabbed Settings** — Reorganized user settings into Account, Appearance, Data, Conversations tabs
+- [x] **Build Version Display** — Version and build date injected at build time and shown in Admin settings
 - [ ] **Wear Heatmap** — GitHub-style heatmap for tracking when coins were viewed or handled
 - [ ] **Collection Timeline** — Visual timeline of when each coin was acquired
 - [ ] **Coin Comparison** — Side-by-side spec comparison of any two coins
@@ -360,7 +387,6 @@ Feature ideas and completed enhancements:
 - [ ] **PWA Icons** — Generate proper PWA icons from the EID MAR coin logo
 - [ ] **Price Alerts** — Notifications when watched coins appear below a target price
 - [ ] **Share Collection** — Public shareable link for a subset of your collection
-- [ ] **Camera Capture** — Take coin photos directly in the app with cropping
 
 ## License
 
