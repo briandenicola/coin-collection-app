@@ -379,7 +379,6 @@ Feature ideas and completed enhancements:
 - [x] **Paste Image URL** — Fetch and attach coin images from external URLs
 - [x] **Tabbed Settings** — Reorganized user settings into Account, Appearance, Data, Conversations tabs
 - [x] **Build Version Display** — Version and build date injected at build time and shown in Admin settings
-- [ ] **Wear Heatmap** — GitHub-style heatmap for tracking when coins were viewed or handled
 - [ ] **Collection Timeline** — Visual timeline of when each coin was acquired
 - [ ] **Coin Comparison** — Side-by-side spec comparison of any two coins
 - [ ] **Advanced Search** — Filter by date range, price range, grade, material
