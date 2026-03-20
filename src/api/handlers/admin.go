@@ -101,8 +101,14 @@ func (h *AdminHandler) DeleteUser(c *gin.Context) {
 	database.DB.Model(&models.Coin{}).Where("user_id = ?", targetID).Pluck("id", &coinIDs)
 	if len(coinIDs) > 0 {
 		database.DB.Where("coin_id IN ?", coinIDs).Delete(&models.CoinImage{})
+		database.DB.Where("coin_id IN ?", coinIDs).Delete(&models.CoinJournal{})
 	}
 	database.DB.Where("user_id = ?", targetID).Delete(&models.Coin{})
+	database.DB.Where("user_id = ?", targetID).Delete(&models.AgentConversation{})
+	database.DB.Where("user_id = ?", targetID).Delete(&models.ValueSnapshot{})
+	database.DB.Where("user_id = ?", targetID).Delete(&models.ApiKey{})
+	database.DB.Where("user_id = ?", targetID).Delete(&models.RefreshToken{})
+	database.DB.Where("user_id = ?", targetID).Delete(&models.WebAuthnCredential{})
 
 	result := database.DB.Delete(&models.User{}, targetID)
 	if result.RowsAffected == 0 {
