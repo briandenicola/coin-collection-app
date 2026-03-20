@@ -87,7 +87,7 @@
 
 <script setup lang="ts">
 import { ref, nextTick, onMounted } from 'vue'
-import { agentChat, createCoin } from '@/api/client'
+import { agentChat, createCoin, proxyImage, uploadImage } from '@/api/client'
 import type { CoinSuggestion, AgentChatMessage, Category, Material } from '@/types'
 import { Bot, X, SendHorizontal, CirclePlus, ExternalLink } from 'lucide-vue-next'
 
@@ -168,7 +168,7 @@ async function addToWishlist(coin: CoinSuggestion, idx: string) {
     const category = VALID_CATEGORIES.includes(coin.category) ? coin.category as Category : 'Other'
     const material = VALID_MATERIALS.includes(coin.material) ? coin.material as Material : 'Other'
 
-    await createCoin({
+    const created = await createCoin({
       name: coin.name,
       category,
       material,
@@ -181,6 +181,20 @@ async function addToWishlist(coin: CoinSuggestion, idx: string) {
       isWishlist: true,
       currentValue: parsePrice(coin.estPrice),
     })
+
+    // Download and attach coin image as obverse
+    if (coin.imageUrl) {
+      try {
+        const imgRes = await proxyImage(coin.imageUrl)
+        const blob = imgRes.data as Blob
+        const ext = blob.type.includes('png') ? '.png' : '.jpg'
+        const file = new File([blob], `obverse${ext}`, { type: blob.type })
+        await uploadImage(created.data.id, file, 'obverse', true)
+      } catch {
+        // Image download failed — coin is still added, just without the image
+      }
+    }
+
     addedSet.value.add(idx)
     emit('added')
   } catch {

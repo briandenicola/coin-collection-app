@@ -113,6 +113,7 @@ Important Rules:
 4. Include the actual price from the listing when available, not an estimate.
 5. Mention the dealer/auction house reputation if known.
 6. Flag any concerns about authenticity or condition.
+7. ALWAYS include an imageUrl for every coin suggestion. Look for the coin photo URL in the listing or search results. The image is used as the obverse photo when added to the wishlist. Only omit imageUrl if absolutely no image exists.
 
 After searching, provide an enthusiastic but informative response about what you found. Include a JSON block with structured coin suggestions. The JSON block MUST be wrapped in ` + "```json" + ` and ` + "```" + ` markers.
 
@@ -125,7 +126,7 @@ The JSON should be an array of objects with these fields:
 - material: One of "Gold", "Silver", "Bronze", "Copper", "Electrum", or "Other"
 - denomination: Coin denomination (e.g., "Denarius", "Tetradrachm")
 - estPrice: Actual listed price or price range from the listing (e.g., "$150", "$200-300")
-- imageUrl: URL to the coin image from the listing (empty string if none found)
+- imageUrl: URL to the coin image from the listing (required — the image is saved as the coin's obverse photo when added to the wishlist)
 - sourceUrl: Direct URL to the actual listing page (required — must be a real link from your search)
 - sourceName: Name of the dealer, auction house, or website
 
