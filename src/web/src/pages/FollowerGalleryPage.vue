@@ -87,7 +87,8 @@ const loading = ref(true)
 function getPrimaryImage(coin: LimitedCoin): string | null {
   if (!coin.images || coin.images.length === 0) return null
   const primary = coin.images.find((img) => img.isPrimary)
-  return (primary || coin.images[0]).filePath
+  const img = primary ?? coin.images[0]
+  return img ? img.filePath : null
 }
 
 onMounted(async () => {
