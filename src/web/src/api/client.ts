@@ -372,8 +372,12 @@ export const deleteAvatar = () => api.delete('/user/avatar')
 // Follow
 export const followUser = (userId: number) => api.post(`/social/follow/${userId}`)
 export const unfollowUser = (userId: number) => api.delete(`/social/follow/${userId}`)
+export const acceptFollower = (userId: number) => api.put(`/social/followers/${userId}/accept`)
+export const blockFollower = (userId: number) => api.put(`/social/followers/${userId}/block`)
+export const unblockFollower = (userId: number) => api.delete(`/social/followers/${userId}/block`)
 export const getFollowers = () => api.get<{ followers: FollowUser[] }>('/social/followers')
 export const getFollowing = () => api.get<{ following: FollowUser[] }>('/social/following')
+export const getBlockedUsers = () => api.get<{ blocked: { id: number; username: string; avatarPath: string }[] }>('/social/blocked')
 
 // User discovery
 export const searchUsers = (query: string) => api.get<{ users: FollowUser[] }>('/users/search', { params: { q: query } })

@@ -213,7 +213,9 @@ export interface FollowUser {
   isPublic: boolean
   bio: string
   isFollowing: boolean
+  followStatus: string // '', 'pending', 'accepted', 'blocked'
   coinCount: number
+  status?: string // used in followers list: 'pending' | 'accepted'
 }
 
 export interface PublicProfile extends FollowUser {
