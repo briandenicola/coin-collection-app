@@ -1,13 +1,13 @@
 <template>
   <div class="app">
-    <nav v-if="auth.isAuthenticated" class="nav-bar">
+    <nav v-if="auth.isAuthenticated" class="nav-bar" :class="{ 'pwa-mode': isPwa }">
       <div class="nav-content">
         <component :is="isPwa ? 'router-link' : 'router-link'" to="/" class="nav-brand">
           <img src="/coin-logo.jpg" alt="Ancient Coins" class="nav-logo" />
           <span class="nav-title">Ancient Coins</span>
         </component>
         <div class="nav-links">
-          <router-link to="/" class="nav-link" active-class="active">
+          <router-link v-if="!isPwa" to="/" class="nav-link" active-class="active">
             <Landmark :size="18" />
             <span class="nav-label">Collection</span>
           </router-link>
@@ -236,6 +236,20 @@ function handleLogout() {
   .nav-label { display: none; }
   .nav-link { padding: 0.5rem; }
   .nav-icon { font-size: 1.2rem; }
+}
+
+.pwa-mode .nav-links {
+  flex: 1;
+  justify-content: space-evenly;
+  gap: 0;
+}
+
+.pwa-mode .nav-right {
+  gap: 0;
+}
+
+.pwa-mode .nav-content {
+  gap: 0.5rem;
 }
 
 .modal-overlay {
