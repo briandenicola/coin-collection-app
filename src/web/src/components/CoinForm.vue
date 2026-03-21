@@ -165,6 +165,14 @@
           <label class="form-label">Notes</label>
           <textarea v-model="form.notes" class="form-textarea" rows="3" placeholder="Any additional notes..." />
         </div>
+        <div class="form-group" style="display: flex; align-items: center; gap: 0.75rem;">
+          <label class="form-label" style="margin: 0;">Private Coin</label>
+          <label class="toggle">
+            <input type="checkbox" v-model="form.isPrivate" />
+            <span class="toggle-slider"></span>
+          </label>
+          <span style="font-size: 0.8rem; color: var(--text-secondary);">Hidden from followers</span>
+        </div>
       </fieldset>
     </div>
 

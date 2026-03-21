@@ -40,6 +40,17 @@
                 </div>
               </div>
             </div>
+            <div class="pwa-menu-divider"></div>
+            <router-link to="/followers" class="pwa-menu-link" @click="menuOpen = false">
+              <UsersIcon :size="18" /> Followers
+            </router-link>
+            <router-link to="/process-image" class="pwa-menu-link" @click="menuOpen = false">
+              <Scissors :size="18" /> Process Image
+            </router-link>
+            <div class="pwa-menu-divider"></div>
+            <button class="pwa-menu-link pwa-menu-logout" @click="handlePwaLogout">
+              <LogOut :size="18" /> Log Out
+            </button>
           </div>
         </Transition>
       </div>
@@ -110,6 +121,8 @@
 <script setup lang="ts">
 import { ref, watch, onMounted } from 'vue'
 import { useCoinsStore } from '@/stores/coins'
+import { useAuthStore } from '@/stores/auth'
+import { useRouter } from 'vue-router'
 import type { ImageType } from '@/types'
 import { usePullToRefresh } from '@/composables/usePullToRefresh'
 import CoinCard from '@/components/CoinCard.vue'
@@ -118,9 +131,11 @@ import CategoryFilter from '@/components/CategoryFilter.vue'
 import SearchBar from '@/components/SearchBar.vue'
 import SortSelect from '@/components/SortSelect.vue'
 
-import { Layers, LayoutGrid, CirclePlus, Menu } from 'lucide-vue-next'
+import { Layers, LayoutGrid, CirclePlus, Menu, Users as UsersIcon, Scissors, LogOut } from 'lucide-vue-next'
 
 const store = useCoinsStore()
+const auth = useAuthStore()
+const router = useRouter()
 const selectedCategory = store.selectedCategory !== undefined ? ref(store.selectedCategory) : ref('')
 const search = ref(store.searchQuery)
 const page = ref(1)
@@ -184,6 +199,12 @@ watch(sortKey, () => {
 })
 
 loadCoins()
+
+function handlePwaLogout() {
+  menuOpen.value = false
+  auth.logout()
+  router.push('/login')
+}
 </script>
 
 <style scoped>
@@ -261,6 +282,38 @@ loadCoins()
   letter-spacing: 0.05em;
   color: var(--text-muted);
   font-weight: 600;
+}
+
+.pwa-menu-divider {
+  border-top: 1px solid var(--border-subtle, rgba(255,255,255,0.1));
+  margin: 0.25rem 0;
+}
+
+.pwa-menu-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 0.9rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+}
+
+.pwa-menu-link:hover {
+  color: var(--gold, #c9a84c);
+}
+
+.pwa-menu-logout {
+  color: #e57373;
+}
+
+.pwa-menu-logout:hover {
+  color: #ef5350;
 }
 
 .pwa-menu-row {

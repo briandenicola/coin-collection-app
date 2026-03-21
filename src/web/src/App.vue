@@ -2,7 +2,7 @@
   <div class="app">
     <nav v-if="auth.isAuthenticated" class="nav-bar">
       <div class="nav-content">
-        <component :is="isPwa ? 'button' : 'router-link'" :to="isPwa ? undefined : '/'" class="nav-brand" @click="isPwa ? (showLogoutModal = true) : undefined">
+        <component :is="isPwa ? 'router-link' : 'router-link'" to="/" class="nav-brand">
           <img src="/coin-logo.jpg" alt="Ancient Coins" class="nav-logo" />
           <span class="nav-title">Ancient Coins</span>
         </component>
@@ -23,11 +23,15 @@
             <CirclePlus :size="18" />
             <span class="nav-label">Add</span>
           </router-link>
+          <router-link to="/followers" class="nav-link" active-class="active">
+            <UsersIcon :size="18" />
+            <span class="nav-label">Followers</span>
+          </router-link>
           <router-link to="/stats" class="nav-link" active-class="active">
             <BarChart3 :size="18" />
             <span class="nav-label">Stats</span>
           </router-link>
-          <router-link to="/process-image" class="nav-link" active-class="active">
+          <router-link v-if="!isPwa" to="/process-image" class="nav-link" active-class="active">
             <Scissors :size="18" />
             <span class="nav-label">Process</span>
           </router-link>
@@ -51,14 +55,17 @@
       <router-view />
     </main>
 
-    <!-- PWA logout modal -->
-    <div v-if="showLogoutModal" class="modal-overlay" @click.self="showLogoutModal = false">
+    <!-- Email prompt modal for legacy users -->
+    <div v-if="showEmailPrompt" class="modal-overlay" @click.self="dismissEmailPrompt">
       <div class="modal card">
-        <h3>Log Out</h3>
-        <p>Are you sure you want to log out?</p>
+        <h3>📧 Add Your Email</h3>
+        <p>An email address is now required. Please add yours to continue using all features.</p>
+        <div class="form-group" style="margin: 1rem 0">
+          <input v-model="promptEmail" type="email" class="form-input" placeholder="you@example.com" />
+        </div>
         <div class="modal-actions">
-          <button class="btn btn-secondary" @click="showLogoutModal = false">Cancel</button>
-          <button class="btn btn-primary" @click="handleLogout">Log Out</button>
+          <button class="btn btn-secondary" @click="dismissEmailPrompt">Later</button>
+          <button class="btn btn-primary" @click="savePromptEmail" :disabled="!promptEmail">Save</button>
         </div>
       </div>
     </div>
@@ -66,19 +73,49 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
-import { Landmark, Bookmark, BadgeDollarSign, BarChart3, CirclePlus, Scissors, Settings, ShieldCheck, LogOut } from 'lucide-vue-next'
+import { Landmark, Bookmark, BadgeDollarSign, BarChart3, CirclePlus, Scissors, Settings, ShieldCheck, LogOut, Users as UsersIcon } from 'lucide-vue-next'
+import { updateProfile, getMe } from '@/api/client'
 
 const auth = useAuthStore()
 const router = useRouter()
 const isPwa = window.matchMedia('(display-mode: standalone)').matches
   || (window.navigator as any).standalone === true
-const showLogoutModal = ref(false)
+
+const showEmailPrompt = ref(false)
+const promptEmail = ref('')
+
+onMounted(async () => {
+  if (auth.isAuthenticated) {
+    try {
+      const res = await getMe()
+      if (res.data.emailMissing) {
+        const dismissed = localStorage.getItem('emailPromptDismissed')
+        if (!dismissed || Date.now() - parseInt(dismissed) > 7 * 24 * 60 * 60 * 1000) {
+          showEmailPrompt.value = true
+        }
+      }
+    } catch { /* ignore */ }
+  }
+})
+
+function dismissEmailPrompt() {
+  showEmailPrompt.value = false
+  localStorage.setItem('emailPromptDismissed', Date.now().toString())
+}
+
+async function savePromptEmail() {
+  if (!promptEmail.value) return
+  try {
+    await updateProfile({ email: promptEmail.value })
+    showEmailPrompt.value = false
+    localStorage.removeItem('emailPromptDismissed')
+  } catch { /* ignore */ }
+}
 
 function handleLogout() {
-  showLogoutModal.value = false
   auth.logout()
   router.push('/login')
 }
