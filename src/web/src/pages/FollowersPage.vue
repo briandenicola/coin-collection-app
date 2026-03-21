@@ -72,7 +72,6 @@
             </div>
             <div class="user-card-actions">
               <router-link
-                v-if="user.isPublic"
                 :to="`/followers/${user.username}/gallery`"
                 class="btn btn-secondary btn-sm"
               >
