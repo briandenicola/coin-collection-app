@@ -31,6 +31,7 @@ type loginRequest struct {
 type registerRequest struct {
 	Username string `json:"username" binding:"required,min=3" example:"admin"`
 	Password string `json:"password" binding:"required,min=6" example:"password123"`
+	Email    string `json:"email" binding:"required,email" example:"user@example.com"`
 }
 
 type refreshRequest struct {
@@ -77,6 +78,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 
 	user := models.User{
 		Username:     req.Username,
+		Email:        req.Email,
 		PasswordHash: string(hash),
 		Role:         role,
 	}
@@ -191,9 +193,13 @@ func (h *AuthHandler) issueTokens(c *gin.Context, user models.User, statusCode i
 		"token":        accessToken,
 		"refreshToken": refreshToken,
 		"user": gin.H{
-			"id":       user.ID,
-			"username": user.Username,
-			"role":     user.Role,
+			"id":         user.ID,
+			"username":   user.Username,
+			"role":       user.Role,
+			"email":      user.Email,
+			"avatarPath": user.AvatarPath,
+			"isPublic":   user.IsPublic,
+			"bio":        user.Bio,
 		},
 	})
 }

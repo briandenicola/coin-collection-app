@@ -38,9 +38,16 @@ Create a new user account. The **first user** to register is automatically assig
 ```json
 {
   "username": "collector",
-  "password": "s3cur3P@ss"
+  "password": "s3cur3P@ss",
+  "email": "collector@example.com"
 }
 ```
+
+| Field | Type | Required | Validation |
+| ----- | ---- | -------- | ---------- |
+| `username` | string | Yes | 3–50 characters |
+| `password` | string | Yes | Minimum 8 characters |
+| `email` | string | Yes | Must be a valid email address |
 
 **Response:**
 
@@ -567,9 +574,27 @@ Get the current authenticated user's information.
 {
   "id": 1,
   "username": "collector",
-  "role": "admin"
+  "role": "admin",
+  "email": "user@example.com",
+  "avatarPath": "avatars/user-1.jpg",
+  "isPublic": false,
+  "bio": "Ancient coin enthusiast",
+  "emailMissing": false,
+  "createdAt": "2024-01-01T00:00:00Z"
 }
 ```
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `id` | int | User ID |
+| `username` | string | Username |
+| `role` | string | `user` or `admin` |
+| `email` | string | Email address |
+| `avatarPath` | string | Relative path to avatar image |
+| `isPublic` | bool | Whether the user's profile is publicly visible |
+| `bio` | string | User bio / description |
+| `emailMissing` | bool | `true` if the account has no email set (legacy accounts) |
+| `createdAt` | string | ISO 8601 creation timestamp |
 
 #### POST /api/auth/change-password
 
@@ -688,6 +713,411 @@ List all registered WebAuthn credentials for the current user.
 #### DELETE /api/auth/webauthn/credentials/:id
 
 Delete a registered WebAuthn credential.
+
+---
+
+### User Profile
+
+#### PUT /api/user/profile
+
+Update the current user's profile. All fields are optional. **Note:** changing `isPublic` from `true` to `false` deletes all existing followers.
+
+**Request Body:**
+
+```json
+{
+  "email": "newemail@example.com",
+  "bio": "Specializing in Roman Republican coins",
+  "isPublic": true
+}
+```
+
+**Response:** The updated user profile (same shape as [GET /api/auth/me](#get-apiauthme)).
+
+#### POST /api/user/avatar
+
+Upload a profile avatar via multipart form data.
+
+**Form Fields:**
+
+| Field | Type | Required | Description |
+| ----- | ---- | -------- | ----------- |
+| `avatar` | file | Yes | Image file (`.jpg`, `.jpeg`, `.png`, `.gif`, `.webp`) |
+
+**Response:**
+
+```json
+{ "avatarPath": "avatars/user-1.jpg" }
+```
+
+#### DELETE /api/user/avatar
+
+Delete the current user's avatar image.
+
+**Response:**
+
+```json
+{ "message": "Avatar deleted" }
+```
+
+---
+
+## Social
+
+Social features for following other collectors, browsing their public coins, and leaving comments and ratings.
+
+All social endpoints require authentication.
+
+---
+
+### Follow Management
+
+#### POST /api/social/follow/:userId
+
+Send a follow request to another user. The target user must have a public profile.
+
+**Response (201):**
+
+```json
+{ "message": "Follow request sent" }
+```
+
+**Errors:**
+
+| Status | Condition |
+| ------ | --------- |
+| `400` | Attempting to follow yourself |
+| `403` | Target user is not public or has blocked you |
+| `409` | Already following or a pending request exists |
+
+#### DELETE /api/social/follow/:userId
+
+Unfollow a user. Removes pending or accepted follow records (does not affect blocks).
+
+**Response:**
+
+```json
+{ "message": "Unfollowed user" }
+```
+
+#### PUT /api/social/followers/:userId/accept
+
+Accept a pending follow request from another user.
+
+**Response:**
+
+```json
+{ "message": "Follower accepted" }
+```
+
+#### PUT /api/social/followers/:userId/block
+
+Block a user. Creates or updates the follow record to blocked status.
+
+**Response:**
+
+```json
+{ "message": "User blocked" }
+```
+
+#### DELETE /api/social/followers/:userId/block
+
+Unblock a previously blocked user. Removes the blocked follow record.
+
+**Response:**
+
+```json
+{ "message": "User unblocked" }
+```
+
+#### GET /api/social/followers
+
+List users who follow you (both pending and accepted).
+
+**Response:**
+
+```json
+{
+  "followers": [
+    {
+      "id": 2,
+      "username": "numismatist",
+      "avatarPath": "avatars/user-2.jpg",
+      "isPublic": true,
+      "bio": "Greek coin specialist",
+      "status": "accepted"
+    }
+  ]
+}
+```
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `status` | string | `"pending"` or `"accepted"` |
+
+#### GET /api/social/following
+
+List users you are following (accepted only).
+
+**Response:**
+
+```json
+{
+  "following": [
+    {
+      "id": 3,
+      "username": "romanfan",
+      "avatarPath": "avatars/user-3.jpg",
+      "isPublic": true,
+      "bio": "Imperial Rome enthusiast",
+      "isFollowing": true,
+      "coinCount": 87
+    }
+  ]
+}
+```
+
+#### GET /api/social/blocked
+
+List users you have blocked.
+
+**Response:**
+
+```json
+{
+  "blocked": [
+    {
+      "id": 5,
+      "username": "spammer",
+      "avatarPath": ""
+    }
+  ]
+}
+```
+
+---
+
+### User Discovery
+
+#### GET /api/users/search
+
+Search for public users by username prefix.
+
+**Query Parameters:**
+
+| Param | Type | Required | Description |
+| ----- | ---- | -------- | ----------- |
+| `q` | string | Yes | Search query (minimum 2 characters) |
+
+**Response:**
+
+```json
+{
+  "users": [
+    {
+      "id": 3,
+      "username": "romanfan",
+      "avatarPath": "avatars/user-3.jpg",
+      "isPublic": true,
+      "bio": "Imperial Rome enthusiast",
+      "isFollowing": true,
+      "followStatus": "accepted",
+      "coinCount": 87
+    }
+  ]
+}
+```
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `isFollowing` | bool | Whether you currently follow this user |
+| `followStatus` | string | `""`, `"pending"`, `"accepted"`, or `"blocked"` |
+| `coinCount` | int | Number of coins in the user's collection |
+
+#### GET /api/users/:username
+
+Get a user's public profile by username.
+
+**Response:**
+
+```json
+{
+  "id": 3,
+  "username": "romanfan",
+  "avatarPath": "avatars/user-3.jpg",
+  "isPublic": true,
+  "bio": "Imperial Rome enthusiast",
+  "isFollowing": true,
+  "followStatus": "accepted",
+  "coinCount": 87,
+  "followerCount": 12,
+  "followingCount": 5
+}
+```
+
+---
+
+### Follower Gallery
+
+#### GET /api/social/following/:userId/coins
+
+Get a followed user's public coin collection. Requires an accepted follow relationship and the user must have a public profile.
+
+**Response:**
+
+```json
+{
+  "coins": [
+    {
+      "id": 10,
+      "name": "Augustus Denarius",
+      "category": "Roman",
+      "denomination": "Denarius",
+      "ruler": "Augustus",
+      "era": "27 BC - 14 AD",
+      "material": "Silver",
+      "grade": "VF",
+      "images": []
+    }
+  ],
+  "username": "romanfan"
+}
+```
+
+> **Note:** Only a limited set of coin fields is returned (no purchase price, sale info, or private notes).
+
+#### GET /api/social/following/:userId/coins/:coinId
+
+Get a single coin's details from a followed user's collection, including comments and ratings.
+
+**Response:** Same limited coin fields as the list endpoint, plus:
+
+```json
+{
+  "comments": [
+    {
+      "id": 1,
+      "userId": 2,
+      "username": "numismatist",
+      "avatarPath": "avatars/user-2.jpg",
+      "comment": "Beautiful example!",
+      "rating": 5,
+      "createdAt": "2024-06-01T12:00:00Z"
+    }
+  ],
+  "rating": {
+    "average": 4.5,
+    "count": 2,
+    "userRating": 5
+  }
+}
+```
+
+---
+
+### Comments & Ratings
+
+#### POST /api/social/coins/:coinId/comments
+
+Add a comment to a coin. You must have an accepted follow relationship with the coin's owner, or be the owner yourself.
+
+**Request Body:**
+
+```json
+{
+  "comment": "Excellent patina on this piece!",
+  "rating": 5
+}
+```
+
+| Field | Type | Required | Description |
+| ----- | ---- | -------- | ----------- |
+| `comment` | string | Yes | Comment text |
+| `rating` | int | No | Star rating, 0–5 (0 means no rating) |
+
+**Response (201):** The created comment enriched with user info:
+
+```json
+{
+  "id": 1,
+  "userId": 2,
+  "username": "numismatist",
+  "avatarPath": "avatars/user-2.jpg",
+  "comment": "Excellent patina on this piece!",
+  "rating": 5,
+  "createdAt": "2024-06-01T12:00:00Z"
+}
+```
+
+#### GET /api/social/coins/:coinId/comments
+
+Get all comments on a coin.
+
+**Response:**
+
+```json
+{
+  "comments": [
+    {
+      "id": 1,
+      "userId": 2,
+      "username": "numismatist",
+      "avatarPath": "avatars/user-2.jpg",
+      "comment": "Excellent patina on this piece!",
+      "rating": 5,
+      "createdAt": "2024-06-01T12:00:00Z"
+    }
+  ]
+}
+```
+
+#### DELETE /api/social/coins/:coinId/comments/:commentId
+
+Delete a comment. Only the comment author or the coin owner may delete a comment.
+
+#### PUT /api/social/coins/:coinId/rating
+
+Create or update your star rating for a coin.
+
+**Request Body:**
+
+```json
+{ "rating": 4 }
+```
+
+| Field | Type | Required | Description |
+| ----- | ---- | -------- | ----------- |
+| `rating` | int | Yes | Star rating, 1–5 |
+
+**Response:**
+
+```json
+{
+  "average": 4.5,
+  "count": 3,
+  "userRating": 4
+}
+```
+
+#### GET /api/social/coins/:coinId/rating
+
+Get the aggregate rating for a coin.
+
+**Response:**
+
+```json
+{
+  "average": 4.5,
+  "count": 3,
+  "userRating": 4
+}
+```
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `average` | float | Average star rating across all users |
+| `count` | int | Total number of ratings |
+| `userRating` | int | Your rating (0 if you haven't rated) |
 
 ---
 

@@ -10,10 +10,12 @@ JWT is the primary authentication method. Users log in with a username and passw
 
 The first user to register is automatically assigned the **admin** role. All subsequent users are regular users.
 
+Registration requires a **username**, **password**, and **email** (validated as a proper email format).
+
 ```sh
 curl -X POST http://localhost:8080/api/auth/register \
   -H "Content-Type: application/json" \
-  -d '{"username": "alice", "password": "s3cur3Pa$$word"}'
+  -d '{"username": "alice", "password": "s3cur3Pa$$word", "email": "alice@example.com"}'
 ```
 
 ### Login
@@ -33,10 +35,16 @@ curl -X POST http://localhost:8080/api/auth/login \
   "user": {
     "id": 1,
     "username": "alice",
-    "role": "admin"
+    "role": "admin",
+    "email": "alice@example.com",
+    "avatarPath": "/uploads/avatars/alice.jpg",
+    "isPublic": false,
+    "bio": ""
   }
 }
 ```
+
+The registration endpoint returns the same response shape.
 
 ### Using the Access Token
 
@@ -46,6 +54,33 @@ Pass the token in the `Authorization` header on all authenticated requests:
 curl http://localhost:8080/api/coins \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIs..."
 ```
+
+### Current User
+
+```sh
+curl http://localhost:8080/api/auth/me \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+**Response:**
+
+```json
+{
+  "id": 1,
+  "username": "alice",
+  "role": "admin",
+  "email": "alice@example.com",
+  "avatarPath": "/uploads/avatars/alice.jpg",
+  "isPublic": false,
+  "bio": "",
+  "emailMissing": false,
+  "createdAt": "2024-01-15T08:30:00Z"
+}
+```
+
+#### Email Migration for Legacy Users
+
+Users who registered before email was required will have `emailMissing: true` in the response. The frontend displays a dismissible modal prompting them to add their email address. The prompt can be dismissed for 7 days (tracked via `localStorage`), after which it reappears.
 
 ### Token Details
 

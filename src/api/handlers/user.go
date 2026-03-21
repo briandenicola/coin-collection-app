@@ -4,10 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/briandenicola/ancient-coins-api/database"
 	"github.com/briandenicola/ancient-coins-api/models"
+	"github.com/briandenicola/ancient-coins-api/services"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -89,10 +93,15 @@ func (h *UserHandler) GetMe(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"id":        user.ID,
-		"username":  user.Username,
-		"role":      user.Role,
-		"createdAt": user.CreatedAt,
+		"id":           user.ID,
+		"username":     user.Username,
+		"role":         user.Role,
+		"email":        user.Email,
+		"avatarPath":   user.AvatarPath,
+		"isPublic":     user.IsPublic,
+		"bio":          user.Bio,
+		"emailMissing": user.Email == "",
+		"createdAt":    user.CreatedAt,
 	})
 }
 
@@ -150,4 +159,137 @@ func (h *UserHandler) ImportCollection(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Import complete", "imported": imported})
+}
+
+// UpdateProfile updates the authenticated user's profile info.
+func (h *UserHandler) UpdateProfile(c *gin.Context) {
+	logger := services.AppLogger
+	userID := c.GetUint("userId")
+
+	var req struct {
+		Email    *string `json:"email"`
+		Bio      *string `json:"bio"`
+		IsPublic *bool   `json:"isPublic"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	var user models.User
+	if err := database.DB.First(&user, userID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	updates := map[string]interface{}{}
+	if req.Email != nil {
+		email := strings.TrimSpace(*req.Email)
+		if email != "" && !strings.Contains(email, "@") {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid email format"})
+			return
+		}
+		// Check uniqueness
+		if email != "" {
+			var existing models.User
+			if err := database.DB.Where("email = ? AND id != ?", email, userID).First(&existing).Error; err == nil {
+				c.JSON(http.StatusConflict, gin.H{"error": "Email already in use"})
+				return
+			}
+		}
+		updates["email"] = email
+	}
+	if req.Bio != nil {
+		updates["bio"] = *req.Bio
+	}
+	if req.IsPublic != nil {
+		updates["is_public"] = *req.IsPublic
+		// Going private: remove all followers
+		if !*req.IsPublic && user.IsPublic {
+			database.DB.Where("following_id = ?", userID).Delete(&models.Follow{})
+			logger.Info("user", "User %d went private — all followers removed", userID)
+		}
+	}
+
+	if len(updates) > 0 {
+		database.DB.Model(&user).Updates(updates)
+		logger.Info("user", "Profile updated for user %d", userID)
+	}
+
+	// Reload and return
+	database.DB.First(&user, userID)
+	c.JSON(http.StatusOK, gin.H{
+		"id":         user.ID,
+		"username":   user.Username,
+		"role":       user.Role,
+		"email":      user.Email,
+		"avatarPath": user.AvatarPath,
+		"isPublic":   user.IsPublic,
+		"bio":        user.Bio,
+	})
+}
+
+// UploadAvatar uploads a profile avatar image for the authenticated user.
+func (h *UserHandler) UploadAvatar(c *gin.Context) {
+	logger := services.AppLogger
+	userID := c.GetUint("userId")
+
+	file, err := c.FormFile("avatar")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No avatar file provided"})
+		return
+	}
+
+	ext := strings.ToLower(filepath.Ext(file.Filename))
+	allowed := map[string]bool{".jpg": true, ".jpeg": true, ".png": true, ".gif": true, ".webp": true}
+	if !allowed[ext] {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "File type not allowed. Accepted: .jpg, .jpeg, .png, .gif, .webp"})
+		return
+	}
+
+	avatarDir := filepath.Join(h.UploadDir, "avatars")
+	if err := os.MkdirAll(avatarDir, 0755); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create avatar directory"})
+		return
+	}
+
+	// Delete old avatar if exists
+	var user models.User
+	database.DB.First(&user, userID)
+	if user.AvatarPath != "" {
+		os.Remove(filepath.Join(h.UploadDir, user.AvatarPath))
+	}
+
+	filename := fmt.Sprintf("user-%d%s", userID, ext)
+	filePath := filepath.Join(avatarDir, filename)
+
+	if err := c.SaveUploadedFile(file, filePath); err != nil {
+		logger.Error("user", "Failed to save avatar: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save avatar"})
+		return
+	}
+
+	avatarRelPath := filepath.ToSlash(filepath.Join("avatars", filename))
+	database.DB.Model(&user).Update("avatar_path", avatarRelPath)
+
+	logger.Info("user", "Avatar uploaded for user %d: %s", userID, avatarRelPath)
+	c.JSON(http.StatusOK, gin.H{"avatarPath": avatarRelPath})
+}
+
+// DeleteAvatar removes the authenticated user's avatar.
+func (h *UserHandler) DeleteAvatar(c *gin.Context) {
+	userID := c.GetUint("userId")
+
+	var user models.User
+	if err := database.DB.First(&user, userID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	if user.AvatarPath != "" {
+		os.Remove(filepath.Join(h.UploadDir, user.AvatarPath))
+		database.DB.Model(&user).Update("avatar_path", "")
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Avatar removed"})
 }

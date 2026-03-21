@@ -4,7 +4,7 @@
 
 Ancient Coins is a full-stack web application for cataloging and managing your personal coin collection. Track details like denomination, ruler, era, mint, material, grade, inscriptions, RIC rarity ratings, photos, and more — with AI-powered coin analysis via Ollama vision models and an Anthropic-powered coin search agent. Every coin is scoped to your authenticated account using JWT-based authentication.
 
-It includes a **wish list** with an AI search agent for discovering coins, a **stats dashboard** with grade distribution charts and portfolio value tracking over time, per-coin **activity journals**, **Numista catalog lookups**, and collection **export/import**.
+It includes a **wish list** with an AI search agent for discovering coins, a **stats dashboard** with grade distribution charts and portfolio value tracking over time, per-coin **activity journals**, **Numista catalog lookups**, collection **export/import**, and **social features** — follow other collectors, accept or block followers, browse follower galleries, leave comments and star ratings on coins, and discover users with search and public profiles.
 
 On first launch, the first user to register is automatically assigned as the admin and can configure application settings including AI integrations.
 
@@ -249,6 +249,24 @@ The **Stats** page shows:
 
 Upload photos of store cards, certificates, or coin holder labels and extract text via OCR powered by Ollama. Useful for quickly capturing dealer information, grades, and reference numbers when adding coins.
 
+### Social Features
+
+Follow other collectors and interact with their coin collections:
+
+- **Follow / Unfollow** — Send follow requests to other public users. Requests start as `pending` until the other user accepts.
+- **Accept / Block** — Review incoming follow requests and accept or block them. Blocked users cannot re-request unless explicitly unblocked.
+- **Follower Gallery** — View an accepted follower's coin collection in a read-only gallery (pricing/value and AI analysis are hidden).
+- **Comments & Star Ratings** — Leave comments and 1–5 star ratings on coins belonging to users you follow. Both the commenter and the coin owner can delete comments.
+- **User Search & Discovery** — Search for other collectors by username. Only public users appear in search results.
+- **Privacy Controls** — Toggle your profile between public and private. Setting your profile to private permanently removes all existing followers. Mark individual coins as private to hide them from followers.
+
+### User Profiles
+
+- **Avatar** — Upload a custom avatar image (stored in `uploads/avatars/`). The default is the Ed-Mar coin logo.
+- **Bio** — Add a personal bio to your profile.
+- **Public/Private Toggle** — Control whether your profile appears in search results and can receive follow requests.
+- **Email** — Required for new registrations. Legacy users are prompted with a dismissible modal to add their email.
+
 ### User Settings
 
 All authenticated users can access **Settings**, organized in a tabbed layout:
@@ -376,7 +394,8 @@ AncientCoins/
 │   ├── authentication.md             # JWT, refresh tokens, WebAuthn, API keys
 │   ├── api-reference.md              # Complete REST API reference
 │   ├── deployment.md                 # Production deployment guide
-│   └── pwa-guide.md                  # PWA features & installation
+│   ├── pwa-guide.md                  # PWA features & installation
+│   └── social-feature.md             # Social features spec & implementation details
 ├── instructions.md                   # Agent instructions for AI coding assistants
 ├── Dockerfile                        # Multi-stage build (Vue + Go → Alpine)
 ├── Taskfile.yml                      # Task runner configuration
@@ -415,7 +434,12 @@ Feature ideas and completed enhancements:
 - [x] **PWA Hamburger Menu** — Compact popover menu for gallery controls in PWA mode
 - [x] **Default Sort Setting** — Configurable default sort order in user settings
 - [x] **Swipe Position Persistence** — Returning from detail view preserves swipe gallery position
-- [ ] **Collection Timeline** — Visual timeline of when each coin was acquired
+- [x] **Social Features** — Follow other collectors, accept/block followers, view follower galleries
+- [x] **Comments & Star Ratings** — Comment on and rate (1–5) coins belonging to followed users
+- [x] **User Profiles** — Avatar upload, bio, public/private toggle
+- [x] **User Search** — Discover other collectors by username
+- [x] **Email Registration** — Required email for new users with legacy user prompt
+- [ ] **Collection Timeline**— Visual timeline of when each coin was acquired
 - [ ] **Coin Comparison** — Side-by-side spec comparison of any two coins
 - [ ] **Advanced Search** — Filter by date range, price range, grade, material
 - [ ] **Batch Import** — Import coins from CSV or numismatic database exports

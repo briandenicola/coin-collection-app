@@ -19,6 +19,21 @@
       <!-- Account Tab -->
       <section v-if="activeTab === 'account'" class="settings-section card">
         <h2>Account</h2>
+
+        <!-- Avatar -->
+        <div class="setting-item avatar-section">
+          <div class="avatar-preview">
+            <img :src="avatarUrl" alt="Avatar" class="avatar-img" />
+          </div>
+          <div class="avatar-actions">
+            <label class="btn btn-secondary btn-sm">
+              Upload Avatar
+              <input type="file" accept="image/*" hidden @change="handleAvatarUpload" />
+            </label>
+            <button v-if="auth.user?.avatarPath" class="btn btn-danger btn-sm" @click="handleAvatarDelete">Remove</button>
+          </div>
+        </div>
+
         <div class="setting-item">
           <div class="setting-info">
             <span class="setting-label">Username</span>
@@ -33,6 +48,57 @@
             </span>
           </div>
         </div>
+
+        <!-- Profile / Social Settings -->
+        <h3>Profile</h3>
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input v-model="profileEmail" type="email" class="form-input" placeholder="you@example.com" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Bio</label>
+          <input v-model="profileBio" class="form-input" placeholder="Tell collectors about yourself..." maxlength="200" />
+        </div>
+        <div class="setting-item">
+          <div class="setting-info">
+            <span class="setting-label">Public Collection</span>
+            <span class="setting-desc">Allow other users to follow you and view your coins</span>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" :checked="profilePublic" @change="onPublicToggle" />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <button class="btn btn-primary btn-sm" @click="handleSaveProfile" :disabled="profileSaving" style="margin-top: 0.5rem">
+          {{ profileSaving ? 'Saving...' : 'Save Profile' }}
+        </button>
+        <p v-if="profileMsg" class="msg" :class="{ error: profileError }" style="margin-top: 0.5rem">{{ profileMsg }}</p>
+
+    <!-- Privacy Warning Modal -->
+    <Teleport to="body">
+      <div v-if="showPrivacyWarning" class="modal-overlay" @click.self="cancelGoPrivate">
+        <div class="modal-content card" style="max-width: 440px;">
+          <div class="modal-header">
+            <h2 style="display: flex; align-items: center; gap: 0.5rem; margin: 0; font-size: 1rem;">
+              ⚠️ Make Collection Private?
+            </h2>
+          </div>
+          <div class="modal-body" style="padding: 1.25rem;">
+            <p style="color: var(--text-secondary); line-height: 1.5; margin: 0 0 0.75rem;">
+              Setting your profile to private will <strong style="color: var(--text-primary);">permanently remove all your followers</strong>.
+              They will need to send new follow requests if you make your profile public again.
+            </p>
+            <p style="color: var(--text-secondary); line-height: 1.5; margin: 0 0 1rem;">
+              You will also be hidden from user search results.
+            </p>
+            <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+              <button class="btn btn-secondary btn-sm" @click="cancelGoPrivate">Cancel</button>
+              <button class="btn btn-danger btn-sm" @click="confirmGoPrivate">Make Private</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
 
         <h3>Change Password</h3>
         <form class="password-form" @submit.prevent="handleChangePassword">
@@ -573,6 +639,7 @@ import {
   webauthnRegisterBegin, webauthnRegisterFinish,
   webauthnListCredentials, webauthnDeleteCredential,
   listConversations, getConversation, deleteConversation,
+  uploadAvatar, deleteAvatar, updateProfile, getMe,
 } from '@/api/client'
 import type { ConversationSummary } from '@/api/client'
 import type { Coin, Theme, ApiKey, WebAuthnCredentialInfo } from '@/types'
@@ -598,6 +665,92 @@ const activeTab = ref('account')
 
 
 const auth = useAuthStore()
+
+// Avatar
+const avatarUrl = ref('/coin-logo.jpg')
+
+function updateAvatarUrl() {
+  avatarUrl.value = auth.user?.avatarPath ? `/uploads/${auth.user.avatarPath}` : '/coin-logo.jpg'
+}
+updateAvatarUrl()
+
+async function handleAvatarUpload(e: Event) {
+  const file = (e.target as HTMLInputElement).files?.[0]
+  if (!file) return
+  try {
+    const res = await uploadAvatar(file)
+    if (auth.user) {
+      auth.user.avatarPath = res.data.avatarPath
+      localStorage.setItem('user', JSON.stringify(auth.user))
+    }
+    updateAvatarUrl()
+  } catch { /* ignore */ }
+}
+
+async function handleAvatarDelete() {
+  try {
+    await deleteAvatar()
+    if (auth.user) {
+      auth.user.avatarPath = ''
+      localStorage.setItem('user', JSON.stringify(auth.user))
+    }
+    updateAvatarUrl()
+  } catch { /* ignore */ }
+}
+
+// Profile
+const profileEmail = ref(auth.user?.email || '')
+const profileBio = ref(auth.user?.bio || '')
+const profilePublic = ref(auth.user?.isPublic || false)
+const profileMsg = ref('')
+const profileError = ref(false)
+const profileSaving = ref(false)
+const showPrivacyWarning = ref(false)
+
+function onPublicToggle(e: Event) {
+  const checked = (e.target as HTMLInputElement).checked
+  if (!checked && profilePublic.value) {
+    // Going from public → private: show warning
+    ;(e.target as HTMLInputElement).checked = true // revert checkbox visually
+    showPrivacyWarning.value = true
+  } else {
+    profilePublic.value = checked
+  }
+}
+
+function confirmGoPrivate() {
+  profilePublic.value = false
+  showPrivacyWarning.value = false
+}
+
+function cancelGoPrivate() {
+  showPrivacyWarning.value = false
+}
+
+async function handleSaveProfile() {
+  profileMsg.value = ''
+  profileError.value = false
+  profileSaving.value = true
+  try {
+    const res = await updateProfile({
+      email: profileEmail.value,
+      bio: profileBio.value,
+      isPublic: profilePublic.value,
+    })
+    if (auth.user) {
+      auth.user.email = res.data.email
+      auth.user.bio = res.data.bio
+      auth.user.isPublic = res.data.isPublic
+      localStorage.setItem('user', JSON.stringify(auth.user))
+    }
+    profileMsg.value = 'Profile saved'
+  } catch {
+    profileMsg.value = 'Failed to save profile'
+    profileError.value = true
+  } finally {
+    profileSaving.value = false
+  }
+}
 
 // Password
 const currentPassword = ref('')
@@ -919,6 +1072,30 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.avatar-section {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.avatar-preview {
+  flex-shrink: 0;
+}
+
+.avatar-img {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--accent-gold-dim, #c9a84c);
+}
+
+.avatar-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
 .settings-layout {
   max-width: 800px;
   margin-left: auto;
@@ -1323,5 +1500,29 @@ onMounted(() => {
 
 .help-table tr:last-child td {
   border-bottom: none;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 15vh 1rem;
+  z-index: 1000;
+}
+
+.modal-content {
+  width: 100%;
+}
+
+.modal-header {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.modal-body {
+  padding: 1.25rem;
 }
 </style>

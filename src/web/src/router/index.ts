@@ -74,6 +74,24 @@ const router = createRouter({
       component: () => import('@/pages/ImageProcessorPage.vue'),
       meta: { requiresAuth: true },
     },
+    {
+      path: '/followers',
+      name: 'followers',
+      component: () => import('@/pages/FollowersPage.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/followers/:username/gallery',
+      name: 'follower-gallery',
+      component: () => import('@/pages/FollowerGalleryPage.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/followers/:username/coins/:coinId',
+      name: 'follower-coin-detail',
+      component: () => import('@/pages/FollowerCoinDetailPage.vue'),
+      meta: { requiresAuth: true },
+    },
   ],
 })
 

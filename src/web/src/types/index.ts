@@ -30,6 +30,7 @@ export interface Coin {
   soldPrice: number | null
   soldDate: string | null
   soldTo: string
+  isPrivate: boolean
   userId: number
   images: CoinImage[]
   createdAt: string
@@ -65,6 +66,10 @@ export interface User {
   id: number
   username: string
   role: 'admin' | 'user'
+  email: string
+  avatarPath: string
+  isPublic: boolean
+  bio: string
 }
 
 export interface AuthResponse {
@@ -138,6 +143,11 @@ export interface UserInfo {
   id: number
   username: string
   role: 'admin' | 'user'
+  email: string
+  avatarPath: string
+  isPublic: boolean
+  bio: string
+  emailMissing: boolean
   createdAt: string
 }
 
@@ -194,4 +204,50 @@ export interface CoinSuggestion {
 export interface AgentChatResponse {
   message: string
   suggestions: CoinSuggestion[]
+}
+
+export interface FollowUser {
+  id: number
+  username: string
+  avatarPath: string
+  isPublic: boolean
+  bio: string
+  isFollowing: boolean
+  followStatus: string // '', 'pending', 'accepted', 'blocked'
+  coinCount: number
+  status?: string // used in followers list: 'pending' | 'accepted'
+}
+
+export interface PublicProfile extends FollowUser {
+  followerCount: number
+  followingCount: number
+}
+
+export interface CoinComment {
+  id: number
+  coinId: number
+  userId: number
+  username: string
+  avatarPath: string
+  comment: string
+  rating: number
+  createdAt: string
+}
+
+export interface CoinRating {
+  average: number
+  count: number
+  userRating: number
+}
+
+export interface LimitedCoin {
+  id: number
+  name: string
+  category: Category
+  denomination: string
+  ruler: string
+  era: string
+  material: Material
+  grade: string
+  images: CoinImage[]
 }

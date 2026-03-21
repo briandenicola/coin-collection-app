@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Coin, CoinListResponse, CoinImage, AuthResponse, StatsResponse, UserInfo, AppSettings, LogEntry, ApiKey, WebAuthnCredentialInfo, ValueSnapshot, CoinJournal, NumistaSearchResponse, AgentChatMessage, AgentChatResponse, CoinSuggestion } from '@/types'
+import type { Coin, CoinListResponse, CoinImage, AuthResponse, StatsResponse, UserInfo, AppSettings, LogEntry, ApiKey, WebAuthnCredentialInfo, ValueSnapshot, CoinJournal, NumistaSearchResponse, AgentChatMessage, AgentChatResponse, CoinSuggestion, FollowUser, PublicProfile, CoinComment, CoinRating, LimitedCoin } from '@/types'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
@@ -84,8 +84,8 @@ function clearAuth() {
 export const checkSetup = () => api.get<{ needsSetup: boolean }>('/auth/setup')
 export const login = (username: string, password: string) =>
   api.post<AuthResponse>('/auth/login', { username, password })
-export const register = (username: string, password: string) =>
-  api.post<AuthResponse>('/auth/register', { username, password })
+export const register = (username: string, password: string, email?: string) =>
+  api.post<AuthResponse>('/auth/register', { username, password, email })
 
 // Coins
 export const getCoins = (params?: {
@@ -356,5 +356,47 @@ interface PublicKeyCredentialRequestOptionsJSON {
   allowCredentials?: Array<{ id: string; type: string; transports?: string[] }>
   userVerification?: string
 }
+
+// --- Social / Profile API ---
+
+// Profile
+export const updateProfile = (data: { email?: string; bio?: string; isPublic?: boolean }) =>
+  api.put<{ id: number; username: string; role: string; email: string; avatarPath: string; isPublic: boolean; bio: string }>('/user/profile', data)
+export const uploadAvatar = (file: File) => {
+  const form = new FormData()
+  form.append('avatar', file)
+  return api.post<{ avatarPath: string }>('/user/avatar', form)
+}
+export const deleteAvatar = () => api.delete('/user/avatar')
+
+// Follow
+export const followUser = (userId: number) => api.post(`/social/follow/${userId}`)
+export const unfollowUser = (userId: number) => api.delete(`/social/follow/${userId}`)
+export const acceptFollower = (userId: number) => api.put(`/social/followers/${userId}/accept`)
+export const blockFollower = (userId: number) => api.put(`/social/followers/${userId}/block`)
+export const unblockFollower = (userId: number) => api.delete(`/social/followers/${userId}/block`)
+export const getFollowers = () => api.get<{ followers: FollowUser[] }>('/social/followers')
+export const getFollowing = () => api.get<{ following: FollowUser[] }>('/social/following')
+export const getBlockedUsers = () => api.get<{ blocked: { id: number; username: string; avatarPath: string }[] }>('/social/blocked')
+
+// User discovery
+export const searchUsers = (query: string) => api.get<{ users: FollowUser[] }>('/users/search', { params: { q: query } })
+export const getPublicProfile = (username: string) => api.get<PublicProfile>(`/users/${encodeURIComponent(username)}`)
+
+// Follower coins
+export const getFollowingCoins = (userId: number) =>
+  api.get<{ coins: LimitedCoin[]; username: string }>(`/social/following/${userId}/coins`)
+export const getFollowingCoinDetail = (userId: number, coinId: number) =>
+  api.get<LimitedCoin & { comments: CoinComment[]; rating: CoinRating }>(`/social/following/${userId}/coins/${coinId}`)
+
+// Comments & ratings
+export const addComment = (coinId: number, comment: string, rating?: number) =>
+  api.post<CoinComment>(`/social/coins/${coinId}/comments`, { comment, rating: rating || 0 })
+export const getComments = (coinId: number) => api.get<{ comments: CoinComment[] }>(`/social/coins/${coinId}/comments`)
+export const deleteComment = (coinId: number, commentId: number) =>
+  api.delete(`/social/coins/${coinId}/comments/${commentId}`)
+export const rateCoin = (coinId: number, rating: number) =>
+  api.put<CoinRating>(`/social/coins/${coinId}/rating`, { rating })
+export const getCoinRating = (coinId: number) => api.get<CoinRating>(`/social/coins/${coinId}/rating`)
 
 export default api
