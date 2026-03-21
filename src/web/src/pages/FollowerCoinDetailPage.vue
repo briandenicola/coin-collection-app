@@ -66,10 +66,10 @@ async function loadCoin() {
   error.value = ''
   try {
     const profile = await getPublicProfile(username.value)
-    const result = await getFollowingCoinDetail(profile.id, coinId.value)
-    coin.value = result
-    comments.value = (result as any).comments || []
-    rating.value = (result as any).rating || { average: 0, count: 0, userRating: 0 }
+    const result = await getFollowingCoinDetail(profile.data.id, coinId.value)
+    coin.value = result.data
+    comments.value = (result.data as any).comments || []
+    rating.value = (result.data as any).rating || { average: 0, count: 0, userRating: 0 }
   } catch (e: any) {
     error.value = e?.response?.data?.error || e?.message || 'Failed to load coin'
   } finally {
@@ -80,7 +80,7 @@ async function loadCoin() {
 async function handleRate(stars: number) {
   try {
     const updated = await rateCoin(coinId.value, stars)
-    rating.value = updated
+    rating.value = updated.data
   } catch (e: any) {
     console.error('Failed to rate coin', e)
   }
@@ -91,7 +91,7 @@ async function handleAddComment() {
   submitting.value = true
   try {
     const comment = await addComment(coinId.value, newComment.value.trim(), newCommentRating.value || undefined)
-    comments.value.push(comment)
+    comments.value.push(comment.data)
     newComment.value = ''
     newCommentRating.value = 0
   } catch (e: any) {
@@ -149,7 +149,7 @@ onMounted(loadCoin)
         <section class="image-gallery">
           <div v-if="sortedImages.length" class="gallery-container" @click="cycleImage">
             <img
-              :src="`/uploads/${currentImage.filePath}`"
+              :src="`/uploads/${currentImage?.filePath}`"
               :alt="coin.name"
               class="gallery-image"
             />
