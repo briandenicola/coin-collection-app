@@ -10,6 +10,10 @@
           <input v-model="username" class="form-input" required minlength="3" autocomplete="username" />
         </div>
         <div class="form-group">
+          <label class="form-label">Email</label>
+          <input v-model="email" type="email" class="form-input" required autocomplete="email" placeholder="you@example.com" />
+        </div>
+        <div class="form-group">
           <label class="form-label">Password</label>
           <input v-model="password" type="password" class="form-input" required minlength="6" autocomplete="new-password" />
         </div>
@@ -38,6 +42,7 @@ const router = useRouter()
 const auth = useAuthStore()
 
 const username = ref('')
+const email = ref('')
 const password = ref('')
 const confirmPassword = ref('')
 const error = ref('')
@@ -51,7 +56,7 @@ async function handleRegister() {
   }
   loading.value = true
   try {
-    await auth.doRegister(username.value, password.value)
+    await auth.doRegister(username.value, password.value, email.value)
     router.push('/')
   } catch {
     error.value = 'Registration failed — username may already exist'
