@@ -111,7 +111,7 @@ async function handleDeleteComment(commentId: number) {
 }
 
 function goBack() {
-  router.push(`/followers/${username.value}`)
+  router.push(`/followers/${username.value}/gallery`)
 }
 
 onMounted(loadCoin)
