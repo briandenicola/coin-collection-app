@@ -204,6 +204,11 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 	}
 	if req.IsPublic != nil {
 		updates["is_public"] = *req.IsPublic
+		// Going private: remove all followers
+		if !*req.IsPublic && user.IsPublic {
+			database.DB.Where("following_id = ?", userID).Delete(&models.Follow{})
+			logger.Info("user", "User %d went private — all followers removed", userID)
+		}
 	}
 
 	if len(updates) > 0 {

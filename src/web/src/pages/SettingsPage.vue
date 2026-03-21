@@ -65,7 +65,7 @@
             <span class="setting-desc">Allow other users to follow you and view your coins</span>
           </div>
           <label class="toggle">
-            <input type="checkbox" v-model="profilePublic" />
+            <input type="checkbox" :checked="profilePublic" @change="onPublicToggle" />
             <span class="toggle-slider"></span>
           </label>
         </div>
@@ -73,6 +73,32 @@
           {{ profileSaving ? 'Saving...' : 'Save Profile' }}
         </button>
         <p v-if="profileMsg" class="msg" :class="{ error: profileError }" style="margin-top: 0.5rem">{{ profileMsg }}</p>
+
+    <!-- Privacy Warning Modal -->
+    <Teleport to="body">
+      <div v-if="showPrivacyWarning" class="modal-overlay" @click.self="cancelGoPrivate">
+        <div class="modal-content card" style="max-width: 440px;">
+          <div class="modal-header">
+            <h2 style="display: flex; align-items: center; gap: 0.5rem; margin: 0; font-size: 1rem;">
+              ⚠️ Make Collection Private?
+            </h2>
+          </div>
+          <div class="modal-body" style="padding: 1.25rem;">
+            <p style="color: var(--text-secondary); line-height: 1.5; margin: 0 0 0.75rem;">
+              Setting your profile to private will <strong style="color: var(--text-primary);">permanently remove all your followers</strong>.
+              They will need to send new follow requests if you make your profile public again.
+            </p>
+            <p style="color: var(--text-secondary); line-height: 1.5; margin: 0 0 1rem;">
+              You will also be hidden from user search results.
+            </p>
+            <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+              <button class="btn btn-secondary btn-sm" @click="cancelGoPrivate">Cancel</button>
+              <button class="btn btn-danger btn-sm" @click="confirmGoPrivate">Make Private</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
 
         <h3>Change Password</h3>
         <form class="password-form" @submit.prevent="handleChangePassword">
@@ -679,6 +705,27 @@ const profilePublic = ref(auth.user?.isPublic || false)
 const profileMsg = ref('')
 const profileError = ref(false)
 const profileSaving = ref(false)
+const showPrivacyWarning = ref(false)
+
+function onPublicToggle(e: Event) {
+  const checked = (e.target as HTMLInputElement).checked
+  if (!checked && profilePublic.value) {
+    // Going from public → private: show warning
+    ;(e.target as HTMLInputElement).checked = true // revert checkbox visually
+    showPrivacyWarning.value = true
+  } else {
+    profilePublic.value = checked
+  }
+}
+
+function confirmGoPrivate() {
+  profilePublic.value = false
+  showPrivacyWarning.value = false
+}
+
+function cancelGoPrivate() {
+  showPrivacyWarning.value = false
+}
 
 async function handleSaveProfile() {
   profileMsg.value = ''
@@ -1453,5 +1500,29 @@ onMounted(() => {
 
 .help-table tr:last-child td {
   border-bottom: none;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 15vh 1rem;
+  z-index: 1000;
+}
+
+.modal-content {
+  width: 100%;
+}
+
+.modal-header {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.modal-body {
+  padding: 1.25rem;
 }
 </style>

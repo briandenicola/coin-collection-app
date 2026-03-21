@@ -16,7 +16,7 @@ func NewSocialHandler() *SocialHandler {
 	return &SocialHandler{}
 }
 
-// FollowUser follows another user.
+// FollowUser sends a follow request to another user.
 func (h *SocialHandler) FollowUser(c *gin.Context) {
 	logger := services.AppLogger
 	userID := c.GetUint("userId")
@@ -31,16 +31,36 @@ func (h *SocialHandler) FollowUser(c *gin.Context) {
 		return
 	}
 
-	// Verify target exists
+	// Verify target exists and is public
 	var target models.User
 	if err := database.DB.First(&target, targetID).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+	if !target.IsPublic {
+		c.JSON(http.StatusForbidden, gin.H{"error": "This user is not accepting followers"})
+		return
+	}
+
+	// Check if blocked
+	var existing models.Follow
+	if err := database.DB.Where("follower_id = ? AND following_id = ?", userID, targetID).First(&existing).Error; err == nil {
+		if existing.Status == "blocked" {
+			c.JSON(http.StatusForbidden, gin.H{"error": "You are blocked by this user"})
+			return
+		}
+		if existing.Status == "pending" {
+			c.JSON(http.StatusConflict, gin.H{"error": "Follow request already pending"})
+			return
+		}
+		c.JSON(http.StatusConflict, gin.H{"error": "Already following this user"})
 		return
 	}
 
 	follow := models.Follow{
 		FollowerID:  userID,
 		FollowingID: uint(targetID),
+		Status:      "pending",
 	}
 
 	if err := database.DB.Create(&follow).Error; err != nil {
@@ -48,11 +68,11 @@ func (h *SocialHandler) FollowUser(c *gin.Context) {
 		return
 	}
 
-	logger.Info("social", "User %d followed user %d", userID, targetID)
-	c.JSON(http.StatusCreated, gin.H{"message": "Now following user"})
+	logger.Info("social", "User %d sent follow request to user %d", userID, targetID)
+	c.JSON(http.StatusCreated, gin.H{"message": "Follow request sent"})
 }
 
-// UnfollowUser unfollows a user.
+// UnfollowUser unfollows a user (removes any follow relationship).
 func (h *SocialHandler) UnfollowUser(c *gin.Context) {
 	logger := services.AppLogger
 	userID := c.GetUint("userId")
@@ -62,7 +82,7 @@ func (h *SocialHandler) UnfollowUser(c *gin.Context) {
 		return
 	}
 
-	result := database.DB.Where("follower_id = ? AND following_id = ?", userID, targetID).Delete(&models.Follow{})
+	result := database.DB.Where("follower_id = ? AND following_id = ? AND status != ?", userID, targetID, "blocked").Delete(&models.Follow{})
 	if result.RowsAffected == 0 {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Not following this user"})
 		return
@@ -72,16 +92,122 @@ func (h *SocialHandler) UnfollowUser(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Unfollowed user"})
 }
 
-// GetFollowers returns users who follow the authenticated user.
+// AcceptFollower accepts a pending follow request.
+func (h *SocialHandler) AcceptFollower(c *gin.Context) {
+	logger := services.AppLogger
+	userID := c.GetUint("userId")
+	followerID, err := strconv.ParseUint(c.Param("userId"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	result := database.DB.Model(&models.Follow{}).
+		Where("follower_id = ? AND following_id = ? AND status = ?", followerID, userID, "pending").
+		Update("status", "accepted")
+	if result.RowsAffected == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "No pending follow request from this user"})
+		return
+	}
+
+	logger.Info("social", "User %d accepted follower %d", userID, followerID)
+	c.JSON(http.StatusOK, gin.H{"message": "Follower accepted"})
+}
+
+// BlockFollower blocks a user from following.
+func (h *SocialHandler) BlockFollower(c *gin.Context) {
+	logger := services.AppLogger
+	userID := c.GetUint("userId")
+	followerID, err := strconv.ParseUint(c.Param("userId"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	// Check if there's an existing follow record
+	var follow models.Follow
+	if err := database.DB.Where("follower_id = ? AND following_id = ?", followerID, userID).First(&follow).Error; err != nil {
+		// No existing relationship — create a blocked record
+		follow = models.Follow{
+			FollowerID:  uint(followerID),
+			FollowingID: userID,
+			Status:      "blocked",
+		}
+		database.DB.Create(&follow)
+	} else {
+		database.DB.Model(&follow).Update("status", "blocked")
+	}
+
+	logger.Info("social", "User %d blocked follower %d", userID, followerID)
+	c.JSON(http.StatusOK, gin.H{"message": "User blocked"})
+}
+
+// UnblockFollower removes a block on a user.
+func (h *SocialHandler) UnblockFollower(c *gin.Context) {
+	logger := services.AppLogger
+	userID := c.GetUint("userId")
+	followerID, err := strconv.ParseUint(c.Param("userId"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	result := database.DB.Where("follower_id = ? AND following_id = ? AND status = ?", followerID, userID, "blocked").Delete(&models.Follow{})
+	if result.RowsAffected == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User is not blocked"})
+		return
+	}
+
+	logger.Info("social", "User %d unblocked user %d", userID, followerID)
+	c.JSON(http.StatusOK, gin.H{"message": "User unblocked"})
+}
+
+// GetBlockedUsers returns users blocked by the authenticated user.
+func (h *SocialHandler) GetBlockedUsers(c *gin.Context) {
+	userID := c.GetUint("userId")
+
+	var follows []models.Follow
+	database.DB.Where("following_id = ? AND status = ?", userID, "blocked").Find(&follows)
+
+	blockedIDs := make([]uint, len(follows))
+	for i, f := range follows {
+		blockedIDs[i] = f.FollowerID
+	}
+
+	if len(blockedIDs) == 0 {
+		c.JSON(http.StatusOK, gin.H{"blocked": []interface{}{}})
+		return
+	}
+
+	var users []models.User
+	database.DB.Where("id IN ?", blockedIDs).Find(&users)
+
+	var result []gin.H
+	for _, u := range users {
+		result = append(result, gin.H{
+			"id":         u.ID,
+			"username":   u.Username,
+			"avatarPath": u.AvatarPath,
+		})
+	}
+	if result == nil {
+		result = []gin.H{}
+	}
+	c.JSON(http.StatusOK, gin.H{"blocked": result})
+}
+
+// GetFollowers returns users who follow the authenticated user (pending + accepted).
 func (h *SocialHandler) GetFollowers(c *gin.Context) {
 	userID := c.GetUint("userId")
 
 	var follows []models.Follow
-	database.DB.Where("following_id = ?", userID).Find(&follows)
+	database.DB.Where("following_id = ? AND status IN ?", userID, []string{"pending", "accepted"}).Find(&follows)
 
 	followerIDs := make([]uint, len(follows))
+	statusMap := map[uint]string{}
 	for i, f := range follows {
 		followerIDs[i] = f.FollowerID
+		statusMap[f.FollowerID] = f.Status
 	}
 
 	if len(followerIDs) == 0 {
@@ -92,16 +218,30 @@ func (h *SocialHandler) GetFollowers(c *gin.Context) {
 	var users []models.User
 	database.DB.Where("id IN ?", followerIDs).Find(&users)
 
-	result := buildUserList(users, userID)
+	var result []gin.H
+	for _, u := range users {
+		result = append(result, gin.H{
+			"id":         u.ID,
+			"username":   u.Username,
+			"avatarPath": u.AvatarPath,
+			"isPublic":   u.IsPublic,
+			"bio":        u.Bio,
+			"status":     statusMap[u.ID],
+		})
+	}
+	if result == nil {
+		result = []gin.H{}
+	}
+
 	c.JSON(http.StatusOK, gin.H{"followers": result})
 }
 
-// GetFollowing returns users the authenticated user follows.
+// GetFollowing returns users the authenticated user follows (accepted only).
 func (h *SocialHandler) GetFollowing(c *gin.Context) {
 	userID := c.GetUint("userId")
 
 	var follows []models.Follow
-	database.DB.Where("follower_id = ?", userID).Find(&follows)
+	database.DB.Where("follower_id = ? AND status = ?", userID, "accepted").Find(&follows)
 
 	followingIDs := make([]uint, len(follows))
 	for i, f := range follows {
@@ -120,7 +260,7 @@ func (h *SocialHandler) GetFollowing(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"following": result})
 }
 
-// SearchUsers searches for users by username prefix.
+// SearchUsers searches for users by username prefix (public users only).
 func (h *SocialHandler) SearchUsers(c *gin.Context) {
 	userID := c.GetUint("userId")
 	query := c.Query("q")
@@ -130,35 +270,30 @@ func (h *SocialHandler) SearchUsers(c *gin.Context) {
 	}
 
 	var users []models.User
-	database.DB.Where("username LIKE ? AND id != ?", query+"%", userID).Limit(20).Find(&users)
+	database.DB.Where("username LIKE ? AND id != ? AND is_public = ?", query+"%", userID, true).Limit(20).Find(&users)
 
 	// Get follow status for each result
-	var followedIDs []uint
 	var follows []models.Follow
 	database.DB.Where("follower_id = ?", userID).Find(&follows)
+	followStatusMap := map[uint]string{}
 	for _, f := range follows {
-		followedIDs = append(followedIDs, f.FollowingID)
-	}
-
-	followSet := map[uint]bool{}
-	for _, id := range followedIDs {
-		followSet[id] = true
+		followStatusMap[f.FollowingID] = f.Status
 	}
 
 	var result []gin.H
 	for _, u := range users {
 		var coinCount int64
-		if u.IsPublic {
-			database.DB.Model(&models.Coin{}).Where("user_id = ? AND is_wishlist = false AND is_sold = false AND is_private = false", u.ID).Count(&coinCount)
-		}
+		database.DB.Model(&models.Coin{}).Where("user_id = ? AND is_wishlist = false AND is_sold = false AND is_private = false", u.ID).Count(&coinCount)
+		status := followStatusMap[u.ID] // "" if not following
 		result = append(result, gin.H{
-			"id":          u.ID,
-			"username":    u.Username,
-			"avatarPath":  u.AvatarPath,
-			"isPublic":    u.IsPublic,
-			"bio":         u.Bio,
-			"isFollowing": followSet[u.ID],
-			"coinCount":   coinCount,
+			"id":           u.ID,
+			"username":     u.Username,
+			"avatarPath":   u.AvatarPath,
+			"isPublic":     u.IsPublic,
+			"bio":          u.Bio,
+			"isFollowing":  status == "accepted",
+			"followStatus": status,
+			"coinCount":    coinCount,
 		})
 	}
 
@@ -179,21 +314,23 @@ func (h *SocialHandler) GetPublicProfile(c *gin.Context) {
 		return
 	}
 
-	// Check if current user follows this user
+	// Check follow status
+	var followStatus string
 	var isFollowing bool
 	var follow models.Follow
 	if err := database.DB.Where("follower_id = ? AND following_id = ?", currentUserID, user.ID).First(&follow).Error; err == nil {
-		isFollowing = true
+		followStatus = follow.Status
+		isFollowing = follow.Status == "accepted"
 	}
 
 	var coinCount int64
-	if user.IsPublic || isFollowing {
+	if user.IsPublic && isFollowing {
 		database.DB.Model(&models.Coin{}).Where("user_id = ? AND is_wishlist = false AND is_sold = false AND is_private = false", user.ID).Count(&coinCount)
 	}
 
 	var followerCount, followingCount int64
-	database.DB.Model(&models.Follow{}).Where("following_id = ?", user.ID).Count(&followerCount)
-	database.DB.Model(&models.Follow{}).Where("follower_id = ?", user.ID).Count(&followingCount)
+	database.DB.Model(&models.Follow{}).Where("following_id = ? AND status = ?", user.ID, "accepted").Count(&followerCount)
+	database.DB.Model(&models.Follow{}).Where("follower_id = ? AND status = ?", user.ID, "accepted").Count(&followingCount)
 
 	c.JSON(http.StatusOK, gin.H{
 		"id":             user.ID,
@@ -202,6 +339,7 @@ func (h *SocialHandler) GetPublicProfile(c *gin.Context) {
 		"isPublic":       user.IsPublic,
 		"bio":            user.Bio,
 		"isFollowing":    isFollowing,
+		"followStatus":   followStatus,
 		"coinCount":      coinCount,
 		"followerCount":  followerCount,
 		"followingCount": followingCount,
@@ -217,10 +355,10 @@ func (h *SocialHandler) GetFollowingCoins(c *gin.Context) {
 		return
 	}
 
-	// Verify following relationship
+	// Verify accepted following relationship
 	var follow models.Follow
-	if err := database.DB.Where("follower_id = ? AND following_id = ?", currentUserID, targetID).First(&follow).Error; err != nil {
-		c.JSON(http.StatusForbidden, gin.H{"error": "You must follow this user to view their coins"})
+	if err := database.DB.Where("follower_id = ? AND following_id = ? AND status = ?", currentUserID, targetID, "accepted").First(&follow).Error; err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": "You must be an accepted follower to view their coins"})
 		return
 	}
 
@@ -241,7 +379,6 @@ func (h *SocialHandler) GetFollowingCoins(c *gin.Context) {
 		Order("updated_at DESC").
 		Find(&coins)
 
-	// Strip sensitive fields
 	var result []gin.H
 	for _, coin := range coins {
 		result = append(result, limitedCoinData(coin))
@@ -270,10 +407,10 @@ func (h *SocialHandler) GetFollowingCoinDetail(c *gin.Context) {
 		return
 	}
 
-	// Verify following
+	// Verify accepted following
 	var follow models.Follow
-	if err := database.DB.Where("follower_id = ? AND following_id = ?", currentUserID, targetID).First(&follow).Error; err != nil {
-		c.JSON(http.StatusForbidden, gin.H{"error": "You must follow this user to view their coins"})
+	if err := database.DB.Where("follower_id = ? AND following_id = ? AND status = ?", currentUserID, targetID, "accepted").First(&follow).Error; err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": "You must be an accepted follower to view their coins"})
 		return
 	}
 
@@ -288,7 +425,6 @@ func (h *SocialHandler) GetFollowingCoinDetail(c *gin.Context) {
 	var comments []models.CoinComment
 	database.DB.Where("coin_id = ?", coinID).Order("created_at DESC").Find(&comments)
 
-	// Enrich comments with usernames and avatars
 	var commentResults []gin.H
 	for _, cm := range comments {
 		var commenter models.User
@@ -361,7 +497,6 @@ func (h *SocialHandler) AddComment(c *gin.Context) {
 		return
 	}
 
-	// Get coin and verify access
 	var coin models.Coin
 	if err := database.DB.First(&coin, coinID).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Coin not found"})
@@ -373,11 +508,11 @@ func (h *SocialHandler) AddComment(c *gin.Context) {
 		return
 	}
 
-	// Verify follower relationship (unless it's the coin owner)
+	// Verify accepted follower relationship (unless coin owner)
 	if coin.UserID != currentUserID {
 		var follow models.Follow
-		if err := database.DB.Where("follower_id = ? AND following_id = ?", currentUserID, coin.UserID).First(&follow).Error; err != nil {
-			c.JSON(http.StatusForbidden, gin.H{"error": "You must follow this user to comment on their coins"})
+		if err := database.DB.Where("follower_id = ? AND following_id = ? AND status = ?", currentUserID, coin.UserID, "accepted").First(&follow).Error; err != nil {
+			c.JSON(http.StatusForbidden, gin.H{"error": "You must be an accepted follower to comment on their coins"})
 			return
 		}
 	}
@@ -395,7 +530,6 @@ func (h *SocialHandler) AddComment(c *gin.Context) {
 		return
 	}
 
-	// Return enriched comment
 	var user models.User
 	database.DB.First(&user, currentUserID)
 
@@ -427,10 +561,10 @@ func (h *SocialHandler) GetComments(c *gin.Context) {
 		return
 	}
 
-	// Must be owner or follower
+	// Must be owner or accepted follower
 	if coin.UserID != currentUserID {
 		var follow models.Follow
-		if err := database.DB.Where("follower_id = ? AND following_id = ?", currentUserID, coin.UserID).First(&follow).Error; err != nil {
+		if err := database.DB.Where("follower_id = ? AND following_id = ? AND status = ?", currentUserID, coin.UserID, "accepted").First(&follow).Error; err != nil {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
 			return
 		}
@@ -482,7 +616,6 @@ func (h *SocialHandler) DeleteComment(c *gin.Context) {
 		return
 	}
 
-	// Check permission: commenter or coin owner
 	var coin models.Coin
 	database.DB.First(&coin, coinID)
 	if comment.UserID != currentUserID && coin.UserID != currentUserID {
@@ -518,21 +651,19 @@ func (h *SocialHandler) RateCoin(c *gin.Context) {
 		return
 	}
 
-	// Must follow coin owner (unless owner themselves)
+	// Must be accepted follower (unless owner)
 	if coin.UserID != currentUserID {
 		var follow models.Follow
-		if err := database.DB.Where("follower_id = ? AND following_id = ?", currentUserID, coin.UserID).First(&follow).Error; err != nil {
-			c.JSON(http.StatusForbidden, gin.H{"error": "You must follow this user to rate their coins"})
+		if err := database.DB.Where("follower_id = ? AND following_id = ? AND status = ?", currentUserID, coin.UserID, "accepted").First(&follow).Error; err != nil {
+			c.JSON(http.StatusForbidden, gin.H{"error": "You must be an accepted follower to rate their coins"})
 			return
 		}
 	}
 
-	// Upsert: find existing rating comment or create a rating-only record
 	var existing models.CoinComment
 	if err := database.DB.Where("coin_id = ? AND user_id = ? AND rating > 0", coinID, currentUserID).First(&existing).Error; err == nil {
 		database.DB.Model(&existing).Update("rating", req.Rating)
 	} else {
-		// Create a rating-only comment (empty comment text is allowed for pure ratings)
 		rating := models.CoinComment{
 			CoinID:  uint(coinID),
 			UserID:  currentUserID,
@@ -542,7 +673,6 @@ func (h *SocialHandler) RateCoin(c *gin.Context) {
 		database.DB.Create(&rating)
 	}
 
-	// Return aggregate
 	type RatingResult struct {
 		Avg   float64
 		Count int64
@@ -594,12 +724,13 @@ func (h *SocialHandler) GetCoinRating(c *gin.Context) {
 
 // Helper: build user list with coin counts
 func buildUserList(users []models.User, currentUserID uint) []gin.H {
-	// Get IDs of who the current user follows
 	var follows []models.Follow
 	database.DB.Where("follower_id = ?", currentUserID).Find(&follows)
 	followSet := map[uint]bool{}
 	for _, f := range follows {
-		followSet[f.FollowingID] = true
+		if f.Status == "accepted" {
+			followSet[f.FollowingID] = true
+		}
 	}
 
 	var result []gin.H

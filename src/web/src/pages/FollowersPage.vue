@@ -26,6 +26,14 @@
           <Users :size="16" /> Followers
           <span v-if="followers.length" class="tab-count">{{ followers.length }}</span>
         </button>
+        <button
+          class="tab-btn"
+          :class="{ active: activeTab === 'blocked' }"
+          @click="activeTab = 'blocked'; loadBlocked()"
+        >
+          <ShieldOff :size="16" /> Blocked
+          <span v-if="blocked.length" class="tab-count">{{ blocked.length }}</span>
+        </button>
       </div>
 
       <!-- Loading -->
@@ -100,36 +108,57 @@
               <div class="user-info">
                 <span class="user-name">{{ user.username }}</span>
                 <p v-if="user.bio" class="user-bio">{{ truncate(user.bio, 80) }}</p>
-                <div class="user-meta">
-                  <span v-if="user.isPublic && user.coinCount > 0" class="coin-badge">
-                    {{ user.coinCount }} coins
-                  </span>
-                </div>
+                <span v-if="user.status === 'pending'" class="status-badge pending">Pending</span>
+                <span v-else-if="user.status === 'accepted'" class="status-badge accepted">Accepted</span>
               </div>
             </div>
             <div class="user-card-actions">
-              <router-link
-                v-if="user.isPublic"
-                :to="`/followers/${user.username}/gallery`"
-                class="btn btn-secondary btn-sm"
-              >
-                <Eye :size="14" /> View Collection
-              </router-link>
               <button
-                v-if="!user.isFollowing"
+                v-if="user.status === 'pending'"
                 class="btn btn-primary btn-sm"
                 :disabled="actionLoading === user.id"
-                @click="handleFollow(user)"
+                @click="handleAccept(user)"
               >
-                <UserPlus :size="14" /> Follow
+                <Check :size="14" /> Accept
               </button>
               <button
-                v-else
                 class="btn btn-danger btn-sm"
                 :disabled="actionLoading === user.id"
-                @click="handleUnfollow(user)"
+                @click="handleBlock(user)"
               >
-                Unfollow
+                <ShieldOff :size="14" /> Block
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Blocked Tab -->
+      <div v-else-if="activeTab === 'blocked'">
+        <div v-if="blocked.length === 0" class="empty-state">
+          <ShieldOff :size="48" />
+          <h3>No blocked users</h3>
+          <p>Blocked users cannot send you follow requests.</p>
+        </div>
+        <div v-else class="user-grid">
+          <div v-for="user in blocked" :key="user.id" class="user-card card">
+            <div class="user-card-body">
+              <img
+                :src="user.avatarPath ? `/uploads/${user.avatarPath}` : '/coin-logo.jpg'"
+                :alt="user.username"
+                class="user-avatar"
+              />
+              <div class="user-info">
+                <span class="user-name">{{ user.username }}</span>
+              </div>
+            </div>
+            <div class="user-card-actions">
+              <button
+                class="btn btn-secondary btn-sm"
+                :disabled="actionLoading === user.id"
+                @click="handleUnblock(user)"
+              >
+                Unblock
               </button>
             </div>
           </div>
@@ -148,6 +177,7 @@
             </button>
           </div>
           <div class="modal-body">
+            <p class="search-hint">Only users with public profiles appear in search results.</p>
             <div class="search-input-wrap">
               <Search :size="16" class="search-icon" />
               <input
@@ -176,15 +206,17 @@
                   </div>
                 </div>
                 <div class="user-card-actions">
+                  <span v-if="user.followStatus === 'pending'" class="status-badge pending">Pending</span>
+                  <span v-else-if="user.followStatus === 'accepted'" class="following-badge">Following</span>
+                  <span v-else-if="user.followStatus === 'blocked'" class="status-badge blocked">Blocked</span>
                   <button
-                    v-if="!user.isFollowing"
+                    v-else
                     class="btn btn-primary btn-sm"
                     :disabled="actionLoading === user.id"
                     @click="handleFollow(user)"
                   >
                     <UserPlus :size="14" /> Follow
                   </button>
-                  <span v-else class="following-badge">Following</span>
                 </div>
               </div>
             </div>
@@ -203,16 +235,20 @@
 
 <script setup lang="ts">
 import { ref, watch, nextTick, onMounted } from 'vue'
-import { Users, UserPlus, Search, X, Eye } from 'lucide-vue-next'
-import { getFollowers, getFollowing, searchUsers, followUser, unfollowUser } from '@/api/client'
+import { Users, UserPlus, Search, X, Eye, Check, ShieldOff } from 'lucide-vue-next'
+import {
+  getFollowers, getFollowing, searchUsers, followUser, unfollowUser,
+  acceptFollower, blockFollower, unblockFollower, getBlockedUsers,
+} from '@/api/client'
 import type { FollowUser } from '@/types'
 
-const activeTab = ref<'following' | 'followers'>('following')
+const activeTab = ref<'following' | 'followers' | 'blocked'>('following')
 const loading = ref(true)
 const actionLoading = ref<number | null>(null)
 
 const following = ref<FollowUser[]>([])
 const followers = ref<FollowUser[]>([])
+const blocked = ref<{ id: number; username: string; avatarPath: string }[]>([])
 
 // Search modal
 const showSearchModal = ref(false)
@@ -242,16 +278,20 @@ async function loadData() {
   }
 }
 
+async function loadBlocked() {
+  try {
+    const res = await getBlockedUsers()
+    blocked.value = res.data.blocked
+  } catch {
+    blocked.value = []
+  }
+}
+
 async function handleFollow(user: FollowUser) {
   actionLoading.value = user.id
   try {
     await followUser(user.id)
-    user.isFollowing = true
-    // Refresh following list if we're on the main page
-    if (!showSearchModal.value) {
-      const res = await getFollowing()
-      following.value = res.data.following
-    }
+    user.followStatus = 'pending'
   } catch {
     // ignore
   } finally {
@@ -263,8 +303,44 @@ async function handleUnfollow(user: FollowUser) {
   actionLoading.value = user.id
   try {
     await unfollowUser(user.id)
-    user.isFollowing = false
     following.value = following.value.filter(u => u.id !== user.id)
+  } catch {
+    // ignore
+  } finally {
+    actionLoading.value = null
+  }
+}
+
+async function handleAccept(user: FollowUser) {
+  actionLoading.value = user.id
+  try {
+    await acceptFollower(user.id)
+    user.status = 'accepted'
+  } catch {
+    // ignore
+  } finally {
+    actionLoading.value = null
+  }
+}
+
+async function handleBlock(user: FollowUser) {
+  actionLoading.value = user.id
+  try {
+    await blockFollower(user.id)
+    followers.value = followers.value.filter(u => u.id !== user.id)
+    blocked.value.push({ id: user.id, username: user.username, avatarPath: user.avatarPath })
+  } catch {
+    // ignore
+  } finally {
+    actionLoading.value = null
+  }
+}
+
+async function handleUnblock(user: { id: number; username: string; avatarPath: string }) {
+  actionLoading.value = user.id
+  try {
+    await unblockFollower(user.id)
+    blocked.value = blocked.value.filter(u => u.id !== user.id)
   } catch {
     // ignore
   } finally {
@@ -295,7 +371,6 @@ function closeSearchModal() {
   showSearchModal.value = false
   searchQuery.value = ''
   searchResults.value = []
-  // Refresh lists in case follows changed
   loadData()
 }
 
@@ -617,6 +692,34 @@ onMounted(() => {
   padding: 0.3rem 0.6rem;
   background: var(--accent-gold-dim);
   border-radius: var(--radius-sm);
+}
+
+.status-badge {
+  font-size: 0.7rem;
+  font-weight: 500;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-full);
+}
+
+.status-badge.pending {
+  background: rgba(234, 179, 8, 0.15);
+  color: #eab308;
+}
+
+.status-badge.accepted {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+}
+
+.status-badge.blocked {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.search-hint {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin: 0;
 }
 
 /* Responsive */
