@@ -266,6 +266,8 @@ onMounted(loadCoins)
 .timeline {
   position: relative;
   padding-left: 2rem;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .timeline::before {
@@ -478,8 +480,25 @@ onMounted(loadCoins)
 
 /* Responsive */
 @media (max-width: 640px) {
+  .container {
+    overflow-x: hidden;
+  }
+
+  .timeline {
+    padding-left: 1.5rem;
+  }
+
   .timeline-cards {
     grid-template-columns: 1fr;
+  }
+
+  .timeline-card {
+    padding: 0.5rem;
+  }
+
+  .card-image {
+    width: 48px;
+    height: 48px;
   }
 
   .page-header h1 {
@@ -488,10 +507,25 @@ onMounted(loadCoins)
 
   .timeline-summary {
     gap: 0.5rem;
+    padding: 0.75rem;
   }
 
   .summary-value {
-    font-size: 1rem;
+    font-size: 0.95rem;
+  }
+
+  .summary-label {
+    font-size: 0.65rem;
+  }
+
+  .marker-dot {
+    left: -1.15rem;
+    width: 10px;
+    height: 10px;
+  }
+
+  .marker-label {
+    font-size: 0.9rem;
   }
 }
 </style>

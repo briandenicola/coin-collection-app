@@ -77,8 +77,7 @@ const router = createRouter({
     {
       path: '/process-image',
       name: 'process-image',
-      component: () => import('@/pages/ImageProcessorPage.vue'),
-      meta: { requiresAuth: true },
+      redirect: { path: '/settings', query: { tab: 'process' } },
     },
     {
       path: '/followers',
