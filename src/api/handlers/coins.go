@@ -532,6 +532,10 @@ func (h *CoinHandler) Suggestions(c *gin.Context) {
 		column = "name"
 	case "denomination":
 		column = "denomination"
+	case "ruler":
+		column = "ruler"
+	case "era":
+		column = "era"
 	case "purchaseLocation":
 		column = "purchase_location"
 	default:
