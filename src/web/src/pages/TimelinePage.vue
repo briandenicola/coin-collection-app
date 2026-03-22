@@ -154,7 +154,7 @@ const timelineGroups = computed(() => {
   for (const [key, coins] of map) {
     groups.push({
       key,
-      label: formatMonthYear(coins[0].purchaseDate!),
+      label: formatMonthYear(coins[0]?.purchaseDate ?? ''),
       coins,
     })
   }
