@@ -238,7 +238,7 @@ Feature ideas and completed enhancements:
 - [x] **User Profiles** — Avatar upload, bio, public/private toggle
 - [x] **User Search** — Discover other collectors by username
 - [x] **Email Registration** — Required email for new users with legacy user prompt
-- [ ] **Collection Timeline**— Visual timeline of when each coin was acquired
+- [x] **Collection Timeline** — Visual timeline of when each coin was acquired
 - [ ] **Coin Comparison** — Side-by-side spec comparison of any two coins
 - [ ] **Advanced Search** — Filter by date range, price range, grade, material
 - [ ] **Price Alerts** — Notifications when watched coins appear below a target price
