@@ -241,10 +241,8 @@ Feature ideas and completed enhancements:
 - [ ] **Collection Timeline**— Visual timeline of when each coin was acquired
 - [ ] **Coin Comparison** — Side-by-side spec comparison of any two coins
 - [ ] **Advanced Search** — Filter by date range, price range, grade, material
-- [ ] **Batch Import** — Import coins from CSV or numismatic database exports
-- [ ] **PWA Icons** — Generate proper PWA icons from the EID MAR coin logo
 - [ ] **Price Alerts** — Notifications when watched coins appear below a target price
-- [ ] **Share Collection** — Public shareable link for a subset of your collection
+- [x] **Share Collection** — Follow collectors and browse their public galleries with comments and ratings
 
 ## License
 
