@@ -302,6 +302,15 @@
         <p v-else-if="!generatingKey" class="setting-desc" style="margin-top: 0.5rem">No API keys yet.</p>
       </section>
 
+      <!-- Process Tab -->
+      <section v-if="activeTab === 'process'" class="settings-section card">
+        <h2>Image Processor</h2>
+        <p class="setting-desc" style="margin-bottom: 1rem">
+          Remove backgrounds and crop coin images for your collection.
+        </p>
+        <ImageProcessor @saved="handleProcessSaved" />
+      </section>
+
       <!-- Conversations Tab -->
       <section v-if="activeTab === 'conversations'" class="settings-section card">
         <h2>Saved Conversations</h2>
@@ -632,6 +641,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, type Component } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import {
   changePassword, exportCollection, importCollection,
@@ -644,12 +654,14 @@ import {
 import type { ConversationSummary } from '@/api/client'
 import type { Coin, Theme, ApiKey, WebAuthnCredentialInfo } from '@/types'
 import CoinSearchChat from '@/components/CoinSearchChat.vue'
-import { User, Palette, Database, MessageSquare, HelpCircle } from 'lucide-vue-next'
+import ImageProcessor from '@/components/ImageProcessor.vue'
+import { User, Palette, Database, MessageSquare, HelpCircle, Scissors } from 'lucide-vue-next'
 
 const tabIcons: Record<string, Component> = {
   account: User,
   appearance: Palette,
   data: Database,
+  process: Scissors,
   conversations: MessageSquare,
   help: HelpCircle,
 }
@@ -658,13 +670,25 @@ const tabs = [
   { id: 'account', label: 'Account' },
   { id: 'appearance', label: 'Appearance' },
   { id: 'data', label: 'Data' },
+  { id: 'process', label: 'Process' },
   { id: 'conversations', label: 'Conversations' },
   { id: 'help', label: 'Help' },
 ]
 const activeTab = ref('account')
 
-
+const route = useRoute()
+const router = useRouter()
 const auth = useAuthStore()
+
+// Set active tab from query param (e.g. /settings?tab=process)
+const validTabs = tabs.map(t => t.id)
+if (route.query.tab && validTabs.includes(route.query.tab as string)) {
+  activeTab.value = route.query.tab as string
+}
+
+function handleProcessSaved(savedCoinId: number) {
+  router.push(`/edit/${savedCoinId}`)
+}
 
 // Avatar
 const avatarUrl = ref('/coin-logo.jpg')
