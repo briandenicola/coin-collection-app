@@ -44,7 +44,7 @@
             <router-link to="/followers" class="pwa-menu-link" @click="menuOpen = false">
               <UsersIcon :size="18" /> Followers
             </router-link>
-            <router-link to="/process-image" class="pwa-menu-link" @click="menuOpen = false">
+            <router-link to="/settings?tab=process" class="pwa-menu-link" @click="menuOpen = false">
               <Scissors :size="18" /> Process Image
             </router-link>
             <div class="pwa-menu-divider"></div>

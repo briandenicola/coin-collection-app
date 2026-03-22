@@ -57,6 +57,12 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/timeline',
+      name: 'timeline',
+      component: () => import('@/pages/TimelinePage.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/settings',
       name: 'settings',
       component: () => import('@/pages/SettingsPage.vue'),
@@ -71,8 +77,7 @@ const router = createRouter({
     {
       path: '/process-image',
       name: 'process-image',
-      component: () => import('@/pages/ImageProcessorPage.vue'),
-      meta: { requiresAuth: true },
+      redirect: { path: '/settings', query: { tab: 'process' } },
     },
     {
       path: '/followers',

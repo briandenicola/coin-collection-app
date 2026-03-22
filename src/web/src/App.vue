@@ -31,9 +31,9 @@
             <BarChart3 :size="18" />
             <span class="nav-label">Stats</span>
           </router-link>
-          <router-link v-if="!isPwa" to="/process-image" class="nav-link" active-class="active">
-            <Scissors :size="18" />
-            <span class="nav-label">Process</span>
+          <router-link to="/timeline" class="nav-link" active-class="active">
+            <Clock :size="18" />
+            <span class="nav-label">Timeline</span>
           </router-link>
         </div>
         <div class="nav-right">
@@ -76,7 +76,7 @@
 import { ref, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
-import { Landmark, Bookmark, BadgeDollarSign, BarChart3, CirclePlus, Scissors, Settings, ShieldCheck, LogOut, Users as UsersIcon } from 'lucide-vue-next'
+import { Landmark, Bookmark, BadgeDollarSign, BarChart3, CirclePlus, Settings, ShieldCheck, LogOut, Users as UsersIcon, Clock } from 'lucide-vue-next'
 import { updateProfile, getMe } from '@/api/client'
 
 const auth = useAuthStore()
