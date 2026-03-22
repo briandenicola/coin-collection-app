@@ -32,6 +32,16 @@
             <input v-model="form.mint" class="form-input" placeholder="e.g. Rome" />
           </div>
         </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Ruler</label>
+            <AutocompleteInput v-model="form.ruler!" field="ruler" placeholder="e.g. Augustus" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Era</label>
+            <AutocompleteInput v-model="form.era!" field="era" placeholder="e.g. 27 BC - 14 AD" />
+          </div>
+        </div>
       </fieldset>
 
       <!-- Physical Details -->

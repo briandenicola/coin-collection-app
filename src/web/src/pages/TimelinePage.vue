@@ -55,7 +55,7 @@
             <router-link
               v-for="coin in group.coins"
               :key="coin.id"
-              :to="`/coins/${coin.id}`"
+              :to="`/coin/${coin.id}`"
               class="timeline-card card"
             >
               <img
