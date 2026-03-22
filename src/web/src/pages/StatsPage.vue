@@ -85,6 +85,57 @@
         </div>
       </div>
 
+      <!-- Era Breakdown -->
+      <div v-if="stats.byEra?.length" class="stats-section card">
+        <h2>By Era</h2>
+        <div class="bar-chart">
+          <div v-for="item in stats.byEra" :key="item.era" class="bar-row">
+            <span class="bar-label">{{ item.era }}</span>
+            <div class="bar-track">
+              <div
+                class="bar-fill fill-era"
+                :style="{ width: `${(item.count / maxEraCount) * 100}%` }"
+              ></div>
+            </div>
+            <span class="bar-value">{{ item.count }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Top Rulers -->
+      <div v-if="stats.byRuler?.length" class="stats-section card">
+        <h2>Top Rulers</h2>
+        <div class="bar-chart">
+          <div v-for="item in stats.byRuler" :key="item.ruler" class="bar-row bar-row-wide">
+            <span class="bar-label bar-label-wide">{{ item.ruler }}</span>
+            <div class="bar-track">
+              <div
+                class="bar-fill fill-ruler"
+                :style="{ width: `${(item.count / maxRulerCount) * 100}%` }"
+              ></div>
+            </div>
+            <span class="bar-value">{{ item.count }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Price Range Distribution -->
+      <div v-if="stats.byPriceRange?.length" class="stats-section card">
+        <h2>Price Range Distribution</h2>
+        <div class="bar-chart">
+          <div v-for="item in sortedPriceRanges" :key="item.range" class="bar-row">
+            <span class="bar-label">{{ item.range }}</span>
+            <div class="bar-track">
+              <div
+                class="bar-fill fill-price"
+                :style="{ width: `${(item.count / maxPriceRangeCount) * 100}%` }"
+              ></div>
+            </div>
+            <span class="bar-value">{{ item.count }}</span>
+          </div>
+        </div>
+      </div>
+
       <!-- Value Over Time -->
       <div v-if="store.valueHistory.length >= 2" class="stats-section card">
         <h2>Value Over Time</h2>
@@ -171,6 +222,23 @@ const maxMaterialCount = computed(() =>
 const maxGradeCount = computed(() =>
   Math.max(...(stats.value?.byGrade?.map((g) => g.count) || [1])),
 )
+const maxEraCount = computed(() =>
+  Math.max(...(stats.value?.byEra?.map((e) => e.count) || [1])),
+)
+const maxRulerCount = computed(() =>
+  Math.max(...(stats.value?.byRuler?.map((r) => r.count) || [1])),
+)
+const maxPriceRangeCount = computed(() =>
+  Math.max(...(stats.value?.byPriceRange?.map((p) => p.count) || [1])),
+)
+
+const priceRangeOrder = ['Under $50', '$50 - $200', '$200 - $500', '$500 - $1K', '$1K+']
+const sortedPriceRanges = computed(() => {
+  if (!stats.value?.byPriceRange) return []
+  return [...stats.value.byPriceRange].sort(
+    (a, b) => priceRangeOrder.indexOf(a.range) - priceRangeOrder.indexOf(b.range),
+  )
+})
 
 const roi = computed(() => {
   if (!stats.value?.values.totalPurchasePrice) return 0
@@ -310,6 +378,19 @@ onMounted(() => {
 .fill-other { background: linear-gradient(90deg, #555, #888); }
 .fill-material { background: linear-gradient(90deg, var(--accent-bronze), var(--accent-gold)); }
 .fill-grade { background: linear-gradient(90deg, #2c5f8a, #7ab3d4); }
+.fill-era { background: linear-gradient(90deg, #6b4c3b, #a67c52); }
+.fill-ruler { background: linear-gradient(90deg, #8b6914, var(--accent-gold)); }
+.fill-price { background: linear-gradient(90deg, #2e7d32, #66bb6a); }
+
+.bar-row-wide {
+  grid-template-columns: 150px 1fr 40px;
+}
+
+.bar-label-wide {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 .bar-value {
   font-size: 0.85rem;
