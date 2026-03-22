@@ -428,6 +428,48 @@ func (h *CoinHandler) Stats(c *gin.Context) {
 		Order("count DESC").
 		Scan(&byGrade)
 
+	type eraCount struct {
+		Era   string `json:"era"`
+		Count int64  `json:"count"`
+	}
+	var byEra []eraCount
+	database.DB.Model(&models.Coin{}).
+		Select("era, count(*) as count").
+		Where("user_id = ? AND is_wishlist = ? AND is_sold = ? AND era != ''", userID, false, false).
+		Group("era").
+		Order("count DESC").
+		Scan(&byEra)
+
+	type rulerCount struct {
+		Ruler string `json:"ruler"`
+		Count int64  `json:"count"`
+	}
+	var byRuler []rulerCount
+	database.DB.Model(&models.Coin{}).
+		Select("ruler, count(*) as count").
+		Where("user_id = ? AND is_wishlist = ? AND is_sold = ? AND ruler != ''", userID, false, false).
+		Group("ruler").
+		Order("count DESC").
+		Limit(10).
+		Scan(&byRuler)
+
+	type priceRange struct {
+		Range string `json:"range"`
+		Count int64  `json:"count"`
+	}
+	var byPriceRange []priceRange
+	database.DB.Model(&models.Coin{}).
+		Select(`CASE
+			WHEN purchase_price < 50 THEN 'Under $50'
+			WHEN purchase_price >= 50 AND purchase_price < 200 THEN '$50 - $200'
+			WHEN purchase_price >= 200 AND purchase_price < 500 THEN '$200 - $500'
+			WHEN purchase_price >= 500 AND purchase_price < 1000 THEN '$500 - $1K'
+			ELSE '$1K+'
+		END as ` + "`range`" + `, count(*) as count`).
+		Where("user_id = ? AND is_wishlist = ? AND is_sold = ? AND purchase_price IS NOT NULL", userID, false, false).
+		Group("`range`").
+		Scan(&byPriceRange)
+
 	type valueSummary struct {
 		TotalPurchasePrice float64 `json:"totalPurchasePrice"`
 		TotalCurrentValue  float64 `json:"totalCurrentValue"`
@@ -458,6 +500,9 @@ func (h *CoinHandler) Stats(c *gin.Context) {
 		"byCategory":    byCategory,
 		"byMaterial":    byMaterial,
 		"byGrade":       byGrade,
+		"byEra":         byEra,
+		"byRuler":       byRuler,
+		"byPriceRange":  byPriceRange,
 		"values":        values,
 		"soldValues":    soldValues,
 	})

@@ -98,6 +98,9 @@ export interface StatsResponse {
   byCategory: { category: string; count: number }[]
   byMaterial: { material: string; count: number }[]
   byGrade: { grade: string; count: number }[]
+  byEra: { era: string; count: number }[]
+  byRuler: { ruler: string; count: number }[]
+  byPriceRange: { range: string; count: number }[]
   values: {
     totalPurchasePrice: number
     totalCurrentValue: number
