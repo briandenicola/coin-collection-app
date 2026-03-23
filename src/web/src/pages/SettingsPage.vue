@@ -168,8 +168,11 @@
           </div>
           <p v-else-if="!registeringCredential" class="setting-desc" style="margin-top: 0.5rem">No biometric credentials registered.</p>
         </template>
+      </section>
 
-        <h3>Blocked Users</h3>
+      <!-- Blocked Users Tab -->
+      <section v-if="activeTab === 'blocked'" class="settings-section card">
+        <h2>Blocked Users</h2>
         <p class="setting-desc" style="margin-bottom: 0.75rem">
           Blocked users cannot send you follow requests or view your collection.
         </p>
@@ -699,10 +702,11 @@ import type { ConversationSummary } from '@/api/client'
 import type { Coin, Theme, ApiKey, WebAuthnCredentialInfo } from '@/types'
 import CoinSearchChat from '@/components/CoinSearchChat.vue'
 import ImageProcessor from '@/components/ImageProcessor.vue'
-import { User, Palette, Database, MessageSquare, HelpCircle, Scissors, Menu } from 'lucide-vue-next'
+import { User, Palette, Database, MessageSquare, HelpCircle, Scissors, Menu, ShieldOff } from 'lucide-vue-next'
 
 const tabIcons: Record<string, Component> = {
   account: User,
+  blocked: ShieldOff,
   appearance: Palette,
   data: Database,
   process: Scissors,
@@ -712,6 +716,7 @@ const tabIcons: Record<string, Component> = {
 
 const tabs = [
   { id: 'account', label: 'Account' },
+  { id: 'blocked', label: 'Blocked' },
   { id: 'appearance', label: 'Appearance' },
   { id: 'data', label: 'Data' },
   { id: 'process', label: 'Process' },
