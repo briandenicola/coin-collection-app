@@ -1450,9 +1450,11 @@ onMounted(() => {
 /* Settings hamburger menu (PWA) */
 .page-header {
   display: flex;
+  flex-direction: row !important;
   justify-content: space-between;
-  align-items: center;
+  align-items: center !important;
   margin-bottom: 1.5rem;
+  flex-wrap: nowrap;
 }
 
 .settings-menu-wrapper {
