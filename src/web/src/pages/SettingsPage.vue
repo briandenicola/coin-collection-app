@@ -147,6 +147,25 @@
           </div>
           <p v-else-if="!registeringCredential" class="setting-desc" style="margin-top: 0.5rem">No biometric credentials registered.</p>
         </template>
+
+        <h3>Blocked Users</h3>
+        <p class="setting-desc" style="margin-bottom: 0.75rem">
+          Blocked users cannot send you follow requests or view your collection.
+        </p>
+        <div v-if="blockedUsers.length" class="apikey-list">
+          <div v-for="user in blockedUsers" :key="user.id" class="apikey-item">
+            <div class="apikey-item-info" style="display: flex; align-items: center; gap: 0.5rem;">
+              <img
+                :src="user.avatarPath ? `/uploads/${user.avatarPath}` : '/coin-logo.jpg'"
+                :alt="user.username"
+                style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border-subtle);"
+              />
+              <span class="apikey-item-name">{{ user.username }}</span>
+            </div>
+            <button class="btn btn-secondary btn-sm" :disabled="blockedLoading" @click="handleUnblock(user)">Unblock</button>
+          </div>
+        </div>
+        <p v-else class="setting-desc" style="margin-top: 0.5rem">No blocked users.</p>
       </section>
 
       <!-- Appearance Tab -->
@@ -653,6 +672,7 @@ import {
   webauthnListCredentials, webauthnDeleteCredential,
   listConversations, getConversation, deleteConversation,
   uploadAvatar, deleteAvatar, updateProfile, getMe,
+  getBlockedUsers, unblockFollower,
 } from '@/api/client'
 import type { ConversationSummary } from '@/api/client'
 import type { Coin, Theme, ApiKey, WebAuthnCredentialInfo } from '@/types'
@@ -691,6 +711,31 @@ if (route.query.tab && validTabs.includes(route.query.tab as string)) {
 
 function handleProcessSaved(savedCoinId: number) {
   router.push(`/edit/${savedCoinId}`)
+}
+
+// Blocked users
+const blockedUsers = ref<{ id: number; username: string; avatarPath: string }[]>([])
+const blockedLoading = ref(false)
+
+async function loadBlockedUsers() {
+  try {
+    const res = await getBlockedUsers()
+    blockedUsers.value = res.data.blocked
+  } catch {
+    blockedUsers.value = []
+  }
+}
+
+async function handleUnblock(user: { id: number; username: string; avatarPath: string }) {
+  blockedLoading.value = true
+  try {
+    await unblockFollower(user.id)
+    blockedUsers.value = blockedUsers.value.filter(u => u.id !== user.id)
+  } catch {
+    // ignore
+  } finally {
+    blockedLoading.value = false
+  }
 }
 
 // Avatar
@@ -1095,6 +1140,7 @@ async function handleRefresh() {
   await Promise.all([
     loadApiKeys(),
     loadConversations(),
+    loadBlockedUsers(),
     supportsWebAuthn ? loadCredentials() : Promise.resolve(),
   ])
 }
@@ -1102,6 +1148,7 @@ async function handleRefresh() {
 onMounted(() => {
   loadApiKeys()
   loadConversations()
+  loadBlockedUsers()
   if (supportsWebAuthn) loadCredentials()
 })
 </script>
