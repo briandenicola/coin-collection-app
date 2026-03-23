@@ -1,4 +1,5 @@
 <template>
+  <PullToRefresh :on-refresh="handleRefresh">
   <div class="container">
     <div class="page-header">
       <h1>Settings</h1>
@@ -637,12 +638,14 @@
       />
     </div>
   </div>
+  </PullToRefresh>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, type Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import PullToRefresh from '@/components/PullToRefresh.vue'
 import {
   changePassword, exportCollection, importCollection,
   generateApiKey, listApiKeys, revokeApiKey,
@@ -1086,6 +1089,14 @@ async function handleDeleteConversation(id: number) {
   } catch {
     alert('Failed to delete conversation')
   }
+}
+
+async function handleRefresh() {
+  await Promise.all([
+    loadApiKeys(),
+    loadConversations(),
+    supportsWebAuthn ? loadCredentials() : Promise.resolve(),
+  ])
 }
 
 onMounted(() => {

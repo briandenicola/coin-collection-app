@@ -1,4 +1,5 @@
 <template>
+  <PullToRefresh :on-refresh="handleRefresh">
   <div class="container">
     <div class="page-header">
       <h1>Collection Stats</h1>
@@ -204,11 +205,13 @@
       </div>
     </div>
   </div>
+  </PullToRefresh>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { useCoinsStore } from '@/stores/coins'
+import PullToRefresh from '@/components/PullToRefresh.vue'
 
 const store = useCoinsStore()
 const stats = computed(() => store.stats)
@@ -285,6 +288,10 @@ function formatCurrency(value: number) {
 
 function formatShortDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: '2-digit' })
+}
+
+async function handleRefresh() {
+  await Promise.all([store.fetchStats(), store.fetchValueHistory()])
 }
 
 onMounted(() => {
