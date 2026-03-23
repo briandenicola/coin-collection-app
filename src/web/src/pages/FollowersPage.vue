@@ -1,4 +1,5 @@
 <template>
+  <PullToRefresh :on-refresh="handleRefresh">
   <div class="container">
     <div class="page-header">
       <h1><Users :size="24" /> Followers</h1>
@@ -230,11 +231,13 @@
       </div>
     </Teleport>
   </div>
+  </PullToRefresh>
 </template>
 
 <script setup lang="ts">
 import { ref, watch, nextTick, onMounted } from 'vue'
 import { Users, UserPlus, Search, X, Eye, Check, ShieldOff } from 'lucide-vue-next'
+import PullToRefresh from '@/components/PullToRefresh.vue'
 import {
   getFollowers, getFollowing, searchUsers, followUser, unfollowUser,
   acceptFollower, blockFollower, unblockFollower, getBlockedUsers,
@@ -378,6 +381,10 @@ watch(showSearchModal, (open) => {
     nextTick(() => searchInputRef.value?.focus())
   }
 })
+
+async function handleRefresh() {
+  await loadData()
+}
 
 onMounted(() => {
   loadData()

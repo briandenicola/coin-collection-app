@@ -1,4 +1,5 @@
 <template>
+  <PullToRefresh :on-refresh="loadCoins">
   <div class="container">
     <div class="page-header">
       <h1><Clock :size="24" /> Collection Timeline</h1>
@@ -88,6 +89,7 @@
       </div>
     </div>
   </div>
+  </PullToRefresh>
 </template>
 
 <script setup lang="ts">
@@ -96,6 +98,7 @@ import { Clock, Image as ImageIcon } from 'lucide-vue-next'
 import { getCoins } from '@/api/client'
 import type { Coin } from '@/types'
 import { CATEGORY_COLORS } from '@/types'
+import PullToRefresh from '@/components/PullToRefresh.vue'
 
 const loading = ref(true)
 const allCoins = ref<Coin[]>([])
