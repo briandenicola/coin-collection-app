@@ -397,7 +397,7 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1.5rem;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 0.5rem;
 }
 
@@ -408,6 +408,7 @@ onMounted(() => {
   font-size: 1.4rem;
   margin: 0;
   flex: 1;
+  min-width: 0;
 }
 
 .followers-layout {
@@ -416,6 +417,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+  overflow-x: hidden;
 }
 
 /* Tabs */
@@ -481,6 +483,7 @@ onMounted(() => {
   flex-direction: column;
   gap: 0.75rem;
   padding: 1rem;
+  overflow: hidden;
 }
 
 .user-card-body {
@@ -507,6 +510,9 @@ onMounted(() => {
   font-weight: 600;
   font-size: 0.95rem;
   color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .user-bio {
@@ -740,6 +746,13 @@ onMounted(() => {
 
   .page-header h1 {
     font-size: 1.2rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .page-header {
+    flex-direction: row;
+    align-items: center;
   }
 }
 </style>
