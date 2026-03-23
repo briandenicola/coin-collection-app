@@ -390,6 +390,8 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 .page-header h1 {
@@ -397,6 +399,8 @@ onMounted(() => {
   align-items: center;
   gap: 0.5rem;
   font-size: 1.4rem;
+  margin: 0;
+  flex: 1;
 }
 
 .followers-layout {
@@ -461,7 +465,7 @@ onMounted(() => {
 /* User Grid */
 .user-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr));
   gap: 1rem;
 }
 

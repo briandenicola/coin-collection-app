@@ -296,7 +296,7 @@ const buildDate = computed(() => {
 
 const tabs = [
   { id: 'users', icon: 'users', label: 'Users' },
-  { id: 'ai', icon: 'cpu', label: 'AI Config' },
+  { id: 'ai', icon: 'cpu', label: 'AI' },
   { id: 'system', icon: 'wrench', label: 'System' },
   { id: 'logs', icon: 'scroll-text', label: 'Logs' },
 ]
