@@ -41,13 +41,6 @@
               </div>
             </div>
             <div class="pwa-menu-divider"></div>
-            <router-link to="/followers" class="pwa-menu-link" @click="menuOpen = false">
-              <UsersIcon :size="18" /> Followers
-            </router-link>
-            <router-link to="/settings?tab=process" class="pwa-menu-link" @click="menuOpen = false">
-              <Scissors :size="18" /> Process Image
-            </router-link>
-            <div class="pwa-menu-divider"></div>
             <button class="pwa-menu-link pwa-menu-logout" @click="handlePwaLogout">
               <LogOut :size="18" /> Log Out
             </button>
@@ -131,7 +124,7 @@ import CategoryFilter from '@/components/CategoryFilter.vue'
 import SearchBar from '@/components/SearchBar.vue'
 import SortSelect from '@/components/SortSelect.vue'
 
-import { Layers, LayoutGrid, CirclePlus, Menu, Users as UsersIcon, Scissors, LogOut } from 'lucide-vue-next'
+import { Layers, LayoutGrid, CirclePlus, Menu, LogOut } from 'lucide-vue-next'
 
 const store = useCoinsStore()
 const auth = useAuthStore()
