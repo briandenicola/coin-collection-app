@@ -27,14 +27,6 @@
           <Users :size="16" /> Followers
           <span v-if="followers.length" class="tab-count">{{ followers.length }}</span>
         </button>
-        <button
-          class="tab-btn"
-          :class="{ active: activeTab === 'blocked' }"
-          @click="activeTab = 'blocked'; loadBlocked()"
-        >
-          <ShieldOff :size="16" /> Blocked
-          <span v-if="blocked.length" class="tab-count">{{ blocked.length }}</span>
-        </button>
       </div>
 
       <!-- Loading -->
@@ -132,38 +124,6 @@
           </div>
         </div>
       </div>
-
-      <!-- Blocked Tab -->
-      <div v-else-if="activeTab === 'blocked'">
-        <div v-if="blocked.length === 0" class="empty-state">
-          <ShieldOff :size="48" />
-          <h3>No blocked users</h3>
-          <p>Blocked users cannot send you follow requests.</p>
-        </div>
-        <div v-else class="user-grid">
-          <div v-for="user in blocked" :key="user.id" class="user-card card">
-            <div class="user-card-body">
-              <img
-                :src="user.avatarPath ? `/uploads/${user.avatarPath}` : '/coin-logo.jpg'"
-                :alt="user.username"
-                class="user-avatar"
-              />
-              <div class="user-info">
-                <span class="user-name">{{ user.username }}</span>
-              </div>
-            </div>
-            <div class="user-card-actions">
-              <button
-                class="btn btn-secondary btn-sm"
-                :disabled="actionLoading === user.id"
-                @click="handleUnblock(user)"
-              >
-                Unblock
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
 
     <!-- Search Modal -->
@@ -240,17 +200,16 @@ import { Users, UserPlus, Search, X, Eye, Check, ShieldOff } from 'lucide-vue-ne
 import PullToRefresh from '@/components/PullToRefresh.vue'
 import {
   getFollowers, getFollowing, searchUsers, followUser, unfollowUser,
-  acceptFollower, blockFollower, unblockFollower, getBlockedUsers,
+  acceptFollower, blockFollower,
 } from '@/api/client'
 import type { FollowUser } from '@/types'
 
-const activeTab = ref<'following' | 'followers' | 'blocked'>('following')
+const activeTab = ref<'following' | 'followers'>('following')
 const loading = ref(true)
 const actionLoading = ref<number | null>(null)
 
 const following = ref<FollowUser[]>([])
 const followers = ref<FollowUser[]>([])
-const blocked = ref<{ id: number; username: string; avatarPath: string }[]>([])
 
 // Search modal
 const showSearchModal = ref(false)
@@ -277,15 +236,6 @@ async function loadData() {
     // silently handle – lists stay empty
   } finally {
     loading.value = false
-  }
-}
-
-async function loadBlocked() {
-  try {
-    const res = await getBlockedUsers()
-    blocked.value = res.data.blocked
-  } catch {
-    blocked.value = []
   }
 }
 
@@ -330,19 +280,6 @@ async function handleBlock(user: FollowUser) {
   try {
     await blockFollower(user.id)
     followers.value = followers.value.filter(u => u.id !== user.id)
-    blocked.value.push({ id: user.id, username: user.username, avatarPath: user.avatarPath })
-  } catch {
-    // ignore
-  } finally {
-    actionLoading.value = null
-  }
-}
-
-async function handleUnblock(user: { id: number; username: string; avatarPath: string }) {
-  actionLoading.value = user.id
-  try {
-    await unblockFollower(user.id)
-    blocked.value = blocked.value.filter(u => u.id !== user.id)
   } catch {
     // ignore
   } finally {

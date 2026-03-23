@@ -3,11 +3,32 @@
   <div class="container">
     <div class="page-header">
       <h1>Settings</h1>
+      <div v-if="isPwa" class="settings-menu-wrapper">
+        <button class="btn btn-secondary btn-sm settings-menu-btn" @click="settingsMenuOpen = !settingsMenuOpen">
+          <component :is="tabIcons[activeTab]" :size="16" />
+          {{ tabs.find(t => t.id === activeTab)?.label }}
+          <Menu :size="16" />
+        </button>
+        <Transition name="fade">
+          <div v-if="settingsMenuOpen" class="settings-dropdown">
+            <button
+              v-for="tab in tabs"
+              :key="tab.id"
+              class="settings-dropdown-item"
+              :class="{ active: activeTab === tab.id }"
+              @click="activeTab = tab.id; settingsMenuOpen = false"
+            >
+              <component :is="tabIcons[tab.id]" :size="16" />
+              {{ tab.label }}
+            </button>
+          </div>
+        </Transition>
+      </div>
     </div>
 
     <div class="settings-layout">
-      <!-- Tab Nav -->
-      <div class="tab-nav">
+      <!-- Tab Nav (desktop only) -->
+      <div v-if="!isPwa" class="tab-nav">
         <button
           v-for="tab in tabs"
           :key="tab.id"
@@ -147,6 +168,25 @@
           </div>
           <p v-else-if="!registeringCredential" class="setting-desc" style="margin-top: 0.5rem">No biometric credentials registered.</p>
         </template>
+
+        <h3>Blocked Users</h3>
+        <p class="setting-desc" style="margin-bottom: 0.75rem">
+          Blocked users cannot send you follow requests or view your collection.
+        </p>
+        <div v-if="blockedUsers.length" class="apikey-list">
+          <div v-for="user in blockedUsers" :key="user.id" class="apikey-item">
+            <div class="apikey-item-info" style="display: flex; align-items: center; gap: 0.5rem;">
+              <img
+                :src="user.avatarPath ? `/uploads/${user.avatarPath}` : '/coin-logo.jpg'"
+                :alt="user.username"
+                style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border-subtle);"
+              />
+              <span class="apikey-item-name">{{ user.username }}</span>
+            </div>
+            <button class="btn btn-secondary btn-sm" :disabled="blockedLoading" @click="handleUnblock(user)">Unblock</button>
+          </div>
+        </div>
+        <p v-else class="setting-desc" style="margin-top: 0.5rem">No blocked users.</p>
       </section>
 
       <!-- Appearance Tab -->
@@ -653,12 +693,13 @@ import {
   webauthnListCredentials, webauthnDeleteCredential,
   listConversations, getConversation, deleteConversation,
   uploadAvatar, deleteAvatar, updateProfile, getMe,
+  getBlockedUsers, unblockFollower,
 } from '@/api/client'
 import type { ConversationSummary } from '@/api/client'
 import type { Coin, Theme, ApiKey, WebAuthnCredentialInfo } from '@/types'
 import CoinSearchChat from '@/components/CoinSearchChat.vue'
 import ImageProcessor from '@/components/ImageProcessor.vue'
-import { User, Palette, Database, MessageSquare, HelpCircle, Scissors } from 'lucide-vue-next'
+import { User, Palette, Database, MessageSquare, HelpCircle, Scissors, Menu } from 'lucide-vue-next'
 
 const tabIcons: Record<string, Component> = {
   account: User,
@@ -678,6 +719,9 @@ const tabs = [
   { id: 'help', label: 'Help' },
 ]
 const activeTab = ref('account')
+const settingsMenuOpen = ref(false)
+const isPwa = window.matchMedia('(display-mode: standalone)').matches
+  || (window.navigator as any).standalone === true
 
 const route = useRoute()
 const router = useRouter()
@@ -691,6 +735,31 @@ if (route.query.tab && validTabs.includes(route.query.tab as string)) {
 
 function handleProcessSaved(savedCoinId: number) {
   router.push(`/edit/${savedCoinId}`)
+}
+
+// Blocked users
+const blockedUsers = ref<{ id: number; username: string; avatarPath: string }[]>([])
+const blockedLoading = ref(false)
+
+async function loadBlockedUsers() {
+  try {
+    const res = await getBlockedUsers()
+    blockedUsers.value = res.data.blocked
+  } catch {
+    blockedUsers.value = []
+  }
+}
+
+async function handleUnblock(user: { id: number; username: string; avatarPath: string }) {
+  blockedLoading.value = true
+  try {
+    await unblockFollower(user.id)
+    blockedUsers.value = blockedUsers.value.filter(u => u.id !== user.id)
+  } catch {
+    // ignore
+  } finally {
+    blockedLoading.value = false
+  }
 }
 
 // Avatar
@@ -1095,6 +1164,7 @@ async function handleRefresh() {
   await Promise.all([
     loadApiKeys(),
     loadConversations(),
+    loadBlockedUsers(),
     supportsWebAuthn ? loadCredentials() : Promise.resolve(),
   ])
 }
@@ -1102,6 +1172,7 @@ async function handleRefresh() {
 onMounted(() => {
   loadApiKeys()
   loadConversations()
+  loadBlockedUsers()
   if (supportsWebAuthn) loadCredentials()
 })
 </script>
@@ -1374,6 +1445,77 @@ onMounted(() => {
 
 .btn-danger:hover {
   background: #c0392b;
+}
+
+/* Settings hamburger menu (PWA) */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.settings-menu-wrapper {
+  position: relative;
+}
+
+.settings-menu-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+}
+
+.settings-dropdown {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  z-index: 50;
+  min-width: 180px;
+  padding: 0.3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.settings-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: left;
+  width: 100%;
+}
+
+.settings-dropdown-item.active {
+  background: var(--accent-gold-dim);
+  color: var(--accent-gold);
+}
+
+.settings-dropdown-item:hover:not(.active) {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.15s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 
 @media (max-width: 640px) {
