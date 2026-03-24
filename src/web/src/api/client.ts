@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Coin, CoinListResponse, CoinImage, AuthResponse, StatsResponse, UserInfo, AppSettings, LogEntry, ApiKey, WebAuthnCredentialInfo, ValueSnapshot, CoinJournal, NumistaSearchResponse, AgentChatMessage, AgentChatResponse, CoinSuggestion, FollowUser, PublicProfile, CoinComment, CoinRating, LimitedCoin } from '@/types'
+import type { Coin, CoinListResponse, CoinImage, AuthResponse, StatsResponse, UserInfo, AppSettings, LogEntry, ApiKey, WebAuthnCredentialInfo, ValueSnapshot, CoinJournal, NumistaSearchResponse, AgentChatMessage, AgentChatResponse, CoinSuggestion, FollowUser, PublicProfile, CoinComment, CoinRating, LimitedCoin, ValueEstimate } from '@/types'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
@@ -136,6 +136,12 @@ export const deleteJournalEntry = (coinId: number, entryId: number) =>
 
 // Numista
 export const searchNumista = (q: string) => api.get<NumistaSearchResponse>('/numista/search', { params: { q } })
+
+// Value Estimation
+export const estimateCoinValue = (coinId: number) =>
+  api.post<ValueEstimate>(`/coins/${coinId}/estimate-value`)
+
+export const getValuationPrompt = () => api.get<{ prompt: string; default: string }>('/agent/valuation-prompt')
 
 // Agent
 export const agentChat = (message: string, history: AgentChatMessage[] = []) =>

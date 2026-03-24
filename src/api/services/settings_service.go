@@ -17,6 +17,7 @@ const (
 	SettingAnthropicAPIKey     = "AnthropicAPIKey"
 	SettingAnthropicModel      = "AnthropicModel"
 	SettingAgentPrompt         = "AgentPrompt"
+	SettingValuationPrompt     = "ValuationPrompt"
 )
 
 const DefaultObversePrompt = `You are an expert numismatist specializing in ancient and modern coins. Analyze the obverse (front) of this coin and provide:
@@ -53,6 +54,7 @@ var settingDefaults = map[string]string{
 	SettingAnthropicAPIKey:     "",
 	SettingAnthropicModel:      "claude-sonnet-4-20250514",
 	SettingAgentPrompt:         "",
+	SettingValuationPrompt:     "",
 }
 
 func GetSetting(key string) string {

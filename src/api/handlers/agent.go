@@ -7,9 +7,12 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/briandenicola/ancient-coins-api/database"
+	"github.com/briandenicola/ancient-coins-api/models"
 	"github.com/briandenicola/ancient-coins-api/services"
 	"github.com/gin-gonic/gin"
 )
@@ -432,6 +435,25 @@ func (h *AgentHandler) GetPrompt(c *gin.Context) {
 	})
 }
 
+// GetValuationPrompt returns the current valuation prompt.
+//
+//	@Summary		Get valuation prompt
+//	@Tags			Agent
+//	@Produce		json
+//	@Success		200	{object}	object
+//	@Security		BearerAuth
+//	@Router			/agent/valuation-prompt [get]
+func (h *AgentHandler) GetValuationPrompt(c *gin.Context) {
+	prompt := services.GetSetting(services.SettingValuationPrompt)
+	if prompt == "" {
+		prompt = DefaultValuationPrompt
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"prompt":  prompt,
+		"default": DefaultValuationPrompt,
+	})
+}
+
 // extractSuggestions finds a JSON array inside ```json ... ``` markers
 func extractSuggestions(text string) []CoinSuggestion {
 	start := -1
@@ -489,4 +511,222 @@ func indexOf(s, substr string) int {
 		}
 	}
 	return -1
+}
+
+// Value estimation types
+
+type ValueComparable struct {
+	Source string `json:"source"`
+	Price  string `json:"price"`
+	URL    string `json:"url"`
+}
+
+type ValueEstimateResponse struct {
+	EstimatedValue float64           `json:"estimatedValue"`
+	Confidence     string            `json:"confidence"`
+	Reasoning      string            `json:"reasoning"`
+	Comparables    []ValueComparable `json:"comparables"`
+}
+
+const DefaultValuationPrompt = `You are an expert numismatist and coin appraiser. Your task is to estimate the current fair market value of a specific coin based on its attributes.
+
+Instructions:
+1. Use web_search to find CURRENT listings and RECENT sales of comparable coins from reputable dealers and auction houses.
+2. Focus on coins with similar: denomination, ruler, era, material, and grade/condition.
+3. Check multiple sources: VCoins, MA-Shops, CNG, Heritage Auctions, Biddr, ForumAncientCoins.
+4. Consider the grade/condition when comparing — a VF coin is worth less than an EF example.
+5. If the coin has a purchase price, note whether it appears to have appreciated or depreciated.
+
+Return your response as a JSON object (wrapped in ` + "```json" + ` and ` + "```" + ` markers) with these fields:
+- estimatedValue: number (your best estimate in USD, as a single number — not a range)
+- confidence: "high" (3+ comparable listings found), "medium" (1-2 comparables), or "low" (estimate based on general knowledge)
+- reasoning: string (2-3 sentences explaining your valuation methodology and what you found)
+- comparables: array of objects with { "source": "dealer/site name", "price": "$X" or "$X-Y", "url": "listing URL" }
+
+Example:
+` + "```json" + `
+{
+  "estimatedValue": 275,
+  "confidence": "high",
+  "reasoning": "Based on 4 current listings of Augustus denarii in similar VF condition, the market range is $250-300. Your coin's grade and strike quality place it at the mid-range.",
+  "comparables": [
+    { "source": "VCoins - Example Dealer", "price": "$285", "url": "https://www.vcoins.com/..." },
+    { "source": "MA-Shops", "price": "$250", "url": "https://www.ma-shops.com/..." }
+  ]
+}
+` + "```" + `
+
+Only include real listings from your search. Do not fabricate URLs or prices.`
+
+func (h *AgentHandler) getValuationPrompt() string {
+	prompt := services.GetSetting(services.SettingValuationPrompt)
+	if prompt == "" {
+		return DefaultValuationPrompt
+	}
+	return prompt
+}
+
+// EstimateValue estimates the current market value of a coin using AI with web search.
+func (h *AgentHandler) EstimateValue(c *gin.Context) {
+	logger := services.AppLogger
+
+	apiKey := services.GetSetting(services.SettingAnthropicAPIKey)
+	if apiKey == "" {
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"error": "Anthropic API key not configured. Set it in Admin → Settings → AI.",
+		})
+		return
+	}
+
+	coinID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid coin ID"})
+		return
+	}
+
+	userID := c.GetUint("userId")
+	var coin models.Coin
+	if err := database.DB.Where("id = ? AND user_id = ?", coinID, userID).First(&coin).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Coin not found"})
+		return
+	}
+
+	// Build description of the coin for the AI
+	parts := []string{}
+	if coin.Name != "" {
+		parts = append(parts, fmt.Sprintf("Name: %s", coin.Name))
+	}
+	if coin.Category != "" {
+		parts = append(parts, fmt.Sprintf("Category: %s", string(coin.Category)))
+	}
+	if coin.Denomination != "" {
+		parts = append(parts, fmt.Sprintf("Denomination: %s", coin.Denomination))
+	}
+	if coin.Ruler != "" {
+		parts = append(parts, fmt.Sprintf("Ruler: %s", coin.Ruler))
+	}
+	if coin.Era != "" {
+		parts = append(parts, fmt.Sprintf("Era: %s", coin.Era))
+	}
+	if coin.Material != "" {
+		parts = append(parts, fmt.Sprintf("Material: %s", string(coin.Material)))
+	}
+	if coin.Grade != "" {
+		parts = append(parts, fmt.Sprintf("Grade/Condition: %s", coin.Grade))
+	}
+	if coin.WeightGrams != nil {
+		parts = append(parts, fmt.Sprintf("Weight: %.2fg", *coin.WeightGrams))
+	}
+	if coin.DiameterMm != nil {
+		parts = append(parts, fmt.Sprintf("Diameter: %.1fmm", *coin.DiameterMm))
+	}
+	if coin.RarityRating != "" {
+		parts = append(parts, fmt.Sprintf("Rarity/RIC: %s", coin.RarityRating))
+	}
+	if coin.Mint != "" {
+		parts = append(parts, fmt.Sprintf("Mint: %s", coin.Mint))
+	}
+	if coin.PurchasePrice != nil {
+		parts = append(parts, fmt.Sprintf("Purchase Price: $%.2f", *coin.PurchasePrice))
+	}
+
+	userMessage := fmt.Sprintf("Please estimate the current market value of this coin:\n\n%s", strings.Join(parts, "\n"))
+
+	model := services.GetSetting(services.SettingAnthropicModel)
+	if model == "" {
+		model = "claude-sonnet-4-20250514"
+	}
+
+	anthropicReq := anthropicRequest{
+		Model:     model,
+		MaxTokens: 4096,
+		Stream:    false,
+		System:    h.getValuationPrompt(),
+		Tools: []anthropicTool{
+			{
+				Type:    "web_search_20250305",
+				Name:    "web_search",
+				MaxUses: 10,
+			},
+		},
+		Messages: []anthropicMessage{
+			{Role: "user", Content: userMessage},
+		},
+	}
+
+	body, err := json.Marshal(anthropicReq)
+	if err != nil {
+		logger.Error("agent", "Failed to marshal estimate request: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to build request"})
+		return
+	}
+
+	httpReq, err := http.NewRequest("POST", "https://api.anthropic.com/v1/messages", bytes.NewReader(body))
+	if err != nil {
+		logger.Error("agent", "Failed to create estimate HTTP request: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create request"})
+		return
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("x-api-key", apiKey)
+	httpReq.Header.Set("anthropic-version", "2023-06-01")
+
+	resp, err := h.client.Do(httpReq)
+	if err != nil {
+		logger.Error("agent", "Anthropic estimate API call failed: %v", err)
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Failed to reach Anthropic API"})
+		return
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(resp.Body)
+
+	if resp.StatusCode != http.StatusOK {
+		logger.Error("agent", "Anthropic estimate API returned %d: %s", resp.StatusCode, string(respBody))
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"error": fmt.Sprintf("Anthropic API error (HTTP %d)", resp.StatusCode),
+		})
+		return
+	}
+
+	var apiResp anthropicResponse
+	if err := json.Unmarshal(respBody, &apiResp); err != nil {
+		logger.Error("agent", "Failed to parse estimate response: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse AI response"})
+		return
+	}
+
+	// Extract text content from response
+	var fullText string
+	for _, block := range apiResp.Content {
+		if block.Type == "text" {
+			fullText += block.Text
+		}
+	}
+
+	// Parse the JSON estimate from the response
+	var estimate ValueEstimateResponse
+	parsed := false
+	jsonStart := indexOf(fullText, "```json")
+	if jsonStart != -1 {
+		start := jsonStart + len("```json")
+		remaining := fullText[start:]
+		jsonEnd := indexOf(remaining, "```")
+		if jsonEnd != -1 {
+			jsonStr := remaining[:jsonEnd]
+			if err := json.Unmarshal([]byte(jsonStr), &estimate); err != nil {
+				logger.Error("agent", "Failed to parse estimate JSON: %v — raw: %s", err, jsonStr)
+			} else {
+				parsed = true
+			}
+		}
+	}
+
+	// Fallback if JSON parsing failed — return raw text as reasoning
+	if !parsed {
+		estimate.Reasoning = fullText
+		estimate.Confidence = "low"
+	}
+
+	c.JSON(http.StatusOK, estimate)
 }

@@ -139,6 +139,49 @@
             </div>
           </div>
 
+          <div class="estimate-section">
+            <div class="estimate-header">
+              <h3>AI Value Estimate</h3>
+              <button
+                class="btn btn-secondary btn-sm"
+                :disabled="estimating"
+                @click="handleEstimateValue"
+              >
+                {{ estimating ? 'Researching...' : 'Estimate Value' }}
+              </button>
+            </div>
+            <div v-if="estimating" class="estimate-loading">
+              <div class="spinner" />
+              <span>Researching current market value...</span>
+            </div>
+            <div v-if="estimateError" class="estimate-error">{{ estimateError }}</div>
+            <div v-if="valueEstimate" class="estimate-result">
+              <div class="estimate-value-row">
+                <span class="estimate-value">{{ valueEstimate.estimatedValue ? formatCurrency(valueEstimate.estimatedValue) : 'N/A' }}</span>
+                <span :class="['confidence-badge', `confidence-${valueEstimate.confidence}`]">
+                  {{ valueEstimate.confidence }} confidence
+                </span>
+              </div>
+              <p class="estimate-reasoning">{{ valueEstimate.reasoning }}</p>
+              <div v-if="valueEstimate.comparables?.length" class="estimate-comparables">
+                <h4>Comparable Listings</h4>
+                <div v-for="(comp, i) in valueEstimate.comparables" :key="i" class="comparable-item">
+                  <a v-if="comp.url" :href="comp.url" target="_blank" rel="noopener" class="comparable-source">{{ comp.source }}</a>
+                  <span v-else class="comparable-source">{{ comp.source }}</span>
+                  <span class="comparable-price">{{ comp.price }}</span>
+                </div>
+              </div>
+              <div class="estimate-actions">
+                <button class="btn btn-primary btn-sm" @click="applyEstimate">
+                  Apply as Current Value
+                </button>
+                <button class="btn btn-ghost btn-sm" @click="valueEstimate = null">
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          </div>
+
           <div class="numista-section">
             <div class="numista-header">
               <h3>Numista Lookup</h3>
@@ -273,9 +316,9 @@ import { useRoute, useRouter } from 'vue-router'
 import { useCoinsStore } from '@/stores/coins'
 import ImageGallery from '@/components/ImageGallery.vue'
 import SellModal from '@/components/SellModal.vue'
-import { uploadImage, proxyImage, analyzeCoin, deleteAnalysis, deleteCoin, deleteImage, purchaseCoin, sellCoin, getOllamaStatus, getJournalEntries, addJournalEntry, deleteJournalEntry, searchNumista } from '@/api/client'
+import { uploadImage, proxyImage, analyzeCoin, deleteAnalysis, deleteCoin, deleteImage, purchaseCoin, sellCoin, getOllamaStatus, getJournalEntries, addJournalEntry, deleteJournalEntry, searchNumista, estimateCoinValue, updateCoin } from '@/api/client'
 import { removeBackground as removeBg } from '@imgly/background-removal'
-import type { CoinImage, CoinJournal, NumistaType } from '@/types'
+import type { CoinImage, CoinJournal, NumistaType, ValueEstimate } from '@/types'
 import MarkdownIt from 'markdown-it'
 import DOMPurify from 'dompurify'
 import { Camera } from 'lucide-vue-next'
@@ -306,6 +349,11 @@ const journalInput = ref('')
 const numistaResults = ref<NumistaType[]>([])
 const numistaSearching = ref(false)
 const numistaError = ref('')
+
+// Value Estimation
+const estimating = ref(false)
+const valueEstimate = ref<ValueEstimate | null>(null)
+const estimateError = ref('')
 
 const md = new MarkdownIt({ html: false })
 
@@ -528,6 +576,37 @@ async function handleDeleteAnalysis(side: 'obverse' | 'reverse') {
   }
 }
 
+async function handleEstimateValue() {
+  if (!coin.value) return
+  estimating.value = true
+  estimateError.value = ''
+  valueEstimate.value = null
+  try {
+    const res = await estimateCoinValue(coin.value.id)
+    const data = res.data
+    if (!data || (!data.estimatedValue && !data.reasoning)) {
+      estimateError.value = 'No estimate returned from AI'
+      return
+    }
+    valueEstimate.value = data
+  } catch (err: any) {
+    estimateError.value = err.response?.data?.error || 'Failed to estimate value'
+  } finally {
+    estimating.value = false
+  }
+}
+
+async function applyEstimate() {
+  if (!coin.value || !valueEstimate.value) return
+  try {
+    await updateCoin(coin.value.id, { currentValue: valueEstimate.value.estimatedValue })
+    await store.fetchCoin(coin.value.id)
+    valueEstimate.value = null
+  } catch {
+    alert('Failed to update coin value')
+  }
+}
+
 function formatCurrency(value: number) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value)
 }
@@ -733,6 +812,149 @@ function formatCurrency(value: number) {
   font-size: 0.85rem;
   color: var(--text-muted);
   font-style: italic;
+}
+
+/* AI Value Estimate */
+.estimate-section {
+  margin-bottom: 1.5rem;
+}
+
+.estimate-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.estimate-header h3 {
+  margin: 0;
+}
+
+.estimate-loading {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  color: var(--text-secondary);
+}
+
+.estimate-loading .spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border-subtle);
+  border-top-color: var(--accent-gold);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.estimate-error {
+  color: #e74c3c;
+  padding: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.estimate-result {
+  padding: 1rem;
+  background: var(--bg-card);
+  border: 1px solid var(--accent-gold-dim, var(--border-subtle));
+  border-radius: 8px;
+}
+
+.estimate-value-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.estimate-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--accent-gold);
+}
+
+.confidence-badge {
+  font-size: 0.75rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 12px;
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.confidence-high {
+  background: rgba(46, 204, 113, 0.15);
+  color: #2ecc71;
+}
+
+.confidence-medium {
+  background: rgba(241, 196, 15, 0.15);
+  color: #f1c40f;
+}
+
+.confidence-low {
+  background: rgba(231, 76, 60, 0.15);
+  color: #e74c3c;
+}
+
+.estimate-reasoning {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  margin-bottom: 0.75rem;
+}
+
+.estimate-comparables {
+  margin-bottom: 0.75rem;
+}
+
+.estimate-comparables h4 {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin: 0 0 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.comparable-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.comparable-item:last-child {
+  border-bottom: none;
+}
+
+.comparable-source {
+  color: var(--accent-gold);
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+
+.comparable-source:hover {
+  text-decoration: underline;
+}
+
+.comparable-price {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+}
+
+.estimate-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
 }
 
 /* Numista */
