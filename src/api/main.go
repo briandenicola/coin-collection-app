@@ -168,8 +168,10 @@ func main() {
 
 		agentHandler := handlers.NewAgentHandler()
 		protected.POST("/agent/chat", agentHandler.ChatStream)
+		protected.POST("/coins/:id/estimate-value", agentHandler.EstimateValue)
 		protected.GET("/agent/models", agentHandler.ListModels)
 		protected.GET("/agent/prompt", agentHandler.GetPrompt)
+		protected.GET("/agent/valuation-prompt", agentHandler.GetValuationPrompt)
 
 		convHandler := handlers.NewConversationHandler()
 		protected.GET("/agent/conversations", convHandler.List)
