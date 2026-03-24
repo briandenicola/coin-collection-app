@@ -157,7 +157,7 @@
             <div v-if="estimateError" class="estimate-error">{{ estimateError }}</div>
             <div v-if="valueEstimate" class="estimate-result">
               <div class="estimate-value-row">
-                <span class="estimate-value">{{ formatCurrency(valueEstimate.estimatedValue) }}</span>
+                <span class="estimate-value">{{ valueEstimate.estimatedValue ? formatCurrency(valueEstimate.estimatedValue) : 'N/A' }}</span>
                 <span :class="['confidence-badge', `confidence-${valueEstimate.confidence}`]">
                   {{ valueEstimate.confidence }} confidence
                 </span>
@@ -583,7 +583,12 @@ async function handleEstimateValue() {
   valueEstimate.value = null
   try {
     const res = await estimateCoinValue(coin.value.id)
-    valueEstimate.value = res.data
+    const data = res.data
+    if (!data || (!data.estimatedValue && !data.reasoning)) {
+      estimateError.value = 'No estimate returned from AI'
+      return
+    }
+    valueEstimate.value = data
   } catch (err: any) {
     estimateError.value = err.response?.data?.error || 'Failed to estimate value'
   } finally {

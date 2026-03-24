@@ -706,6 +706,7 @@ func (h *AgentHandler) EstimateValue(c *gin.Context) {
 
 	// Parse the JSON estimate from the response
 	var estimate ValueEstimateResponse
+	parsed := false
 	jsonStart := indexOf(fullText, "```json")
 	if jsonStart != -1 {
 		start := jsonStart + len("```json")
@@ -715,12 +716,14 @@ func (h *AgentHandler) EstimateValue(c *gin.Context) {
 			jsonStr := remaining[:jsonEnd]
 			if err := json.Unmarshal([]byte(jsonStr), &estimate); err != nil {
 				logger.Error("agent", "Failed to parse estimate JSON: %v — raw: %s", err, jsonStr)
+			} else {
+				parsed = true
 			}
 		}
 	}
 
-	// Fallback if parsing failed
-	if estimate.EstimatedValue == 0 && estimate.Reasoning == "" {
+	// Fallback if JSON parsing failed — return raw text as reasoning
+	if !parsed {
 		estimate.Reasoning = fullText
 		estimate.Confidence = "low"
 	}
