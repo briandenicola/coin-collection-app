@@ -165,6 +165,19 @@ export interface AppSettings {
   [key: string]: string
 }
 
+export interface ValueComparable {
+  source: string
+  price: string
+  url: string
+}
+
+export interface ValueEstimate {
+  estimatedValue: number
+  confidence: 'high' | 'medium' | 'low'
+  reasoning: string
+  comparables: ValueComparable[]
+}
+
 export type Theme = 'dark' | 'light'
 
 export const LOG_LEVELS = ['trace', 'debug', 'info', 'warn', 'error'] as const

@@ -111,6 +111,23 @@
           </div>
           <div class="form-group">
             <div class="prompt-header">
+              <label class="form-label">Value Estimator Prompt</label>
+              <button
+                type="button"
+                class="btn btn-ghost btn-xs"
+                :disabled="settings.ValuationPrompt === valuationPromptDefault"
+                @click="settings.ValuationPrompt = valuationPromptDefault"
+              >Revert to Default</button>
+            </div>
+            <textarea
+              v-model="settings.ValuationPrompt"
+              class="form-textarea"
+              rows="8"
+            />
+            <span class="form-hint">System prompt for the AI value estimator. Controls how it researches and estimates coin values.</span>
+          </div>
+          <div class="form-group">
+            <div class="prompt-header">
               <label class="form-label">Obverse Analysis Prompt</label>
               <button
                 type="button"
@@ -268,7 +285,7 @@ import { useAuthStore } from '@/stores/auth'
 import {
   getUsers, deleteUser, resetUserPassword,
   getAppSettings, getAppSettingDefaults, updateAppSettings, getAdminLogs, getOllamaStatus,
-  getAnthropicModels, getAgentPrompt,
+  getAnthropicModels, getAgentPrompt, getValuationPrompt,
 } from '@/api/client'
 import type { AnthropicModel } from '@/api/client'
 import { LOG_LEVELS } from '@/types'
@@ -387,6 +404,7 @@ const anthropicModels = ref<AnthropicModel[]>([
   { id: 'claude-opus-4-20250514', name: 'Claude Opus 4' },
 ])
 const agentPromptDefault = ref('')
+const valuationPromptDefault = ref('')
 
 async function loadSettings() {
   try {
@@ -397,10 +415,11 @@ async function loadSettings() {
     settingDefaults.value = { ...settingDefaults.value, ...defaultsRes.data }
     settings.value = { ...settings.value, ...settingsRes.data }
 
-    // Load Anthropic models and agent prompt in parallel
-    const [modelsRes, promptRes] = await Promise.all([
+    // Load Anthropic models and prompts in parallel
+    const [modelsRes, promptRes, valPromptRes] = await Promise.all([
       getAnthropicModels().catch(() => null),
       getAgentPrompt().catch(() => null),
+      getValuationPrompt().catch(() => null),
     ])
 
     if (modelsRes?.data?.length) {
@@ -411,6 +430,13 @@ async function loadSettings() {
       agentPromptDefault.value = promptRes.data.default
       if (!settings.value.AgentPrompt) {
         settings.value.AgentPrompt = promptRes.data.prompt
+      }
+    }
+
+    if (valPromptRes?.data) {
+      valuationPromptDefault.value = valPromptRes.data.default
+      if (!settings.value.ValuationPrompt) {
+        settings.value.ValuationPrompt = valPromptRes.data.prompt
       }
     }
   } catch { /* use defaults */ }
