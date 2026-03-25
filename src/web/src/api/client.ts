@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Coin, CoinListResponse, CoinImage, AuthResponse, StatsResponse, UserInfo, AppSettings, LogEntry, ApiKey, WebAuthnCredentialInfo, ValueSnapshot, CoinJournal, NumistaSearchResponse, AgentChatMessage, AgentChatResponse, CoinSuggestion, FollowUser, PublicProfile, CoinComment, CoinRating, LimitedCoin, ValueEstimate } from '@/types'
+import type { Coin, CoinListResponse, CoinImage, AuthResponse, StatsResponse, UserInfo, AppSettings, LogEntry, ApiKey, WebAuthnCredentialInfo, ValueSnapshot, CoinJournal, NumistaSearchResponse, AgentChatMessage, AgentChatResponse, CoinSuggestion, FollowUser, PublicProfile, CoinComment, CoinRating, LimitedCoin, ValueEstimate, CoinValueHistory, PortfolioSummary } from '@/types'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
@@ -141,7 +141,12 @@ export const searchNumista = (q: string) => api.get<NumistaSearchResponse>('/num
 export const estimateCoinValue = (coinId: number) =>
   api.post<ValueEstimate>(`/coins/${coinId}/estimate-value`)
 
+export const getCoinValueHistory = (coinId: number) =>
+  api.get<CoinValueHistory[]>(`/coins/${coinId}/value-history`)
+
 export const getValuationPrompt = () => api.get<{ prompt: string; default: string }>('/agent/valuation-prompt')
+
+export const getPortfolioSummary = () => api.get<PortfolioSummary>('/agent/portfolio-summary')
 
 // Agent
 export const agentChat = (message: string, history: AgentChatMessage[] = []) =>
