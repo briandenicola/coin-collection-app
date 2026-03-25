@@ -30,6 +30,30 @@
         </div>
       </div>
 
+      <!-- Value Summary -->
+      <div class="stats-section card">
+        <h2>Value Summary</h2>
+        <div class="value-stats">
+          <div class="value-stat">
+            <span class="value-stat-label">Average Purchase Price</span>
+            <span class="value-stat-amount">{{ formatCurrency(stats.values.avgPurchasePrice) }}</span>
+          </div>
+          <div class="value-stat">
+            <span class="value-stat-label">Average Current Value</span>
+            <span class="value-stat-amount gold">{{ formatCurrency(stats.values.avgCurrentValue) }}</span>
+          </div>
+          <div class="value-stat" v-if="stats.values.totalCurrentValue && stats.values.totalPurchasePrice">
+            <span class="value-stat-label">Return on Investment</span>
+            <span
+              class="value-stat-amount"
+              :class="roi >= 0 ? 'positive' : 'negative'"
+            >
+              {{ roi >= 0 ? '+' : '' }}{{ roi.toFixed(1) }}%
+            </span>
+          </div>
+        </div>
+      </div>
+
       <!-- Category Breakdown -->
       <div class="stats-section card">
         <h2>By Category</h2>
@@ -223,29 +247,6 @@
         </p>
       </div>
 
-      <!-- Value Summary -->
-      <div class="stats-section card">
-        <h2>Value Summary</h2>
-        <div class="value-stats">
-          <div class="value-stat">
-            <span class="value-stat-label">Average Purchase Price</span>
-            <span class="value-stat-amount">{{ formatCurrency(stats.values.avgPurchasePrice) }}</span>
-          </div>
-          <div class="value-stat">
-            <span class="value-stat-label">Average Current Value</span>
-            <span class="value-stat-amount gold">{{ formatCurrency(stats.values.avgCurrentValue) }}</span>
-          </div>
-          <div class="value-stat" v-if="stats.values.totalCurrentValue && stats.values.totalPurchasePrice">
-            <span class="value-stat-label">Return on Investment</span>
-            <span
-              class="value-stat-amount"
-              :class="roi >= 0 ? 'positive' : 'negative'"
-            >
-              {{ roi >= 0 ? '+' : '' }}{{ roi.toFixed(1) }}%
-            </span>
-          </div>
-        </div>
-      </div>
     </div>
   </div>
   </PullToRefresh>
