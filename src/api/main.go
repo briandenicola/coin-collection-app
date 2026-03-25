@@ -108,7 +108,8 @@ func main() {
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// Auth routes (public) — rate limited to prevent brute force
-	authHandler := handlers.NewAuthHandler(cfg.JWTSecret)
+	authRepo := repository.NewAuthRepository(database.DB)
+	authHandler := handlers.NewAuthHandler(cfg.JWTSecret, authRepo)
 	webauthnHandler, err := handlers.NewWebAuthnHandler(cfg.WebAuthnID, cfg.WebAuthnOrigin, authHandler)
 	if err != nil {
 		log.Fatalf("Failed to initialize WebAuthn: %v", err)
@@ -143,7 +144,8 @@ func main() {
 		protected.POST("/coins/:id/sell", coinHandler.Sell)
 		protected.DELETE("/coins/:id", coinHandler.Delete)
 
-		journalHandler := handlers.NewJournalHandler()
+		journalRepo := repository.NewJournalRepository(database.DB)
+		journalHandler := handlers.NewJournalHandler(journalRepo)
 		protected.GET("/coins/:id/journal", journalHandler.ListEntries)
 		protected.POST("/coins/:id/journal", journalHandler.AddEntry)
 		protected.DELETE("/coins/:id/journal/:entryId", journalHandler.DeleteEntry)
@@ -153,7 +155,8 @@ func main() {
 		protected.GET("/coins/:id/value-history", coinHandler.CoinValueHistory)
 		protected.GET("/suggestions", coinHandler.Suggestions)
 
-		imageHandler := handlers.NewImageHandler(cfg.UploadDir)
+		imageRepo := repository.NewImageRepository(database.DB)
+		imageHandler := handlers.NewImageHandler(cfg.UploadDir, imageRepo)
 		protected.POST("/coins/:id/images", imageHandler.Upload)
 		protected.POST("/coins/:id/images/base64", imageHandler.UploadBase64)
 		protected.DELETE("/coins/:id/images/:imageId", imageHandler.Delete)
@@ -177,14 +180,16 @@ func main() {
 		protected.GET("/agent/valuation-prompt", agentHandler.GetValuationPrompt)
 		protected.GET("/agent/portfolio-summary", agentHandler.PortfolioSummary)
 
-		convHandler := handlers.NewConversationHandler()
+		conversationRepo := repository.NewConversationRepository(database.DB)
+		convHandler := handlers.NewConversationHandler(conversationRepo)
 		protected.GET("/agent/conversations", convHandler.List)
 		protected.GET("/agent/conversations/:id", convHandler.Get)
 		protected.POST("/agent/conversations", convHandler.Save)
 		protected.DELETE("/agent/conversations/:id", convHandler.Delete)
 
 		// User self-service routes
-		userHandler := handlers.NewUserHandler(cfg.UploadDir)
+		userRepo := repository.NewUserRepository(database.DB)
+		userHandler := handlers.NewUserHandler(cfg.UploadDir, userRepo)
 		protected.GET("/auth/me", userHandler.GetMe)
 		protected.POST("/auth/change-password", userHandler.ChangePassword)
 		protected.PUT("/user/profile", userHandler.UpdateProfile)

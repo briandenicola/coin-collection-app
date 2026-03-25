@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/briandenicola/ancient-coins-api/database"
 	"github.com/briandenicola/ancient-coins-api/models"
+	"github.com/briandenicola/ancient-coins-api/repository"
 	"github.com/briandenicola/ancient-coins-api/services"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/net/html"
@@ -20,10 +20,11 @@ import (
 
 type ImageHandler struct {
 	UploadDir string
+	repo      *repository.ImageRepository
 }
 
-func NewImageHandler(uploadDir string) *ImageHandler {
-	return &ImageHandler{UploadDir: uploadDir}
+func NewImageHandler(uploadDir string, repo *repository.ImageRepository) *ImageHandler {
+	return &ImageHandler{UploadDir: uploadDir, repo: repo}
 }
 
 // Upload adds an image to a coin.
@@ -56,8 +57,7 @@ func (h *ImageHandler) Upload(c *gin.Context) {
 	logger.Debug("images", "Upload request for coin %d (user %d)", coinID, userID)
 
 	// Verify ownership
-	var coin models.Coin
-	if err := database.DB.Where("id = ? AND user_id = ?", coinID, userID).First(&coin).Error; err != nil {
+	if _, err := h.repo.FindCoinByOwner(uint(coinID), userID); err != nil {
 		logger.Warn("images", "Coin %d not found for user %d", coinID, userID)
 		c.JSON(http.StatusNotFound, gin.H{"error": "Coin not found"})
 		return
@@ -102,7 +102,7 @@ func (h *ImageHandler) Upload(c *gin.Context) {
 
 	// If this is primary, unset other primary images
 	if isPrimary {
-		database.DB.Model(&models.CoinImage{}).Where("coin_id = ?", coinID).Update("is_primary", false)
+		h.repo.ClearPrimary(uint(coinID))
 	}
 
 	image := models.CoinImage{
@@ -112,7 +112,7 @@ func (h *ImageHandler) Upload(c *gin.Context) {
 		IsPrimary: isPrimary,
 	}
 
-	if err := database.DB.Create(&image).Error; err != nil {
+	if err := h.repo.CreateImage(&image); err != nil {
 		logger.Error("images", "Failed to save image record: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save image record"})
 		return
@@ -173,8 +173,7 @@ func (h *ImageHandler) UploadBase64(c *gin.Context) {
 	}
 
 	// Verify ownership
-	var coin models.Coin
-	if err := database.DB.Where("id = ? AND user_id = ?", coinID, userID).First(&coin).Error; err != nil {
+	if _, err := h.repo.FindCoinByOwner(uint(coinID), userID); err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Coin not found"})
 		return
 	}
@@ -217,7 +216,7 @@ func (h *ImageHandler) UploadBase64(c *gin.Context) {
 	}
 
 	if req.IsPrimary {
-		database.DB.Model(&models.CoinImage{}).Where("coin_id = ?", coinID).Update("is_primary", false)
+		h.repo.ClearPrimary(uint(coinID))
 	}
 
 	image := models.CoinImage{
@@ -227,7 +226,7 @@ func (h *ImageHandler) UploadBase64(c *gin.Context) {
 		IsPrimary: req.IsPrimary,
 	}
 
-	if err := database.DB.Create(&image).Error; err != nil {
+	if err := h.repo.CreateImage(&image); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save image record"})
 		return
 	}
@@ -264,14 +263,13 @@ func (h *ImageHandler) Delete(c *gin.Context) {
 	}
 
 	// Verify ownership
-	var coin models.Coin
-	if err := database.DB.Where("id = ? AND user_id = ?", coinID, userID).First(&coin).Error; err != nil {
+	if _, err := h.repo.FindCoinByOwner(uint(coinID), userID); err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Coin not found"})
 		return
 	}
 
-	var image models.CoinImage
-	if err := database.DB.Where("id = ? AND coin_id = ?", imageID, coinID).First(&image).Error; err != nil {
+	image, err := h.repo.FindImage(uint(imageID), uint(coinID))
+	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Image not found"})
 		return
 	}
@@ -279,7 +277,7 @@ func (h *ImageHandler) Delete(c *gin.Context) {
 	// Delete file from disk
 	os.Remove(filepath.Join(h.UploadDir, image.FilePath))
 
-	database.DB.Delete(&image)
+	h.repo.DeleteImage(image)
 	c.JSON(http.StatusOK, gin.H{"message": "Image deleted"})
 }
 

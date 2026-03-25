@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/briandenicola/ancient-coins-api/database"
 	"github.com/briandenicola/ancient-coins-api/models"
+	"github.com/briandenicola/ancient-coins-api/repository"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
@@ -21,6 +21,7 @@ const (
 
 type AuthHandler struct {
 	JWTSecret string
+	repo      *repository.AuthRepository
 }
 
 type loginRequest struct {
@@ -38,8 +39,8 @@ type refreshRequest struct {
 	RefreshToken string `json:"refreshToken" binding:"required"`
 }
 
-func NewAuthHandler(jwtSecret string) *AuthHandler {
-	return &AuthHandler{JWTSecret: jwtSecret}
+func NewAuthHandler(jwtSecret string, repo *repository.AuthRepository) *AuthHandler {
+	return &AuthHandler{JWTSecret: jwtSecret, repo: repo}
 }
 
 // Register creates a new user account. The first user registered becomes an admin.
@@ -69,8 +70,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	}
 
 	// First user becomes admin
-	var count int64
-	database.DB.Model(&models.User{}).Count(&count)
+	count := h.repo.CountUsers()
 	role := models.RoleUser
 	if count == 0 {
 		role = models.RoleAdmin
@@ -83,7 +83,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		Role:         role,
 	}
 
-	if err := database.DB.Create(&user).Error; err != nil {
+	if err := h.repo.CreateUser(&user); err != nil {
 		c.JSON(http.StatusConflict, gin.H{"error": "Username already exists"})
 		return
 	}
@@ -112,10 +112,12 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 
 	var user models.User
-	if err := database.DB.Where("username = ?", req.Username).First(&user).Error; err != nil {
+	found, err := h.repo.FindUserByUsername(req.Username)
+	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 		return
 	}
+	user = *found
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
@@ -149,8 +151,8 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 	hash := sha256.Sum256([]byte(req.RefreshToken))
 	tokenHash := hex.EncodeToString(hash[:])
 
-	var rt models.RefreshToken
-	if err := database.DB.Where("token_hash = ? AND revoked_at IS NULL", tokenHash).First(&rt).Error; err != nil {
+	rt, err := h.repo.FindRefreshToken(tokenHash)
+	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid refresh token"})
 		return
 	}
@@ -162,15 +164,16 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 	}
 
 	// Revoke the old refresh token
-	now := time.Now()
-	database.DB.Model(&rt).Update("revoked_at", &now)
+	h.repo.RevokeRefreshToken(rt)
 
 	// Look up user
 	var user models.User
-	if err := database.DB.First(&user, rt.UserID).Error; err != nil {
+	found2, err := h.repo.FindUserByID(rt.UserID)
+	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
 		return
 	}
+	user = *found2
 
 	h.issueTokens(c, user, http.StatusOK)
 }
@@ -233,7 +236,7 @@ func (h *AuthHandler) generateRefreshToken(user models.User) (string, error) {
 		TokenHash: tokenHash,
 		ExpiresAt: time.Now().Add(refreshTokenDuration),
 	}
-	if err := database.DB.Create(&rt).Error; err != nil {
+	if err := h.repo.CreateRefreshToken(&rt); err != nil {
 		return "", err
 	}
 
@@ -249,7 +252,6 @@ func (h *AuthHandler) generateRefreshToken(user models.User) (string, error) {
 //	@Success		200	{object}	SetupResponse
 //	@Router			/auth/setup [get]
 func (h *AuthHandler) NeedsSetup(c *gin.Context) {
-	var count int64
-	database.DB.Model(&models.User{}).Count(&count)
+	count := h.repo.CountUsers()
 	c.JSON(http.StatusOK, gin.H{"needsSetup": count == 0})
 }
