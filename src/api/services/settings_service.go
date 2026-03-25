@@ -1,8 +1,8 @@
 package services
 
 import (
-	"github.com/briandenicola/ancient-coins-api/database"
 	"github.com/briandenicola/ancient-coins-api/models"
+	"gorm.io/gorm"
 )
 
 const (
@@ -57,9 +57,17 @@ var settingDefaults = map[string]string{
 	SettingValuationPrompt:     "",
 }
 
+var settingsDB *gorm.DB
+
+// InitSettings sets the database connection used by the settings service.
+// Must be called before any GetSetting/SetSetting calls.
+func InitSettings(db *gorm.DB) {
+	settingsDB = db
+}
+
 func GetSetting(key string) string {
 	var setting models.AppSetting
-	if err := database.DB.Where("key = ?", key).First(&setting).Error; err != nil {
+	if err := settingsDB.Where("key = ?", key).First(&setting).Error; err != nil {
 		if def, ok := settingDefaults[key]; ok {
 			return def
 		}
@@ -76,13 +84,13 @@ func GetSetting(key string) string {
 
 func SetSetting(key, value string) error {
 	var setting models.AppSetting
-	result := database.DB.Where("key = ?", key).First(&setting)
+	result := settingsDB.Where("key = ?", key).First(&setting)
 	if result.Error != nil {
 		setting = models.AppSetting{Key: key, Value: value}
-		return database.DB.Create(&setting).Error
+		return settingsDB.Create(&setting).Error
 	}
 	setting.Value = value
-	return database.DB.Save(&setting).Error
+	return settingsDB.Save(&setting).Error
 }
 
 func GetAllSettings() map[string]string {
@@ -92,7 +100,7 @@ func GetAllSettings() map[string]string {
 	}
 
 	var settings []models.AppSetting
-	database.DB.Find(&settings)
+	settingsDB.Find(&settings)
 	for _, s := range settings {
 		if s.Value != "" {
 			result[s.Key] = s.Value

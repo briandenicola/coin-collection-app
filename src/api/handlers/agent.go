@@ -11,19 +11,21 @@ import (
 	"strings"
 	"time"
 
-	"github.com/briandenicola/ancient-coins-api/database"
 	"github.com/briandenicola/ancient-coins-api/models"
+	"github.com/briandenicola/ancient-coins-api/repository"
 	"github.com/briandenicola/ancient-coins-api/services"
 	"github.com/gin-gonic/gin"
 )
 
 type AgentHandler struct {
 	client *http.Client
+	repo   *repository.AgentRepository
 }
 
-func NewAgentHandler() *AgentHandler {
+func NewAgentHandler(repo *repository.AgentRepository) *AgentHandler {
 	return &AgentHandler{
 		client: &http.Client{Timeout: 300 * time.Second},
+		repo:   repo,
 	}
 }
 
@@ -475,78 +477,17 @@ func (h *AgentHandler) GetValuationPrompt(c *gin.Context) {
 func (h *AgentHandler) PortfolioSummary(c *gin.Context) {
 	userID := c.GetUint("userId")
 
-	type catCount struct {
-		Category string `json:"category"`
-		Count    int    `json:"count"`
-	}
-	type matCount struct {
-		Material string `json:"material"`
-		Count    int    `json:"count"`
-	}
-	type eraCount struct {
-		Era   string `json:"era"`
-		Count int    `json:"count"`
-	}
-	type rulerCount struct {
-		Ruler string `json:"ruler"`
-		Count int    `json:"count"`
-	}
-
-	var totalCoins int64
-	var totalValue, totalInvested float64
-	database.DB.Model(&models.Coin{}).Where("user_id = ? AND is_wishlist = ? AND is_sold = ?", userID, false, false).Count(&totalCoins)
-	database.DB.Model(&models.Coin{}).Where("user_id = ? AND is_wishlist = ? AND is_sold = ?", userID, false, false).
-		Select("COALESCE(SUM(current_value), 0)").Scan(&totalValue)
-	database.DB.Model(&models.Coin{}).Where("user_id = ? AND is_wishlist = ? AND is_sold = ?", userID, false, false).
-		Select("COALESCE(SUM(purchase_price), 0)").Scan(&totalInvested)
-
-	var categories []catCount
-	database.DB.Model(&models.Coin{}).
-		Select("category, COUNT(*) as count").
-		Where("user_id = ? AND is_wishlist = ? AND is_sold = ?", userID, false, false).
-		Group("category").Order("count DESC").Find(&categories)
-
-	var materials []matCount
-	database.DB.Model(&models.Coin{}).
-		Select("material, COUNT(*) as count").
-		Where("user_id = ? AND is_wishlist = ? AND is_sold = ?", userID, false, false).
-		Group("material").Order("count DESC").Find(&materials)
-
-	var eras []eraCount
-	database.DB.Model(&models.Coin{}).
-		Select("era, COUNT(*) as count").
-		Where("user_id = ? AND is_wishlist = ? AND is_sold = ? AND era != ''", userID, false, false).
-		Group("era").Order("count DESC").Limit(15).Find(&eras)
-
-	var rulers []rulerCount
-	database.DB.Model(&models.Coin{}).
-		Select("ruler, COUNT(*) as count").
-		Where("user_id = ? AND is_wishlist = ? AND is_sold = ? AND ruler != ''", userID, false, false).
-		Group("ruler").Order("count DESC").Limit(15).Find(&rulers)
-
-	// Top valuable coins
-	type topCoin struct {
-		Name         string   `json:"name"`
-		Category     string   `json:"category"`
-		CurrentValue *float64 `json:"currentValue"`
-		Ruler        string   `json:"ruler"`
-		Era          string   `json:"era"`
-	}
-	var topCoins []topCoin
-	database.DB.Model(&models.Coin{}).
-		Select("name, category, current_value, ruler, era").
-		Where("user_id = ? AND is_wishlist = ? AND is_sold = ? AND current_value IS NOT NULL", userID, false, false).
-		Order("current_value DESC").Limit(10).Find(&topCoins)
+	summary, _ := h.repo.GetPortfolioSummary(userID)
 
 	c.JSON(http.StatusOK, gin.H{
-		"totalCoins":    totalCoins,
-		"totalValue":    totalValue,
-		"totalInvested": totalInvested,
-		"categories":    categories,
-		"materials":     materials,
-		"eras":          eras,
-		"rulers":        rulers,
-		"topCoins":      topCoins,
+		"totalCoins":    summary.TotalCoins,
+		"totalValue":    summary.TotalValue,
+		"totalInvested": summary.TotalInvested,
+		"categories":    summary.Categories,
+		"materials":     summary.Materials,
+		"eras":          summary.Eras,
+		"rulers":        summary.Rulers,
+		"topCoins":      summary.TopCoins,
 	})
 }
 
@@ -681,8 +622,8 @@ func (h *AgentHandler) EstimateValue(c *gin.Context) {
 	}
 
 	userID := c.GetUint("userId")
-	var coin models.Coin
-	if err := database.DB.Where("id = ? AND user_id = ?", coinID, userID).First(&coin).Error; err != nil {
+	coin, err := h.repo.FindCoinForUser(uint(coinID), userID)
+	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Coin not found"})
 		return
 	}
@@ -826,7 +767,7 @@ func (h *AgentHandler) EstimateValue(c *gin.Context) {
 
 	// Auto-record value history entry
 	if estimate.EstimatedValue > 0 {
-		database.DB.Create(&models.CoinValueHistory{
+		h.repo.RecordValueHistory(&models.CoinValueHistory{
 			CoinID:     uint(coinID),
 			UserID:     userID,
 			Value:      estimate.EstimatedValue,
@@ -837,7 +778,7 @@ func (h *AgentHandler) EstimateValue(c *gin.Context) {
 
 	// Auto-add journal entry
 	journalText := fmt.Sprintf("AI Value Estimate: $%.2f (%s confidence)", estimate.EstimatedValue, estimate.Confidence)
-	database.DB.Create(&models.CoinJournal{
+	h.repo.CreateJournalEntry(&models.CoinJournal{
 		CoinID: uint(coinID),
 		UserID: userID,
 		Entry:  journalText,

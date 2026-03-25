@@ -4,15 +4,17 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/briandenicola/ancient-coins-api/database"
 	"github.com/briandenicola/ancient-coins-api/models"
+	"github.com/briandenicola/ancient-coins-api/repository"
 	"github.com/gin-gonic/gin"
 )
 
-type JournalHandler struct{}
+type JournalHandler struct {
+	repo *repository.JournalRepository
+}
 
-func NewJournalHandler() *JournalHandler {
-	return &JournalHandler{}
+func NewJournalHandler(repo *repository.JournalRepository) *JournalHandler {
+	return &JournalHandler{repo: repo}
 }
 
 // ListEntries returns all journal entries for a coin.
@@ -35,17 +37,12 @@ func (h *JournalHandler) ListEntries(c *gin.Context) {
 	}
 
 	// Verify coin ownership
-	var count int64
-	database.DB.Model(&models.Coin{}).Where("id = ? AND user_id = ?", coinID, userID).Count(&count)
-	if count == 0 {
+	if !h.repo.CoinExists(uint(coinID), userID) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Coin not found"})
 		return
 	}
 
-	var entries []models.CoinJournal
-	database.DB.Where("coin_id = ? AND user_id = ?", coinID, userID).
-		Order("created_at DESC").
-		Find(&entries)
+	entries, _ := h.repo.GetEntries(uint(coinID), userID)
 
 	c.JSON(http.StatusOK, entries)
 }
@@ -74,9 +71,7 @@ func (h *JournalHandler) AddEntry(c *gin.Context) {
 	}
 
 	// Verify coin ownership
-	var count int64
-	database.DB.Model(&models.Coin{}).Where("id = ? AND user_id = ?", coinID, userID).Count(&count)
-	if count == 0 {
+	if !h.repo.CoinExists(uint(coinID), userID) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Coin not found"})
 		return
 	}
@@ -95,7 +90,7 @@ func (h *JournalHandler) AddEntry(c *gin.Context) {
 		Entry:  body.Entry,
 	}
 
-	if err := database.DB.Create(&entry).Error; err != nil {
+	if err := h.repo.CreateEntry(&entry); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create journal entry"})
 		return
 	}
@@ -124,8 +119,8 @@ func (h *JournalHandler) DeleteEntry(c *gin.Context) {
 		return
 	}
 
-	result := database.DB.Where("id = ? AND user_id = ?", entryID, userID).Delete(&models.CoinJournal{})
-	if result.RowsAffected == 0 {
+	rowsAffected, _ := h.repo.DeleteEntry(uint(entryID), userID)
+	if rowsAffected == 0 {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Entry not found"})
 		return
 	}

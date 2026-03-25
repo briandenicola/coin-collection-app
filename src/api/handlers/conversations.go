@@ -4,15 +4,17 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/briandenicola/ancient-coins-api/database"
 	"github.com/briandenicola/ancient-coins-api/models"
+	"github.com/briandenicola/ancient-coins-api/repository"
 	"github.com/gin-gonic/gin"
 )
 
-type ConversationHandler struct{}
+type ConversationHandler struct {
+	repo *repository.ConversationRepository
+}
 
-func NewConversationHandler() *ConversationHandler {
-	return &ConversationHandler{}
+func NewConversationHandler(repo *repository.ConversationRepository) *ConversationHandler {
+	return &ConversationHandler{repo: repo}
 }
 
 // ConversationSummary is a lightweight view for listing conversations.
@@ -37,9 +39,7 @@ func (h *ConversationHandler) List(c *gin.Context) {
 	userID := c.GetUint("userId")
 
 	var conversations []models.AgentConversation
-	database.DB.Where("user_id = ?", userID).
-		Order("updated_at DESC").
-		Find(&conversations)
+	conversations, _ = h.repo.List(userID)
 
 	summaries := make([]ConversationSummary, len(conversations))
 	for i, conv := range conversations {
@@ -75,10 +75,12 @@ func (h *ConversationHandler) Get(c *gin.Context) {
 	}
 
 	var conv models.AgentConversation
-	if err := database.DB.Where("id = ? AND user_id = ?", id, userID).First(&conv).Error; err != nil {
+	found, err := h.repo.FindByID(uint(id), userID)
+	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Conversation not found"})
 		return
 	}
+	conv = *found
 
 	c.JSON(http.StatusOK, conv)
 }
@@ -111,14 +113,14 @@ func (h *ConversationHandler) Save(c *gin.Context) {
 
 	// Update existing
 	if body.ID > 0 {
-		var conv models.AgentConversation
-		if err := database.DB.Where("id = ? AND user_id = ?", body.ID, userID).First(&conv).Error; err != nil {
+		conv, err := h.repo.FindByID(body.ID, userID)
+		if err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Conversation not found"})
 			return
 		}
 		conv.Title = body.Title
 		conv.Messages = body.Messages
-		database.DB.Save(&conv)
+		h.repo.Save(conv)
 		c.JSON(http.StatusOK, conv)
 		return
 	}
@@ -129,7 +131,7 @@ func (h *ConversationHandler) Save(c *gin.Context) {
 		Title:    body.Title,
 		Messages: body.Messages,
 	}
-	if err := database.DB.Create(&conv).Error; err != nil {
+	if err := h.repo.Create(&conv); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save conversation"})
 		return
 	}
@@ -156,8 +158,8 @@ func (h *ConversationHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	result := database.DB.Where("id = ? AND user_id = ?", id, userID).Delete(&models.AgentConversation{})
-	if result.RowsAffected == 0 {
+	rowsAffected, _ := h.repo.Delete(uint(id), userID)
+	if rowsAffected == 0 {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Conversation not found"})
 		return
 	}

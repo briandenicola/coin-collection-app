@@ -1,0 +1,365 @@
+package repository
+
+import (
+	"time"
+
+	"github.com/briandenicola/ancient-coins-api/models"
+	"gorm.io/gorm"
+)
+
+// CoinListFilters holds optional filters for listing coins.
+type CoinListFilters struct {
+	Category  string
+	Search    string
+	Wishlist  *bool
+	Sold      *bool
+	SortField string
+	SortOrder string
+	Page      int
+	Limit     int
+}
+
+// CategoryCount holds a category name and its coin count.
+type CategoryCount struct {
+	Category string `json:"category"`
+	Count    int64  `json:"count"`
+}
+
+// MaterialCount holds a material name and its coin count.
+type MaterialCount struct {
+	Material string `json:"material"`
+	Count    int64  `json:"count"`
+}
+
+// GradeCount holds a grade and its coin count.
+type GradeCount struct {
+	Grade string `json:"grade"`
+	Count int64  `json:"count"`
+}
+
+// EraCount holds an era and its coin count.
+type EraCount struct {
+	Era   string `json:"era"`
+	Count int64  `json:"count"`
+}
+
+// RulerCount holds a ruler name and its coin count.
+type RulerCount struct {
+	Ruler string `json:"ruler"`
+	Count int64  `json:"count"`
+}
+
+// PriceRange holds a price range label and its coin count.
+type PriceRange struct {
+	Range string `json:"range"`
+	Count int64  `json:"count"`
+}
+
+// ValueSummary holds aggregate value metrics.
+type ValueSummary struct {
+	TotalPurchasePrice float64 `json:"totalPurchasePrice"`
+	TotalCurrentValue  float64 `json:"totalCurrentValue"`
+	AvgPurchasePrice   float64 `json:"avgPurchasePrice"`
+	AvgCurrentValue    float64 `json:"avgCurrentValue"`
+}
+
+// SoldSummary holds aggregate sold coin metrics.
+type SoldSummary struct {
+	TotalSoldPrice    float64 `json:"totalSoldPrice"`
+	TotalPurchaseCost float64 `json:"totalPurchaseCost"`
+}
+
+// CollectionStats holds all aggregate statistics for a user's collection.
+type CollectionStats struct {
+	TotalCoins    int64          `json:"totalCoins"`
+	TotalWishlist int64          `json:"totalWishlist"`
+	TotalSold     int64          `json:"totalSold"`
+	ByCategory    []CategoryCount `json:"byCategory"`
+	ByMaterial    []MaterialCount `json:"byMaterial"`
+	ByGrade       []GradeCount    `json:"byGrade"`
+	ByEra         []EraCount      `json:"byEra"`
+	ByRuler       []RulerCount    `json:"byRuler"`
+	ByPriceRange  []PriceRange    `json:"byPriceRange"`
+	Values        ValueSummary    `json:"values"`
+	SoldValues    SoldSummary     `json:"soldValues"`
+}
+
+// CoinRepository encapsulates all coin-related database operations.
+type CoinRepository struct {
+	db *gorm.DB
+}
+
+// NewCoinRepository creates a new CoinRepository.
+func NewCoinRepository(db *gorm.DB) *CoinRepository {
+	return &CoinRepository{db: db}
+}
+
+var allowedSortFields = map[string]string{
+	"created_at":    "created_at",
+	"updated_at":    "updated_at",
+	"current_value": "current_value",
+}
+
+var searchFields = []string{
+	"name", "denomination", "ruler", "era", "mint",
+	"obverse_inscription", "reverse_inscription", "notes", "rarity_rating",
+}
+
+// List returns a paginated, filtered list of coins for a user.
+func (r *CoinRepository) List(userID uint, filters CoinListFilters) ([]models.Coin, int64, error) {
+	query := r.db.Scopes(OwnedBy(userID)).Preload("Images")
+
+	if filters.Category != "" {
+		query = query.Where("category = ?", filters.Category)
+	}
+	if filters.Wishlist != nil {
+		query = query.Where("is_wishlist = ?", *filters.Wishlist)
+	}
+	if filters.Sold != nil {
+		query = query.Where("is_sold = ?", *filters.Sold)
+	}
+	if filters.Search != "" {
+		term := "%" + filters.Search + "%"
+		sub := r.db.Where("name LIKE ?", term)
+		for _, f := range searchFields[1:] {
+			sub = sub.Or(f+" LIKE ?", term)
+		}
+		query = query.Where(sub)
+	}
+
+	var total int64
+	if err := query.Model(&models.Coin{}).Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	col, ok := allowedSortFields[filters.SortField]
+	if !ok {
+		col = "updated_at"
+	}
+	order := filters.SortOrder
+	if order != "asc" && order != "desc" {
+		order = "desc"
+	}
+
+	page := filters.Page
+	if page < 1 {
+		page = 1
+	}
+	limit := filters.Limit
+	if limit < 1 || limit > 100 {
+		limit = 50
+	}
+	offset := (page - 1) * limit
+
+	var coins []models.Coin
+	if err := query.Order(col + " " + order).Offset(offset).Limit(limit).Find(&coins).Error; err != nil {
+		return nil, 0, err
+	}
+	return coins, total, nil
+}
+
+// FindByID returns a single coin owned by the user, with images preloaded.
+func (r *CoinRepository) FindByID(id uint, userID uint) (*models.Coin, error) {
+	var coin models.Coin
+	err := r.db.Scopes(OwnedByID(id, userID)).Preload("Images").First(&coin).Error
+	if err != nil {
+		return nil, err
+	}
+	return &coin, nil
+}
+
+// Create inserts a new coin and returns it with images preloaded.
+func (r *CoinRepository) Create(coin *models.Coin) error {
+	if err := r.db.Create(coin).Error; err != nil {
+		return err
+	}
+	return r.db.Preload("Images").First(coin, coin.ID).Error
+}
+
+// Update applies changes to an existing coin and reloads it with images.
+func (r *CoinRepository) Update(existing *models.Coin, updates *models.Coin) error {
+	if err := r.db.Model(existing).Updates(updates).Error; err != nil {
+		return err
+	}
+	return r.db.Preload("Images").First(existing, existing.ID).Error
+}
+
+// UpdateField updates a single field on a coin.
+func (r *CoinRepository) UpdateField(coin *models.Coin, field string, value interface{}) error {
+	if err := r.db.Model(coin).Update(field, value).Error; err != nil {
+		return err
+	}
+	return r.db.Preload("Images").First(coin, coin.ID).Error
+}
+
+// UpdateFields updates multiple fields on a coin using a map.
+func (r *CoinRepository) UpdateFields(coin *models.Coin, updates map[string]interface{}) error {
+	if err := r.db.Model(coin).Updates(updates).Error; err != nil {
+		return err
+	}
+	return r.db.Preload("Images").First(coin, coin.ID).Error
+}
+
+// Delete removes a coin and all associated data (images, journals, value
+// history) in a single transaction. Returns rows affected for the coin delete.
+func (r *CoinRepository) Delete(id uint, userID uint) (int64, error) {
+	var rowsAffected int64
+	err := r.db.Transaction(func(tx *gorm.DB) error {
+		result := tx.Scopes(OwnedByID(id, userID)).Delete(&models.Coin{})
+		if result.Error != nil {
+			return result.Error
+		}
+		rowsAffected = result.RowsAffected
+		if rowsAffected == 0 {
+			return nil
+		}
+		if err := tx.Where("coin_id = ?", id).Delete(&models.CoinImage{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("coin_id = ?", id).Delete(&models.CoinJournal{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("coin_id = ?", id).Delete(&models.CoinValueHistory{}).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+	return rowsAffected, err
+}
+
+// GetStats returns aggregate collection statistics for a user.
+func (r *CoinRepository) GetStats(userID uint) (*CollectionStats, error) {
+	stats := &CollectionStats{}
+	active := ActiveCollection(userID)
+
+	r.db.Model(&models.Coin{}).Scopes(active).Count(&stats.TotalCoins)
+	r.db.Model(&models.Coin{}).Where("user_id = ? AND is_wishlist = ?", userID, true).Count(&stats.TotalWishlist)
+	r.db.Model(&models.Coin{}).Where("user_id = ? AND is_sold = ?", userID, true).Count(&stats.TotalSold)
+
+	r.db.Model(&models.Coin{}).
+		Select("category, count(*) as count").
+		Scopes(active).Group("category").
+		Scan(&stats.ByCategory)
+
+	r.db.Model(&models.Coin{}).
+		Select("material, count(*) as count").
+		Scopes(active).Group("material").
+		Scan(&stats.ByMaterial)
+
+	r.db.Model(&models.Coin{}).
+		Select("grade, count(*) as count").
+		Where("user_id = ? AND is_wishlist = ? AND is_sold = ? AND grade != ''", userID, false, false).
+		Group("grade").Order("count DESC").
+		Scan(&stats.ByGrade)
+
+	r.db.Model(&models.Coin{}).
+		Select("era, count(*) as count").
+		Where("user_id = ? AND is_wishlist = ? AND is_sold = ? AND era != ''", userID, false, false).
+		Group("era").Order("count DESC").
+		Scan(&stats.ByEra)
+
+	r.db.Model(&models.Coin{}).
+		Select("ruler, count(*) as count").
+		Where("user_id = ? AND is_wishlist = ? AND is_sold = ? AND ruler != ''", userID, false, false).
+		Group("ruler").Order("count DESC").Limit(10).
+		Scan(&stats.ByRuler)
+
+	r.db.Model(&models.Coin{}).
+		Select(`CASE
+			WHEN purchase_price < 50 THEN 'Under $50'
+			WHEN purchase_price >= 50 AND purchase_price < 200 THEN '$50 - $200'
+			WHEN purchase_price >= 200 AND purchase_price < 500 THEN '$200 - $500'
+			WHEN purchase_price >= 500 AND purchase_price < 1000 THEN '$500 - $1K'
+			ELSE '$1K+'
+		END as ` + "`range`" + `, count(*) as count`).
+		Where("user_id = ? AND is_wishlist = ? AND is_sold = ? AND purchase_price IS NOT NULL", userID, false, false).
+		Group("`range`").
+		Scan(&stats.ByPriceRange)
+
+	r.db.Model(&models.Coin{}).
+		Select("COALESCE(SUM(purchase_price), 0) as total_purchase_price, COALESCE(SUM(current_value), 0) as total_current_value, COALESCE(AVG(purchase_price), 0) as avg_purchase_price, COALESCE(AVG(current_value), 0) as avg_current_value").
+		Scopes(active).
+		Scan(&stats.Values)
+
+	r.db.Model(&models.Coin{}).
+		Select("COALESCE(SUM(sold_price), 0) as total_sold_price, COALESCE(SUM(purchase_price), 0) as total_purchase_cost").
+		Where("user_id = ? AND is_sold = ?", userID, true).
+		Scan(&stats.SoldValues)
+
+	return stats, nil
+}
+
+// Suggestions returns distinct values for an autocomplete field.
+func (r *CoinRepository) Suggestions(userID uint, column string, q string) ([]string, error) {
+	var values []string
+	query := r.db.Model(&models.Coin{}).
+		Where("user_id = ? AND "+column+" != ''", userID).
+		Distinct(column).
+		Order(column)
+
+	if q != "" {
+		query = query.Where(column+" LIKE ?", "%"+q+"%")
+	}
+
+	err := query.Limit(20).Pluck(column, &values).Error
+	return values, err
+}
+
+// GetValueHistory returns portfolio-level value snapshots for a user.
+func (r *CoinRepository) GetValueHistory(userID uint) ([]models.ValueSnapshot, error) {
+	var snapshots []models.ValueSnapshot
+	err := r.db.Scopes(OwnedBy(userID)).
+		Order("recorded_at ASC").
+		Find(&snapshots).Error
+	return snapshots, err
+}
+
+// GetCoinValueHistory returns value tracking entries for a specific coin.
+func (r *CoinRepository) GetCoinValueHistory(coinID uint, userID uint) ([]models.CoinValueHistory, error) {
+	var entries []models.CoinValueHistory
+	err := r.db.Where("coin_id = ? AND user_id = ?", coinID, userID).
+		Order("recorded_at ASC").
+		Find(&entries).Error
+	return entries, err
+}
+
+// CoinExists checks if a coin exists for the given user.
+func (r *CoinRepository) CoinExists(coinID uint, userID uint) (bool, error) {
+	var count int64
+	err := r.db.Model(&models.Coin{}).Scopes(OwnedByID(coinID, userID)).Count(&count).Error
+	return count > 0, err
+}
+
+// RecordValueHistory creates a coin value history entry.
+func (r *CoinRepository) RecordValueHistory(entry *models.CoinValueHistory) error {
+	return r.db.Create(entry).Error
+}
+
+// CreateJournalEntry creates a journal entry for a coin.
+func (r *CoinRepository) CreateJournalEntry(entry *models.CoinJournal) error {
+	return r.db.Create(entry).Error
+}
+
+// RecordValueSnapshot captures the current total value, invested amount,
+// and coin count for a user.
+func (r *CoinRepository) RecordValueSnapshot(userID uint) error {
+	type result struct {
+		TotalValue    float64
+		TotalInvested float64
+		CoinCount     int64
+	}
+	var res result
+	r.db.Model(&models.Coin{}).
+		Select("COALESCE(SUM(current_value), 0) as total_value, COALESCE(SUM(purchase_price), 0) as total_invested, COUNT(*) as coin_count").
+		Where("user_id = ? AND is_wishlist = ?", userID, false).
+		Scan(&res)
+
+	snapshot := models.ValueSnapshot{
+		UserID:        userID,
+		TotalValue:    res.TotalValue,
+		TotalInvested: res.TotalInvested,
+		CoinCount:     res.CoinCount,
+		RecordedAt:    time.Now(),
+	}
+	return r.db.Create(&snapshot).Error
+}

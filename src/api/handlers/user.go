@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/briandenicola/ancient-coins-api/database"
 	"github.com/briandenicola/ancient-coins-api/models"
+	"github.com/briandenicola/ancient-coins-api/repository"
 	"github.com/briandenicola/ancient-coins-api/services"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
@@ -18,10 +18,11 @@ import (
 
 type UserHandler struct {
 	UploadDir string
+	repo      *repository.UserRepository
 }
 
-func NewUserHandler(uploadDir string) *UserHandler {
-	return &UserHandler{UploadDir: uploadDir}
+func NewUserHandler(uploadDir string, repo *repository.UserRepository) *UserHandler {
+	return &UserHandler{UploadDir: uploadDir, repo: repo}
 }
 
 // ChangePassword allows a user to change their own password.
@@ -52,9 +53,11 @@ func (h *UserHandler) ChangePassword(c *gin.Context) {
 	}
 
 	var user models.User
-	if err := database.DB.First(&user, userID).Error; err != nil {
+	if found, err := h.repo.FindByID(userID); err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
+	} else {
+		user = *found
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.CurrentPassword)); err != nil {
@@ -68,7 +71,7 @@ func (h *UserHandler) ChangePassword(c *gin.Context) {
 		return
 	}
 
-	database.DB.Model(&user).Update("password_hash", string(hash))
+	h.repo.UpdateField(&user, "password_hash", string(hash))
 	c.JSON(http.StatusOK, gin.H{"message": "Password changed"})
 }
 
@@ -87,9 +90,11 @@ func (h *UserHandler) GetMe(c *gin.Context) {
 	userID := c.GetUint("userId")
 
 	var user models.User
-	if err := database.DB.First(&user, userID).Error; err != nil {
+	if found, err := h.repo.FindByID(userID); err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
+	} else {
+		user = *found
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -119,7 +124,7 @@ func (h *UserHandler) ExportCollection(c *gin.Context) {
 	userID := c.GetUint("userId")
 
 	var coins []models.Coin
-	database.DB.Where("user_id = ?", userID).Preload("Images").Find(&coins)
+	coins, _ = h.repo.GetCoinsWithImages(userID)
 
 	filename := fmt.Sprintf("my-coins-export-%s.zip", time.Now().Format("2006-01-02"))
 	writeCollectionZip(c, coins, h.UploadDir, filename)
@@ -153,7 +158,7 @@ func (h *UserHandler) ImportCollection(c *gin.Context) {
 		coin.UserID = userID
 		// Reset image associations for clean import
 		coin.Images = nil
-		if err := database.DB.Create(&coin).Error; err == nil {
+		if err := h.repo.CreateCoin(&coin); err == nil {
 			imported++
 		}
 	}
@@ -177,9 +182,11 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 	}
 
 	var user models.User
-	if err := database.DB.First(&user, userID).Error; err != nil {
+	if found, err := h.repo.FindByID(userID); err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
+	} else {
+		user = *found
 	}
 
 	updates := map[string]interface{}{}
@@ -191,8 +198,7 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 		}
 		// Check uniqueness
 		if email != "" {
-			var existing models.User
-			if err := database.DB.Where("email = ? AND id != ?", email, userID).First(&existing).Error; err == nil {
+			if _, err := h.repo.FindByEmail(email, userID); err == nil {
 				c.JSON(http.StatusConflict, gin.H{"error": "Email already in use"})
 				return
 			}
@@ -204,20 +210,21 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 	}
 	if req.IsPublic != nil {
 		updates["is_public"] = *req.IsPublic
-		// Going private: remove all followers
-		if !*req.IsPublic && user.IsPublic {
-			database.DB.Where("following_id = ?", userID).Delete(&models.Follow{})
-			logger.Info("user", "User %d went private — all followers removed", userID)
+		goingPrivate := !*req.IsPublic && user.IsPublic
+		if goingPrivate {
+			logger.Info("user", "User %d going private — followers will be removed", userID)
 		}
-	}
-
-	if len(updates) > 0 {
-		database.DB.Model(&user).Updates(updates)
+		if len(updates) > 0 {
+			h.repo.UpdateProfileWithPrivacy(&user, updates, goingPrivate)
+			logger.Info("user", "Profile updated for user %d", userID)
+		}
+	} else if len(updates) > 0 {
+		h.repo.UpdateFields(&user, updates)
 		logger.Info("user", "Profile updated for user %d", userID)
 	}
 
 	// Reload and return
-	database.DB.First(&user, userID)
+	h.repo.Reload(&user)
 	c.JSON(http.StatusOK, gin.H{
 		"id":         user.ID,
 		"username":   user.Username,
@@ -255,7 +262,9 @@ func (h *UserHandler) UploadAvatar(c *gin.Context) {
 
 	// Delete old avatar if exists
 	var user models.User
-	database.DB.First(&user, userID)
+	if found, _ := h.repo.FindByID(userID); found != nil {
+		user = *found
+	}
 	if user.AvatarPath != "" {
 		os.Remove(filepath.Join(h.UploadDir, user.AvatarPath))
 	}
@@ -270,7 +279,7 @@ func (h *UserHandler) UploadAvatar(c *gin.Context) {
 	}
 
 	avatarRelPath := filepath.ToSlash(filepath.Join("avatars", filename))
-	database.DB.Model(&user).Update("avatar_path", avatarRelPath)
+	h.repo.UpdateField(&user, "avatar_path", avatarRelPath)
 
 	logger.Info("user", "Avatar uploaded for user %d: %s", userID, avatarRelPath)
 	c.JSON(http.StatusOK, gin.H{"avatarPath": avatarRelPath})
@@ -281,14 +290,16 @@ func (h *UserHandler) DeleteAvatar(c *gin.Context) {
 	userID := c.GetUint("userId")
 
 	var user models.User
-	if err := database.DB.First(&user, userID).Error; err != nil {
+	if found, err := h.repo.FindByID(userID); err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
+	} else {
+		user = *found
 	}
 
 	if user.AvatarPath != "" {
 		os.Remove(filepath.Join(h.UploadDir, user.AvatarPath))
-		database.DB.Model(&user).Update("avatar_path", "")
+		h.repo.UpdateField(&user, "avatar_path", "")
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Avatar removed"})

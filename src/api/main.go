@@ -11,6 +11,7 @@ import (
 	_ "github.com/briandenicola/ancient-coins-api/docs"
 	"github.com/briandenicola/ancient-coins-api/handlers"
 	"github.com/briandenicola/ancient-coins-api/middleware"
+	"github.com/briandenicola/ancient-coins-api/repository"
 	"github.com/briandenicola/ancient-coins-api/services"
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
@@ -35,6 +36,9 @@ func main() {
 	cfg := config.Load()
 
 	database.Connect(cfg.DBPath)
+
+	// Initialize settings service with DB connection
+	services.InitSettings(database.DB)
 
 	// Initialize logger from DB settings
 	services.SyncLogLevel()
@@ -107,8 +111,11 @@ func main() {
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// Auth routes (public) — rate limited to prevent brute force
-	authHandler := handlers.NewAuthHandler(cfg.JWTSecret)
-	webauthnHandler, err := handlers.NewWebAuthnHandler(cfg.WebAuthnID, cfg.WebAuthnOrigin, authHandler)
+	authRepo := repository.NewAuthRepository(database.DB)
+	authSvc := services.NewAuthService(authRepo, cfg.JWTSecret)
+	authHandler := handlers.NewAuthHandler(cfg.JWTSecret, authRepo, authSvc)
+	webauthnRepo := repository.NewWebAuthnRepository(database.DB)
+	webauthnHandler, err := handlers.NewWebAuthnHandler(cfg.WebAuthnID, cfg.WebAuthnOrigin, authHandler, webauthnRepo)
 	if err != nil {
 		log.Fatalf("Failed to initialize WebAuthn: %v", err)
 	}
@@ -130,9 +137,11 @@ func main() {
 
 	// Protected routes
 	protected := api.Group("")
-	protected.Use(middleware.AuthRequired(cfg.JWTSecret))
+	protected.Use(middleware.AuthRequired(cfg.JWTSecret, database.DB))
 	{
-		coinHandler := handlers.NewCoinHandler()
+		coinRepo := repository.NewCoinRepository(database.DB)
+		coinSvc := services.NewCoinService(coinRepo)
+		coinHandler := handlers.NewCoinHandler(coinRepo, coinSvc)
 		protected.GET("/coins", coinHandler.List)
 		protected.GET("/coins/:id", coinHandler.Get)
 		protected.POST("/coins", coinHandler.Create)
@@ -141,7 +150,8 @@ func main() {
 		protected.POST("/coins/:id/sell", coinHandler.Sell)
 		protected.DELETE("/coins/:id", coinHandler.Delete)
 
-		journalHandler := handlers.NewJournalHandler()
+		journalRepo := repository.NewJournalRepository(database.DB)
+		journalHandler := handlers.NewJournalHandler(journalRepo)
 		protected.GET("/coins/:id/journal", journalHandler.ListEntries)
 		protected.POST("/coins/:id/journal", journalHandler.AddEntry)
 		protected.DELETE("/coins/:id/journal/:entryId", journalHandler.DeleteEntry)
@@ -151,14 +161,17 @@ func main() {
 		protected.GET("/coins/:id/value-history", coinHandler.CoinValueHistory)
 		protected.GET("/suggestions", coinHandler.Suggestions)
 
-		imageHandler := handlers.NewImageHandler(cfg.UploadDir)
+		imageRepo := repository.NewImageRepository(database.DB)
+		imageSvc := services.NewImageService(imageRepo, cfg.UploadDir)
+		imageHandler := handlers.NewImageHandler(cfg.UploadDir, imageRepo, imageSvc)
 		protected.POST("/coins/:id/images", imageHandler.Upload)
 		protected.POST("/coins/:id/images/base64", imageHandler.UploadBase64)
 		protected.DELETE("/coins/:id/images/:imageId", imageHandler.Delete)
 		protected.GET("/proxy-image", imageHandler.ProxyImage)
 		protected.GET("/scrape-image", imageHandler.ScrapeImage)
 
-		analysisHandler := handlers.NewAnalysisHandler()
+		analysisRepo := repository.NewAnalysisRepository(database.DB)
+		analysisHandler := handlers.NewAnalysisHandler(analysisRepo)
 		protected.POST("/coins/:id/analyze", analysisHandler.Analyze)
 		protected.DELETE("/coins/:id/analyze", analysisHandler.DeleteAnalysis)
 		protected.POST("/extract-text", analysisHandler.ExtractText)
@@ -167,7 +180,8 @@ func main() {
 		numistaHandler := handlers.NewNumistaHandler()
 		protected.GET("/numista/search", numistaHandler.Search)
 
-		agentHandler := handlers.NewAgentHandler()
+		agentRepo := repository.NewAgentRepository(database.DB)
+		agentHandler := handlers.NewAgentHandler(agentRepo)
 		protected.POST("/agent/chat", agentHandler.ChatStream)
 		protected.POST("/coins/:id/estimate-value", agentHandler.EstimateValue)
 		protected.GET("/agent/models", agentHandler.ListModels)
@@ -175,14 +189,16 @@ func main() {
 		protected.GET("/agent/valuation-prompt", agentHandler.GetValuationPrompt)
 		protected.GET("/agent/portfolio-summary", agentHandler.PortfolioSummary)
 
-		convHandler := handlers.NewConversationHandler()
+		conversationRepo := repository.NewConversationRepository(database.DB)
+		convHandler := handlers.NewConversationHandler(conversationRepo)
 		protected.GET("/agent/conversations", convHandler.List)
 		protected.GET("/agent/conversations/:id", convHandler.Get)
 		protected.POST("/agent/conversations", convHandler.Save)
 		protected.DELETE("/agent/conversations/:id", convHandler.Delete)
 
 		// User self-service routes
-		userHandler := handlers.NewUserHandler(cfg.UploadDir)
+		userRepo := repository.NewUserRepository(database.DB)
+		userHandler := handlers.NewUserHandler(cfg.UploadDir, userRepo)
 		protected.GET("/auth/me", userHandler.GetMe)
 		protected.POST("/auth/change-password", userHandler.ChangePassword)
 		protected.PUT("/user/profile", userHandler.UpdateProfile)
@@ -192,7 +208,9 @@ func main() {
 		protected.POST("/user/import", userHandler.ImportCollection)
 
 		// Social routes
-		socialHandler := handlers.NewSocialHandler()
+		socialRepo := repository.NewSocialRepository(database.DB)
+		socialSvc := services.NewSocialService(socialRepo)
+		socialHandler := handlers.NewSocialHandler(socialRepo, socialSvc)
 		protected.POST("/social/follow/:userId", socialHandler.FollowUser)
 		protected.DELETE("/social/follow/:userId", socialHandler.UnfollowUser)
 		protected.PUT("/social/followers/:userId/accept", socialHandler.AcceptFollower)
@@ -212,7 +230,8 @@ func main() {
 		protected.GET("/social/coins/:coinId/rating", socialHandler.GetCoinRating)
 
 		// API key management
-		apiKeyHandler := handlers.NewApiKeyHandler()
+		apiKeyRepo := repository.NewApiKeyRepository(database.DB)
+		apiKeyHandler := handlers.NewApiKeyHandler(apiKeyRepo)
 		protected.POST("/auth/api-keys", apiKeyHandler.Generate)
 		protected.GET("/auth/api-keys", apiKeyHandler.List)
 		protected.DELETE("/auth/api-keys/:id", apiKeyHandler.Revoke)
@@ -226,10 +245,11 @@ func main() {
 
 	// Admin-only routes
 	admin := api.Group("/admin")
-	admin.Use(middleware.AuthRequired(cfg.JWTSecret))
+	admin.Use(middleware.AuthRequired(cfg.JWTSecret, database.DB))
 	admin.Use(handlers.AdminRequired())
 	{
-		adminHandler := handlers.NewAdminHandler(cfg.UploadDir)
+		adminRepo := repository.NewAdminRepository(database.DB)
+		adminHandler := handlers.NewAdminHandler(cfg.UploadDir, adminRepo)
 		admin.GET("/users", adminHandler.ListUsers)
 		admin.DELETE("/users/:id", adminHandler.DeleteUser)
 		admin.POST("/users/:id/reset-password", adminHandler.ResetPassword)
