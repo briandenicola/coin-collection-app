@@ -227,6 +227,8 @@ func (h *CoinHandler) Update(c *gin.Context) {
 		return
 	}
 
+	oldValue := existing.CurrentValue
+
 	var updates models.Coin
 	if err := c.ShouldBindJSON(&updates); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -239,6 +241,24 @@ func (h *CoinHandler) Update(c *gin.Context) {
 	if err := database.DB.Model(&existing).Updates(updates).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update coin"})
 		return
+	}
+
+	// Track manual value changes
+	if updates.CurrentValue != nil {
+		newVal := *updates.CurrentValue
+		oldVal := 0.0
+		if oldValue != nil {
+			oldVal = *oldValue
+		}
+		if newVal != oldVal {
+			database.DB.Create(&models.CoinValueHistory{
+				CoinID:     existing.ID,
+				UserID:     userID,
+				Value:      newVal,
+				Confidence: "manual",
+				RecordedAt: time.Now(),
+			})
+		}
 	}
 
 	database.DB.Preload("Images").First(&existing, existing.ID)
@@ -576,4 +596,39 @@ func (h *CoinHandler) ValueHistory(c *gin.Context) {
 		Find(&snapshots)
 
 	c.JSON(http.StatusOK, snapshots)
+}
+
+// CoinValueHistory returns value history entries for a specific coin.
+//
+//	@Summary		Get coin value history
+//	@Description	Returns value tracking entries for a coin, ordered oldest first.
+//	@Tags			Coins
+//	@Produce		json
+//	@Param			id	path		int	true	"Coin ID"
+//	@Success		200	{array}		models.CoinValueHistory
+//	@Failure		401	{object}	ErrorResponse
+//	@Failure		404	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/coins/{id}/value-history [get]
+func (h *CoinHandler) CoinValueHistory(c *gin.Context) {
+	userID := c.GetUint("userId")
+	coinID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid coin ID"})
+		return
+	}
+
+	var count int64
+	database.DB.Model(&models.Coin{}).Where("id = ? AND user_id = ?", coinID, userID).Count(&count)
+	if count == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Coin not found"})
+		return
+	}
+
+	var entries []models.CoinValueHistory
+	database.DB.Where("coin_id = ? AND user_id = ?", coinID, userID).
+		Order("recorded_at ASC").
+		Find(&entries)
+
+	c.JSON(http.StatusOK, entries)
 }

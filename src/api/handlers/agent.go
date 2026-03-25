@@ -177,7 +177,17 @@ Example format:
 ]
 ` + "```" + `
 
-Only include coins you actually found in your search results. Quality over quantity — 2 verified, currently available results are better than 5 sold or fabricated ones.`
+Only include coins you actually found in your search results. Quality over quantity — 2 verified, currently available results are better than 5 sold or fabricated ones.
+
+Portfolio Analysis:
+When the user asks you to analyze their portfolio or collection, they will provide a portfolio summary with their collection composition (categories, materials, eras, rulers, top coins, total value). Use this data to:
+1. Assess the collection's strengths and identify well-represented areas
+2. Identify gaps — missing eras, under-represented categories, or rulers that would complement existing holdings
+3. Suggest specific acquisitions that would diversify or strengthen the collection
+4. Provide market context using web_search — are certain areas appreciating? Are there opportunities?
+5. Consider budget based on average coin value in their collection
+
+When doing portfolio analysis, DO NOT include a JSON suggestion block. Instead, provide a detailed written analysis with clear sections and actionable recommendations.`
 
 func (h *AgentHandler) getSystemPrompt() string {
 	prompt := services.GetSetting(services.SettingAgentPrompt)
@@ -454,6 +464,92 @@ func (h *AgentHandler) GetValuationPrompt(c *gin.Context) {
 	})
 }
 
+// PortfolioSummary returns aggregated collection data for AI portfolio analysis.
+//
+//	@Summary		Get portfolio summary for AI analysis
+//	@Tags			Agent
+//	@Produce		json
+//	@Success		200	{object}	object
+//	@Security		BearerAuth
+//	@Router			/agent/portfolio-summary [get]
+func (h *AgentHandler) PortfolioSummary(c *gin.Context) {
+	userID := c.GetUint("userId")
+
+	type catCount struct {
+		Category string `json:"category"`
+		Count    int    `json:"count"`
+	}
+	type matCount struct {
+		Material string `json:"material"`
+		Count    int    `json:"count"`
+	}
+	type eraCount struct {
+		Era   string `json:"era"`
+		Count int    `json:"count"`
+	}
+	type rulerCount struct {
+		Ruler string `json:"ruler"`
+		Count int    `json:"count"`
+	}
+
+	var totalCoins int64
+	var totalValue, totalInvested float64
+	database.DB.Model(&models.Coin{}).Where("user_id = ? AND is_wishlist = ? AND is_sold = ?", userID, false, false).Count(&totalCoins)
+	database.DB.Model(&models.Coin{}).Where("user_id = ? AND is_wishlist = ? AND is_sold = ?", userID, false, false).
+		Select("COALESCE(SUM(current_value), 0)").Scan(&totalValue)
+	database.DB.Model(&models.Coin{}).Where("user_id = ? AND is_wishlist = ? AND is_sold = ?", userID, false, false).
+		Select("COALESCE(SUM(purchase_price), 0)").Scan(&totalInvested)
+
+	var categories []catCount
+	database.DB.Model(&models.Coin{}).
+		Select("category, COUNT(*) as count").
+		Where("user_id = ? AND is_wishlist = ? AND is_sold = ?", userID, false, false).
+		Group("category").Order("count DESC").Find(&categories)
+
+	var materials []matCount
+	database.DB.Model(&models.Coin{}).
+		Select("material, COUNT(*) as count").
+		Where("user_id = ? AND is_wishlist = ? AND is_sold = ?", userID, false, false).
+		Group("material").Order("count DESC").Find(&materials)
+
+	var eras []eraCount
+	database.DB.Model(&models.Coin{}).
+		Select("era, COUNT(*) as count").
+		Where("user_id = ? AND is_wishlist = ? AND is_sold = ? AND era != ''", userID, false, false).
+		Group("era").Order("count DESC").Limit(15).Find(&eras)
+
+	var rulers []rulerCount
+	database.DB.Model(&models.Coin{}).
+		Select("ruler, COUNT(*) as count").
+		Where("user_id = ? AND is_wishlist = ? AND is_sold = ? AND ruler != ''", userID, false, false).
+		Group("ruler").Order("count DESC").Limit(15).Find(&rulers)
+
+	// Top valuable coins
+	type topCoin struct {
+		Name         string   `json:"name"`
+		Category     string   `json:"category"`
+		CurrentValue *float64 `json:"currentValue"`
+		Ruler        string   `json:"ruler"`
+		Era          string   `json:"era"`
+	}
+	var topCoins []topCoin
+	database.DB.Model(&models.Coin{}).
+		Select("name, category, current_value, ruler, era").
+		Where("user_id = ? AND is_wishlist = ? AND is_sold = ? AND current_value IS NOT NULL", userID, false, false).
+		Order("current_value DESC").Limit(10).Find(&topCoins)
+
+	c.JSON(http.StatusOK, gin.H{
+		"totalCoins":    totalCoins,
+		"totalValue":    totalValue,
+		"totalInvested": totalInvested,
+		"categories":    categories,
+		"materials":     materials,
+		"eras":          eras,
+		"rulers":        rulers,
+		"topCoins":      topCoins,
+	})
+}
+
 // extractSuggestions finds a JSON array inside ```json ... ``` markers
 func extractSuggestions(text string) []CoinSuggestion {
 	start := -1
@@ -727,6 +823,25 @@ func (h *AgentHandler) EstimateValue(c *gin.Context) {
 		estimate.Reasoning = fullText
 		estimate.Confidence = "low"
 	}
+
+	// Auto-record value history entry
+	if estimate.EstimatedValue > 0 {
+		database.DB.Create(&models.CoinValueHistory{
+			CoinID:     uint(coinID),
+			UserID:     userID,
+			Value:      estimate.EstimatedValue,
+			Confidence: estimate.Confidence,
+			RecordedAt: time.Now(),
+		})
+	}
+
+	// Auto-add journal entry
+	journalText := fmt.Sprintf("AI Value Estimate: $%.2f (%s confidence)", estimate.EstimatedValue, estimate.Confidence)
+	database.DB.Create(&models.CoinJournal{
+		CoinID: uint(coinID),
+		UserID: userID,
+		Entry:  journalText,
+	})
 
 	c.JSON(http.StatusOK, estimate)
 }

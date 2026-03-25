@@ -178,6 +178,15 @@ export interface ValueEstimate {
   comparables: ValueComparable[]
 }
 
+export interface CoinValueHistory {
+  id: number
+  coinId: number
+  userId: number
+  value: number
+  confidence: string
+  recordedAt: string
+}
+
 export type Theme = 'dark' | 'light'
 
 export const LOG_LEVELS = ['trace', 'debug', 'info', 'warn', 'error'] as const

@@ -148,6 +148,7 @@ func main() {
 
 		protected.GET("/stats", coinHandler.Stats)
 		protected.GET("/value-history", coinHandler.ValueHistory)
+		protected.GET("/coins/:id/value-history", coinHandler.CoinValueHistory)
 		protected.GET("/suggestions", coinHandler.Suggestions)
 
 		imageHandler := handlers.NewImageHandler(cfg.UploadDir)
@@ -172,6 +173,7 @@ func main() {
 		protected.GET("/agent/models", agentHandler.ListModels)
 		protected.GET("/agent/prompt", agentHandler.GetPrompt)
 		protected.GET("/agent/valuation-prompt", agentHandler.GetValuationPrompt)
+		protected.GET("/agent/portfolio-summary", agentHandler.PortfolioSummary)
 
 		convHandler := handlers.NewConversationHandler()
 		protected.GET("/agent/conversations", convHandler.List)
