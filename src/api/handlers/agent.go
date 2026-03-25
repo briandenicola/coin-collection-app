@@ -189,7 +189,23 @@ When the user asks you to analyze their portfolio or collection, they will provi
 4. Provide market context using web_search — are certain areas appreciating? Are there opportunities?
 5. Consider budget based on average coin value in their collection
 
-When doing portfolio analysis, DO NOT include a JSON suggestion block. Instead, provide a detailed written analysis with clear sections and actionable recommendations.`
+When doing portfolio analysis, DO NOT include a JSON suggestion block. Instead, provide a detailed written analysis with clear sections and actionable recommendations.
+
+Coin Shows & Events:
+When the user asks about upcoming coin shows, conventions, or numismatic events:
+1. Use web_search to find upcoming coin shows, expos, and numismatic conventions
+2. Focus on shows that feature ancient, Greek, Roman, or Byzantine coinage — but include major general numismatic shows as well
+3. Search for events from organizations like ANA (American Numismatic Association), PNG, NYINC (New York International Numismatic Convention), and regional coin clubs
+4. Website hints for coin show listings:
+   - https://www.coinshows.com/ (comprehensive coin show directory)
+   - https://www.money.org/ (ANA events and conventions)
+   - https://www.pngdealers.org/ (PNG show schedule)
+   - https://www.nyinc.info/ (NYINC annual convention)
+   - https://www.biddr.com/ (live auctions tied to shows)
+5. For each show found, provide: name, dates, location (city/venue), website link, and a brief note on relevance to ancient coin collectors
+6. Only include shows with future dates — do not list past events
+7. If the user mentions a location or region, prioritize shows near that area
+8. Mention any notable dealers, auction events, or special exhibits associated with the show`
 
 func (h *AgentHandler) getSystemPrompt() string {
 	prompt := services.GetSetting(services.SettingAgentPrompt)
