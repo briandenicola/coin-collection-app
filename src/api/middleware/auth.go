@@ -7,18 +7,18 @@ import (
 	"strings"
 	"time"
 
-	"github.com/briandenicola/ancient-coins-api/database"
 	"github.com/briandenicola/ancient-coins-api/models"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"gorm.io/gorm"
 )
 
-func AuthRequired(jwtSecret string) gin.HandlerFunc {
+func AuthRequired(jwtSecret string, db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Try API key auth first
 		apiKey := c.GetHeader("X-API-Key")
 		if apiKey != "" {
-			if authenticateApiKey(c, apiKey) {
+			if authenticateApiKey(c, apiKey, db) {
 				c.Next()
 				return
 			}
@@ -71,24 +71,24 @@ func AuthRequired(jwtSecret string) gin.HandlerFunc {
 	}
 }
 
-func authenticateApiKey(c *gin.Context, plainKey string) bool {
+func authenticateApiKey(c *gin.Context, plainKey string, db *gorm.DB) bool {
 	hash := sha256.Sum256([]byte(plainKey))
 	keyHash := hex.EncodeToString(hash[:])
 
 	var apiKey models.ApiKey
-	if err := database.DB.Where("key_hash = ? AND revoked_at IS NULL", keyHash).First(&apiKey).Error; err != nil {
+	if err := db.Where("key_hash = ? AND revoked_at IS NULL", keyHash).First(&apiKey).Error; err != nil {
 		return false
 	}
 
 	// Look up the user to get their role
 	var user models.User
-	if err := database.DB.First(&user, apiKey.UserID).Error; err != nil {
+	if err := db.First(&user, apiKey.UserID).Error; err != nil {
 		return false
 	}
 
 	// Update last used timestamp
 	now := time.Now()
-	database.DB.Model(&apiKey).Update("last_used_at", &now)
+	db.Model(&apiKey).Update("last_used_at", &now)
 
 	c.Set("userId", apiKey.UserID)
 	c.Set("userRole", string(user.Role))

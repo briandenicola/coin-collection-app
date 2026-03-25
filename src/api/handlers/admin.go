@@ -49,16 +49,9 @@ func AdminRequired() gin.HandlerFunc {
 func (h *AdminHandler) ListUsers(c *gin.Context) {
 	users, _ := h.repo.ListUsers()
 
-	type userDTO struct {
-		ID        uint           `json:"id"`
-		Username  string         `json:"username"`
-		Role      models.UserRole `json:"role"`
-		CreatedAt string         `json:"createdAt"`
-	}
-
-	var result []userDTO
+	var result []UserDTO
 	for _, u := range users {
-		result = append(result, userDTO{
+		result = append(result, UserDTO{
 			ID:        u.ID,
 			Username:  u.Username,
 			Role:      u.Role,

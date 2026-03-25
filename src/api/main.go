@@ -37,6 +37,9 @@ func main() {
 
 	database.Connect(cfg.DBPath)
 
+	// Initialize settings service with DB connection
+	services.InitSettings(database.DB)
+
 	// Initialize logger from DB settings
 	services.SyncLogLevel()
 	logger := services.AppLogger
@@ -134,7 +137,7 @@ func main() {
 
 	// Protected routes
 	protected := api.Group("")
-	protected.Use(middleware.AuthRequired(cfg.JWTSecret))
+	protected.Use(middleware.AuthRequired(cfg.JWTSecret, database.DB))
 	{
 		coinRepo := repository.NewCoinRepository(database.DB)
 		coinSvc := services.NewCoinService(coinRepo)
@@ -242,7 +245,7 @@ func main() {
 
 	// Admin-only routes
 	admin := api.Group("/admin")
-	admin.Use(middleware.AuthRequired(cfg.JWTSecret))
+	admin.Use(middleware.AuthRequired(cfg.JWTSecret, database.DB))
 	admin.Use(handlers.AdminRequired())
 	{
 		adminRepo := repository.NewAdminRepository(database.DB)
