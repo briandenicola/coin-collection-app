@@ -6,18 +6,19 @@ import (
 	"encoding/hex"
 	"net/http"
 	"strconv"
-	"time"
 
-	"github.com/briandenicola/ancient-coins-api/database"
 	"github.com/briandenicola/ancient-coins-api/models"
+	"github.com/briandenicola/ancient-coins-api/repository"
 	"github.com/briandenicola/ancient-coins-api/services"
 	"github.com/gin-gonic/gin"
 )
 
-type ApiKeyHandler struct{}
+type ApiKeyHandler struct {
+	repo *repository.ApiKeyRepository
+}
 
-func NewApiKeyHandler() *ApiKeyHandler {
-	return &ApiKeyHandler{}
+func NewApiKeyHandler(repo *repository.ApiKeyRepository) *ApiKeyHandler {
+	return &ApiKeyHandler{repo: repo}
 }
 
 type generateApiKeyRequest struct {
@@ -77,7 +78,7 @@ func (h *ApiKeyHandler) Generate(c *gin.Context) {
 		Name:      req.Name,
 	}
 
-	if err := database.DB.Create(&apiKey).Error; err != nil {
+	if err := h.repo.Create(&apiKey); err != nil {
 		logger.Error("api-keys", "Failed to save API key: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create API key"})
 		return
@@ -104,8 +105,7 @@ func (h *ApiKeyHandler) Generate(c *gin.Context) {
 func (h *ApiKeyHandler) List(c *gin.Context) {
 	userID := c.GetUint("userId")
 
-	var keys []models.ApiKey
-	database.DB.Where("user_id = ?", userID).Order("created_at DESC").Find(&keys)
+	keys, _ := h.repo.ListByUser(userID)
 
 	c.JSON(http.StatusOK, keys)
 }
@@ -134,13 +134,14 @@ func (h *ApiKeyHandler) Revoke(c *gin.Context) {
 	}
 
 	var apiKey models.ApiKey
-	if err := database.DB.Where("id = ? AND user_id = ?", keyID, userID).First(&apiKey).Error; err != nil {
+	found, err := h.repo.FindByIDAndUser(uint(keyID), userID)
+	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "API key not found"})
 		return
 	}
+	apiKey = *found
 
-	now := time.Now()
-	database.DB.Model(&apiKey).Update("revoked_at", &now)
+	h.repo.Revoke(&apiKey)
 
 	logger.Info("api-keys", "Revoked API key %d '%s' for user %d", apiKey.ID, apiKey.Name, userID)
 
