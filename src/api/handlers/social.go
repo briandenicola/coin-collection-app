@@ -12,10 +12,11 @@ import (
 
 type SocialHandler struct {
 	repo *repository.SocialRepository
+	svc  *services.SocialService
 }
 
-func NewSocialHandler(repo *repository.SocialRepository) *SocialHandler {
-	return &SocialHandler{repo: repo}
+func NewSocialHandler(repo *repository.SocialRepository, svc *services.SocialService) *SocialHandler {
+	return &SocialHandler{repo: repo, svc: svc}
 }
 
 // FollowUser sends a follow request to another user.
@@ -28,46 +29,28 @@ func (h *SocialHandler) FollowUser(c *gin.Context) {
 		return
 	}
 
-	if uint(targetID) == userID {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot follow yourself"})
-		return
-	}
-
-	target, err := h.repo.FindUser(uint(targetID))
+	status, err := h.svc.FollowUser(userID, uint(targetID))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
-		return
-	}
-	if !target.IsPublic {
-		c.JSON(http.StatusForbidden, gin.H{"error": "This user is not accepting followers"})
-		return
-	}
-
-	existing, err := h.repo.FindFollow(userID, uint(targetID))
-	if err == nil {
-		if existing.Status == "blocked" {
-			c.JSON(http.StatusForbidden, gin.H{"error": "You are blocked by this user"})
-			return
+		switch err {
+		case services.ErrSelfFollow:
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		case services.ErrUserNotFound:
+			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		case services.ErrUserNotPublic:
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		case services.ErrBlocked:
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		case services.ErrFollowPending:
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		case services.ErrAlreadyFollowing:
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to follow user"})
 		}
-		if existing.Status == "pending" {
-			c.JSON(http.StatusConflict, gin.H{"error": "Follow request already pending"})
-			return
-		}
-		c.JSON(http.StatusConflict, gin.H{"error": "Already following this user"})
 		return
 	}
 
-	follow := models.Follow{
-		FollowerID:  userID,
-		FollowingID: uint(targetID),
-		Status:      "pending",
-	}
-
-	if err := h.repo.CreateFollow(&follow); err != nil {
-		c.JSON(http.StatusConflict, gin.H{"error": "Already following this user"})
-		return
-	}
-
+	_ = status
 	logger.Info("social", "User %d sent follow request to user %d", userID, targetID)
 	c.JSON(http.StatusCreated, gin.H{"message": "Follow request sent"})
 }
@@ -204,8 +187,20 @@ func (h *SocialHandler) GetFollowing(c *gin.Context) {
 		return
 	}
 
-	result := h.buildUserList(users, userID)
-	c.JSON(http.StatusOK, gin.H{"following": result})
+	result := h.svc.BuildUserList(users, userID)
+	items := make([]gin.H, len(result))
+	for i, item := range result {
+		items[i] = gin.H{
+			"id":          item.ID,
+			"username":    item.Username,
+			"avatarPath":  item.AvatarPath,
+			"isPublic":    item.IsPublic,
+			"bio":         item.Bio,
+			"isFollowing": item.IsFollowing,
+			"coinCount":   item.CoinCount,
+		}
+	}
+	c.JSON(http.StatusOK, gin.H{"following": items})
 }
 
 // SearchUsers searches for users by username prefix (public users only).
@@ -252,36 +247,23 @@ func (h *SocialHandler) GetPublicProfile(c *gin.Context) {
 	username := c.Param("username")
 	currentUserID := c.GetUint("userId")
 
-	user, err := h.repo.FindUserByUsername(username)
+	profile, err := h.svc.GetPublicProfileData(username, currentUserID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
 
-	var followStatus string
-	var isFollowing bool
-	follow, err := h.repo.FindFollow(currentUserID, user.ID)
-	if err == nil {
-		followStatus = follow.Status
-		isFollowing = follow.Status == "accepted"
-	}
-
-	var coinCount int64
-	if user.IsPublic && isFollowing {
-		coinCount = h.repo.CountPublicCoins(user.ID)
-	}
-
 	c.JSON(http.StatusOK, gin.H{
-		"id":             user.ID,
-		"username":       user.Username,
-		"avatarPath":     user.AvatarPath,
-		"isPublic":       user.IsPublic,
-		"bio":            user.Bio,
-		"isFollowing":    isFollowing,
-		"followStatus":   followStatus,
-		"coinCount":      coinCount,
-		"followerCount":  h.repo.GetFollowerCount(user.ID),
-		"followingCount": h.repo.GetFollowingCount(user.ID),
+		"id":             profile.ID,
+		"username":       profile.Username,
+		"avatarPath":     profile.AvatarPath,
+		"isPublic":       profile.IsPublic,
+		"bio":            profile.Bio,
+		"isFollowing":    profile.IsFollowing,
+		"followStatus":   profile.FollowStatus,
+		"coinCount":      profile.CoinCount,
+		"followerCount":  profile.FollowerCount,
+		"followingCount": profile.FollowingCount,
 	})
 }
 
@@ -294,7 +276,7 @@ func (h *SocialHandler) GetFollowingCoins(c *gin.Context) {
 		return
 	}
 
-	if !h.repo.IsAcceptedFollower(currentUserID, uint(targetID)) {
+	if !h.svc.CanViewCoins(currentUserID, uint(targetID)) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "You must be an accepted follower to view their coins"})
 		return
 	}
@@ -339,7 +321,7 @@ func (h *SocialHandler) GetFollowingCoinDetail(c *gin.Context) {
 		return
 	}
 
-	if !h.repo.IsAcceptedFollower(currentUserID, uint(targetID)) {
+	if !h.svc.CanViewCoins(currentUserID, uint(targetID)) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "You must be an accepted follower to view their coins"})
 		return
 	}
@@ -418,7 +400,7 @@ func (h *SocialHandler) AddComment(c *gin.Context) {
 	}
 
 	if coin.UserID != currentUserID {
-		if !h.repo.IsAcceptedFollower(currentUserID, coin.UserID) {
+		if !h.svc.CanViewCoins(currentUserID, coin.UserID) {
 			c.JSON(http.StatusForbidden, gin.H{"error": "You must be an accepted follower to comment on their coins"})
 			return
 		}
@@ -468,7 +450,7 @@ func (h *SocialHandler) GetComments(c *gin.Context) {
 	}
 
 	if coin.UserID != currentUserID {
-		if !h.repo.IsAcceptedFollower(currentUserID, coin.UserID) {
+		if !h.svc.CanViewCoins(currentUserID, coin.UserID) {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
 			return
 		}
@@ -552,7 +534,7 @@ func (h *SocialHandler) RateCoin(c *gin.Context) {
 	}
 
 	if coin.UserID != currentUserID {
-		if !h.repo.IsAcceptedFollower(currentUserID, coin.UserID) {
+		if !h.svc.CanViewCoins(currentUserID, coin.UserID) {
 			c.JSON(http.StatusForbidden, gin.H{"error": "You must be an accepted follower to rate their coins"})
 			return
 		}
@@ -585,38 +567,6 @@ func (h *SocialHandler) GetCoinRating(c *gin.Context) {
 		"count":      ratingResult.Count,
 		"userRating": userRating,
 	})
-}
-
-// buildUserList builds a user list with coin counts for the following view.
-func (h *SocialHandler) buildUserList(users []models.User, currentUserID uint) []gin.H {
-	follows, _ := h.repo.GetAllFollows(currentUserID)
-	followSet := map[uint]bool{}
-	for _, f := range follows {
-		if f.Status == "accepted" {
-			followSet[f.FollowingID] = true
-		}
-	}
-
-	var result []gin.H
-	for _, u := range users {
-		var coinCount int64
-		if u.IsPublic {
-			coinCount = h.repo.CountPublicCoins(u.ID)
-		}
-		result = append(result, gin.H{
-			"id":          u.ID,
-			"username":    u.Username,
-			"avatarPath":  u.AvatarPath,
-			"isPublic":    u.IsPublic,
-			"bio":         u.Bio,
-			"isFollowing": followSet[u.ID],
-			"coinCount":   coinCount,
-		})
-	}
-	if result == nil {
-		result = []gin.H{}
-	}
-	return result
 }
 
 // Helper: strip sensitive fields from coin for follower view

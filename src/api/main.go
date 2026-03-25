@@ -109,7 +109,8 @@ func main() {
 
 	// Auth routes (public) — rate limited to prevent brute force
 	authRepo := repository.NewAuthRepository(database.DB)
-	authHandler := handlers.NewAuthHandler(cfg.JWTSecret, authRepo)
+	authSvc := services.NewAuthService(authRepo, cfg.JWTSecret)
+	authHandler := handlers.NewAuthHandler(cfg.JWTSecret, authRepo, authSvc)
 	webauthnRepo := repository.NewWebAuthnRepository(database.DB)
 	webauthnHandler, err := handlers.NewWebAuthnHandler(cfg.WebAuthnID, cfg.WebAuthnOrigin, authHandler, webauthnRepo)
 	if err != nil {
@@ -136,7 +137,8 @@ func main() {
 	protected.Use(middleware.AuthRequired(cfg.JWTSecret))
 	{
 		coinRepo := repository.NewCoinRepository(database.DB)
-		coinHandler := handlers.NewCoinHandler(coinRepo)
+		coinSvc := services.NewCoinService(coinRepo)
+		coinHandler := handlers.NewCoinHandler(coinRepo, coinSvc)
 		protected.GET("/coins", coinHandler.List)
 		protected.GET("/coins/:id", coinHandler.Get)
 		protected.POST("/coins", coinHandler.Create)
@@ -157,7 +159,8 @@ func main() {
 		protected.GET("/suggestions", coinHandler.Suggestions)
 
 		imageRepo := repository.NewImageRepository(database.DB)
-		imageHandler := handlers.NewImageHandler(cfg.UploadDir, imageRepo)
+		imageSvc := services.NewImageService(imageRepo, cfg.UploadDir)
+		imageHandler := handlers.NewImageHandler(cfg.UploadDir, imageRepo, imageSvc)
 		protected.POST("/coins/:id/images", imageHandler.Upload)
 		protected.POST("/coins/:id/images/base64", imageHandler.UploadBase64)
 		protected.DELETE("/coins/:id/images/:imageId", imageHandler.Delete)
@@ -203,7 +206,8 @@ func main() {
 
 		// Social routes
 		socialRepo := repository.NewSocialRepository(database.DB)
-		socialHandler := handlers.NewSocialHandler(socialRepo)
+		socialSvc := services.NewSocialService(socialRepo)
+		socialHandler := handlers.NewSocialHandler(socialRepo, socialSvc)
 		protected.POST("/social/follow/:userId", socialHandler.FollowUser)
 		protected.DELETE("/social/follow/:userId", socialHandler.UnfollowUser)
 		protected.PUT("/social/followers/:userId/accept", socialHandler.AcceptFollower)

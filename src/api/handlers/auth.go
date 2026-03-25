@@ -1,27 +1,18 @@
 package handlers
 
 import (
-	"crypto/rand"
-	"crypto/sha256"
-	"encoding/hex"
 	"net/http"
-	"time"
 
 	"github.com/briandenicola/ancient-coins-api/models"
 	"github.com/briandenicola/ancient-coins-api/repository"
+	"github.com/briandenicola/ancient-coins-api/services"
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
-	"golang.org/x/crypto/bcrypt"
-)
-
-const (
-	accessTokenDuration  = 15 * time.Minute
-	refreshTokenDuration = 30 * 24 * time.Hour // 30 days
 )
 
 type AuthHandler struct {
 	JWTSecret string
 	repo      *repository.AuthRepository
+	svc       *services.AuthService
 }
 
 type loginRequest struct {
@@ -39,8 +30,8 @@ type refreshRequest struct {
 	RefreshToken string `json:"refreshToken" binding:"required"`
 }
 
-func NewAuthHandler(jwtSecret string, repo *repository.AuthRepository) *AuthHandler {
-	return &AuthHandler{JWTSecret: jwtSecret, repo: repo}
+func NewAuthHandler(jwtSecret string, repo *repository.AuthRepository, svc *services.AuthService) *AuthHandler {
+	return &AuthHandler{JWTSecret: jwtSecret, repo: repo, svc: svc}
 }
 
 // Register creates a new user account. The first user registered becomes an admin.
@@ -63,32 +54,20 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	user, err := h.svc.RegisterUser(req.Username, req.Email, req.Password)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
+		switch err {
+		case services.ErrHashingFailed:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
+		case services.ErrUsernameExists:
+			c.JSON(http.StatusConflict, gin.H{"error": "Username already exists"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Registration failed"})
+		}
 		return
 	}
 
-	// First user becomes admin
-	count := h.repo.CountUsers()
-	role := models.RoleUser
-	if count == 0 {
-		role = models.RoleAdmin
-	}
-
-	user := models.User{
-		Username:     req.Username,
-		Email:        req.Email,
-		PasswordHash: string(hash),
-		Role:         role,
-	}
-
-	if err := h.repo.CreateUser(&user); err != nil {
-		c.JSON(http.StatusConflict, gin.H{"error": "Username already exists"})
-		return
-	}
-
-	h.issueTokens(c, user, http.StatusCreated)
+	h.issueTokens(c, *user, http.StatusCreated)
 }
 
 // Login authenticates a user and returns JWT access and refresh tokens.
@@ -111,20 +90,13 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	var user models.User
-	found, err := h.repo.FindUserByUsername(req.Username)
+	user, err := h.svc.AuthenticateUser(req.Username, req.Password)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 		return
 	}
-	user = *found
 
-	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
-		return
-	}
-
-	h.issueTokens(c, user, http.StatusOK)
+	h.issueTokens(c, *user, http.StatusOK)
 }
 
 // Refresh exchanges a valid refresh token for a new access token and refresh token (rolling).
@@ -147,58 +119,24 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 		return
 	}
 
-	// Hash the provided token and look it up
-	hash := sha256.Sum256([]byte(req.RefreshToken))
-	tokenHash := hex.EncodeToString(hash[:])
-
-	rt, err := h.repo.FindRefreshToken(tokenHash)
+	user, accessToken, refreshToken, err := h.svc.RotateTokens(req.RefreshToken)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid refresh token"})
-		return
-	}
-
-	// Check expiry
-	if time.Now().After(rt.ExpiresAt) {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Refresh token expired"})
-		return
-	}
-
-	// Look up user
-	user, err := h.repo.FindUserByID(rt.UserID)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
-		return
-	}
-
-	// Generate new refresh token
-	b := make([]byte, 32)
-	if _, err := rand.Read(b); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
-		return
-	}
-	plainToken := "rt_" + hex.EncodeToString(b)
-	newHash := sha256.Sum256([]byte(plainToken))
-	newRT := models.RefreshToken{
-		UserID:    user.ID,
-		TokenHash: hex.EncodeToString(newHash[:]),
-		ExpiresAt: time.Now().Add(refreshTokenDuration),
-	}
-
-	// Atomically revoke old and create new refresh token
-	if err := h.repo.RotateRefreshToken(rt, &newRT); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to rotate refresh token"})
-		return
-	}
-
-	accessToken, err := h.generateAccessToken(*user)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate access token"})
+		switch err {
+		case services.ErrInvalidRefreshToken:
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid refresh token"})
+		case services.ErrRefreshTokenExpired:
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Refresh token expired"})
+		case services.ErrInvalidCredentials:
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to rotate refresh token"})
+		}
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"token":        accessToken,
-		"refreshToken": plainToken,
+		"refreshToken": refreshToken,
 		"user": gin.H{
 			"id":         user.ID,
 			"username":   user.Username,
@@ -213,13 +151,13 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 
 // issueTokens generates and returns both access and refresh tokens.
 func (h *AuthHandler) issueTokens(c *gin.Context, user models.User, statusCode int) {
-	accessToken, err := h.generateAccessToken(user)
+	accessToken, err := h.svc.GenerateAccessToken(user)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate access token"})
 		return
 	}
 
-	refreshToken, err := h.generateRefreshToken(user)
+	refreshToken, err := h.svc.GenerateRefreshToken(user)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate refresh token"})
 		return
@@ -238,42 +176,6 @@ func (h *AuthHandler) issueTokens(c *gin.Context, user models.User, statusCode i
 			"bio":        user.Bio,
 		},
 	})
-}
-
-func (h *AuthHandler) generateAccessToken(user models.User) (string, error) {
-	claims := jwt.MapClaims{
-		"userId":   user.ID,
-		"username": user.Username,
-		"role":     string(user.Role),
-		"exp":      time.Now().Add(accessTokenDuration).Unix(),
-		"iat":      time.Now().Unix(),
-	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte(h.JWTSecret))
-}
-
-func (h *AuthHandler) generateRefreshToken(user models.User) (string, error) {
-	// Generate a random 32-byte token
-	b := make([]byte, 32)
-	if _, err := rand.Read(b); err != nil {
-		return "", err
-	}
-	plainToken := "rt_" + hex.EncodeToString(b)
-
-	// Store hashed version in DB
-	hash := sha256.Sum256([]byte(plainToken))
-	tokenHash := hex.EncodeToString(hash[:])
-
-	rt := models.RefreshToken{
-		UserID:    user.ID,
-		TokenHash: tokenHash,
-		ExpiresAt: time.Now().Add(refreshTokenDuration),
-	}
-	if err := h.repo.CreateRefreshToken(&rt); err != nil {
-		return "", err
-	}
-
-	return plainToken, nil
 }
 
 // NeedsSetup returns whether the first user has been created yet.

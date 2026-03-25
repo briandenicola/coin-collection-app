@@ -1,17 +1,14 @@
 package handlers
 
 import (
-	"encoding/base64"
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/briandenicola/ancient-coins-api/models"
 	"github.com/briandenicola/ancient-coins-api/repository"
 	"github.com/briandenicola/ancient-coins-api/services"
 	"github.com/gin-gonic/gin"
@@ -21,10 +18,11 @@ import (
 type ImageHandler struct {
 	UploadDir string
 	repo      *repository.ImageRepository
+	svc       *services.ImageService
 }
 
-func NewImageHandler(uploadDir string, repo *repository.ImageRepository) *ImageHandler {
-	return &ImageHandler{UploadDir: uploadDir, repo: repo}
+func NewImageHandler(uploadDir string, repo *repository.ImageRepository, svc *services.ImageService) *ImageHandler {
+	return &ImageHandler{UploadDir: uploadDir, repo: repo, svc: svc}
 }
 
 // Upload adds an image to a coin.
@@ -56,13 +54,6 @@ func (h *ImageHandler) Upload(c *gin.Context) {
 
 	logger.Debug("images", "Upload request for coin %d (user %d)", coinID, userID)
 
-	// Verify ownership
-	if _, err := h.repo.FindCoinByOwner(uint(coinID), userID); err != nil {
-		logger.Warn("images", "Coin %d not found for user %d", coinID, userID)
-		c.JSON(http.StatusNotFound, gin.H{"error": "Coin not found"})
-		return
-	}
-
 	file, err := c.FormFile("image")
 	if err != nil {
 		logger.Warn("images", "No image file in upload request: %v", err)
@@ -72,18 +63,6 @@ func (h *ImageHandler) Upload(c *gin.Context) {
 
 	logger.Debug("images", "Received file: %s (%d bytes)", file.Filename, file.Size)
 
-	imageType := models.ImageType(c.DefaultPostForm("imageType", "other"))
-	isPrimary := c.DefaultPostForm("isPrimary", "false") == "true"
-
-	// Create upload directory for this coin
-	coinDir := filepath.Join(h.UploadDir, fmt.Sprintf("coin-%d", coinID))
-	if err := os.MkdirAll(coinDir, 0755); err != nil {
-		logger.Error("images", "Failed to create directory %s: %v", coinDir, err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create upload directory"})
-		return
-	}
-
-	// Generate unique filename with safe extension
 	ext := strings.ToLower(filepath.Ext(file.Filename))
 	allowedExts := map[string]bool{".jpg": true, ".jpeg": true, ".png": true, ".gif": true, ".webp": true}
 	if !allowedExts[ext] {
@@ -91,35 +70,33 @@ func (h *ImageHandler) Upload(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "File type not allowed. Accepted: .jpg, .jpeg, .png, .gif, .webp"})
 		return
 	}
-	filename := fmt.Sprintf("%d-%s%s", time.Now().UnixNano(), imageType, ext)
-	filePath := filepath.Join(coinDir, filename)
 
-	if err := c.SaveUploadedFile(file, filePath); err != nil {
-		logger.Error("images", "Failed to save file to %s: %v", filePath, err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save image"})
+	f, err := file.Open()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read uploaded file"})
+		return
+	}
+	defer f.Close()
+
+	fileData, err := io.ReadAll(f)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read uploaded file"})
 		return
 	}
 
-	// If this is primary, atomically clear others and create
-	image := models.CoinImage{
-		CoinID:    uint(coinID),
-		FilePath:  filepath.ToSlash(filepath.Join(fmt.Sprintf("coin-%d", coinID), filename)),
-		ImageType: imageType,
-		IsPrimary: isPrimary,
-	}
+	imageType := c.DefaultPostForm("imageType", "other")
+	isPrimary := c.DefaultPostForm("isPrimary", "false") == "true"
 
-	if isPrimary {
-		if err := h.repo.SetPrimaryAndCreate(uint(coinID), &image); err != nil {
-			logger.Error("images", "Failed to save image record: %v", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save image record"})
-			return
+	image, err := h.svc.UploadImage(uint(coinID), userID, fileData, ext, imageType, isPrimary)
+	if err != nil {
+		logger.Error("images", "Upload failed for coin %d: %v", coinID, err)
+		switch err {
+		case services.ErrCoinNotFound:
+			c.JSON(http.StatusNotFound, gin.H{"error": "Coin not found"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload image"})
 		}
-	} else {
-		if err := h.repo.CreateImage(&image); err != nil {
-			logger.Error("images", "Failed to save image record: %v", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save image record"})
-			return
-		}
+		return
 	}
 
 	logger.Info("images", "Uploaded %s image for coin %d: %s", imageType, coinID, image.FilePath)
@@ -176,66 +153,25 @@ func (h *ImageHandler) UploadBase64(c *gin.Context) {
 		return
 	}
 
-	// Verify ownership
-	if _, err := h.repo.FindCoinByOwner(uint(coinID), userID); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Coin not found"})
-		return
-	}
-
-	decoded, err := base64.StdEncoding.DecodeString(req.Image)
-	if err != nil {
-		decoded, err = base64.RawStdEncoding.DecodeString(req.Image)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid base64 image data"})
-			return
-		}
-	}
-
-	const maxSize = 20 * 1024 * 1024
-	if len(decoded) > maxSize {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Image exceeds 20MB limit"})
-		return
-	}
-
-	logger.Debug("images", "Base64 upload for coin %d: %d bytes decoded", coinID, len(decoded))
-
-	imageType := models.ImageType("other")
+	imageType := "other"
 	if req.ImageType != "" {
-		imageType = models.ImageType(req.ImageType)
+		imageType = req.ImageType
 	}
 
-	coinDir := filepath.Join(h.UploadDir, fmt.Sprintf("coin-%d", coinID))
-	if err := os.MkdirAll(coinDir, 0755); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create upload directory"})
-		return
-	}
-
-	filename := fmt.Sprintf("%d-%s%s", time.Now().UnixNano(), imageType, ext)
-	filePath := filepath.Join(coinDir, filename)
-
-	if err := os.WriteFile(filePath, decoded, 0644); err != nil {
-		logger.Error("images", "Failed to write base64 image to %s: %v", filePath, err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save image"})
-		return
-	}
-
-	image := models.CoinImage{
-		CoinID:    uint(coinID),
-		FilePath:  filepath.ToSlash(filepath.Join(fmt.Sprintf("coin-%d", coinID), filename)),
-		ImageType: imageType,
-		IsPrimary: req.IsPrimary,
-	}
-
-	if req.IsPrimary {
-		if err := h.repo.SetPrimaryAndCreate(uint(coinID), &image); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save image record"})
-			return
+	image, err := h.svc.UploadBase64Image(uint(coinID), userID, req.Image, ext, imageType, req.IsPrimary)
+	if err != nil {
+		logger.Error("images", "Base64 upload failed for coin %d: %v", coinID, err)
+		switch err {
+		case services.ErrCoinNotFound:
+			c.JSON(http.StatusNotFound, gin.H{"error": "Coin not found"})
+		case services.ErrInvalidBase64:
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid base64 image data"})
+		case services.ErrImageTooLarge:
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Image exceeds 20MB limit"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload image"})
 		}
-	} else {
-		if err := h.repo.CreateImage(&image); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save image record"})
-			return
-		}
+		return
 	}
 
 	logger.Info("images", "Uploaded base64 %s image for coin %d: %s", imageType, coinID, image.FilePath)
@@ -269,22 +205,19 @@ func (h *ImageHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	// Verify ownership
-	if _, err := h.repo.FindCoinByOwner(uint(coinID), userID); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Coin not found"})
-		return
-	}
-
-	image, err := h.repo.FindImage(uint(imageID), uint(coinID))
+	_, err = h.svc.DeleteImage(uint(coinID), uint(imageID), userID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Image not found"})
+		switch err {
+		case services.ErrCoinNotFound:
+			c.JSON(http.StatusNotFound, gin.H{"error": "Coin not found"})
+		case services.ErrImageNotFound:
+			c.JSON(http.StatusNotFound, gin.H{"error": "Image not found"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete image"})
+		}
 		return
 	}
 
-	// Delete file from disk
-	os.Remove(filepath.Join(h.UploadDir, image.FilePath))
-
-	h.repo.DeleteImage(image)
 	c.JSON(http.StatusOK, gin.H{"message": "Image deleted"})
 }
 

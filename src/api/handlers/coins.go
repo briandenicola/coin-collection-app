@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -15,10 +14,11 @@ import (
 
 type CoinHandler struct {
 	repo *repository.CoinRepository
+	svc  *services.CoinService
 }
 
-func NewCoinHandler(repo *repository.CoinRepository) *CoinHandler {
-	return &CoinHandler{repo: repo}
+func NewCoinHandler(repo *repository.CoinRepository, svc *services.CoinService) *CoinHandler {
+	return &CoinHandler{repo: repo, svc: svc}
 }
 
 // List returns a paginated list of coins for the authenticated user.
@@ -147,14 +147,13 @@ func (h *CoinHandler) Create(c *gin.Context) {
 
 	logger.Debug("coins", "Creating coin '%s' for user %d", coin.Name, userID)
 
-	if err := h.repo.Create(&coin); err != nil {
+	if err := h.svc.CreateCoin(&coin); err != nil {
 		logger.Error("coins", "Failed to create coin: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create coin"})
 		return
 	}
 
 	logger.Info("coins", "Created coin %d '%s' for user %d", coin.ID, coin.Name, userID)
-	h.repo.RecordValueSnapshot(userID)
 	c.JSON(http.StatusCreated, coin)
 }
 
@@ -188,8 +187,6 @@ func (h *CoinHandler) Update(c *gin.Context) {
 		return
 	}
 
-	oldValue := existing.CurrentValue
-
 	var updates models.Coin
 	if err := c.ShouldBindJSON(&updates); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -199,38 +196,12 @@ func (h *CoinHandler) Update(c *gin.Context) {
 	updates.ID = existing.ID
 	updates.UserID = userID
 
-	if err := h.repo.Update(existing, &updates); err != nil {
+	source := c.Query("source")
+	if err := h.svc.UpdateCoin(existing, &updates, userID, source); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update coin"})
 		return
 	}
 
-	// Track value changes — skip if applied from AI estimate (already recorded)
-	if updates.CurrentValue != nil {
-		newVal := *updates.CurrentValue
-		oldVal := 0.0
-		if oldValue != nil {
-			oldVal = *oldValue
-		}
-		if newVal != oldVal {
-			source := c.Query("source")
-			if source != "estimate" {
-				h.repo.RecordValueHistory(&models.CoinValueHistory{
-					CoinID:     existing.ID,
-					UserID:     userID,
-					Value:      newVal,
-					Confidence: "manual",
-					RecordedAt: time.Now(),
-				})
-				h.repo.CreateJournalEntry(&models.CoinJournal{
-					CoinID: existing.ID,
-					UserID: userID,
-					Entry:  fmt.Sprintf("Current value updated manually: $%.2f", newVal),
-				})
-			}
-		}
-	}
-
-	h.repo.RecordValueSnapshot(userID)
 	c.JSON(http.StatusOK, existing)
 }
 
@@ -262,12 +233,11 @@ func (h *CoinHandler) Purchase(c *gin.Context) {
 		return
 	}
 
-	if err := h.repo.UpdateField(coin, "is_wishlist", false); err != nil {
+	if err := h.svc.PurchaseCoin(coin, userID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to mark as purchased"})
 		return
 	}
 
-	h.repo.RecordValueSnapshot(userID)
 	c.JSON(http.StatusOK, coin)
 }
 
@@ -317,12 +287,11 @@ func (h *CoinHandler) Sell(c *gin.Context) {
 		"sold_date":  &now,
 		"sold_to":    body.SoldTo,
 	}
-	if err := h.repo.UpdateFields(coin, updates); err != nil {
+	if err := h.svc.SellCoin(coin, updates, userID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to mark as sold"})
 		return
 	}
 
-	h.repo.RecordValueSnapshot(userID)
 	c.JSON(http.StatusOK, coin)
 }
 
@@ -347,7 +316,7 @@ func (h *CoinHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	rows, err := h.repo.Delete(uint(id), userID)
+	rows, err := h.svc.DeleteCoin(uint(id), userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete coin"})
 		return
@@ -357,7 +326,6 @@ func (h *CoinHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	h.repo.RecordValueSnapshot(userID)
 	c.JSON(http.StatusOK, gin.H{"message": "Coin deleted"})
 }
 
