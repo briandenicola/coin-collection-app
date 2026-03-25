@@ -203,7 +203,7 @@ func (s *OllamaService) CheckModel(model string) (bool, string) {
 	)
 	if err != nil {
 		msg := fmt.Sprintf("Cannot connect to Ollama at %s: %v", s.BaseURL, err)
-		logger.Warn("ollama", msg)
+		logger.Warn("ollama", "%s", msg)
 		return false, msg
 	}
 	defer resp.Body.Close()
@@ -211,7 +211,7 @@ func (s *OllamaService) CheckModel(model string) (bool, string) {
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		msg := fmt.Sprintf("Model '%s' not available (status %d): %s", model, resp.StatusCode, string(body))
-		logger.Warn("ollama", msg)
+		logger.Warn("ollama", "%s", msg)
 		return false, msg
 	}
 
@@ -219,7 +219,7 @@ func (s *OllamaService) CheckModel(model string) (bool, string) {
 	body, _ := io.ReadAll(resp.Body)
 	if err := json.Unmarshal(body, &showResp); err != nil {
 		msg := fmt.Sprintf("Invalid response from Ollama: %v", err)
-		logger.Warn("ollama", msg)
+		logger.Warn("ollama", "%s", msg)
 		return false, msg
 	}
 
