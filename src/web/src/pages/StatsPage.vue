@@ -214,8 +214,8 @@
             </svg>
           </div>
           <div class="line-chart-dates">
-            <span>{{ formatShortDate(coinChartData[0].date) }}</span>
-            <span>{{ formatShortDate(coinChartData[coinChartData.length - 1].date) }}</span>
+            <span>{{ formatShortDate(coinChartData[0]?.date ?? '') }}</span>
+            <span>{{ formatShortDate(coinChartData[coinChartData.length - 1]?.date ?? '') }}</span>
           </div>
         </div>
         <p v-else-if="selectedCoinId && coinChartData.length < 2" class="chart-empty">
