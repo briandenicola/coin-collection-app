@@ -33,7 +33,7 @@
               Greek tetradrachms from Athens
             </button>
             <button class="example-btn" @click="sendPortfolioAnalysis">
-              📊 Analyze my portfolio
+              Analyze my portfolio
             </button>
           </div>
         </div>
