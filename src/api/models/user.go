@@ -18,5 +18,6 @@ type User struct {
 	AvatarPath   string    `json:"avatarPath"`
 	IsPublic     bool      `gorm:"default:false" json:"isPublic"`
 	Bio          string    `gorm:"type:text" json:"bio"`
+	ZipCode      string    `gorm:"type:varchar(10)" json:"zipCode"`
 	CreatedAt    time.Time `json:"createdAt"`
 }

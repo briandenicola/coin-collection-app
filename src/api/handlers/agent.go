@@ -18,14 +18,16 @@ import (
 )
 
 type AgentHandler struct {
-	client *http.Client
-	repo   *repository.AgentRepository
+	client   *http.Client
+	repo     *repository.AgentRepository
+	userRepo *repository.UserRepository
 }
 
-func NewAgentHandler(repo *repository.AgentRepository) *AgentHandler {
+func NewAgentHandler(repo *repository.AgentRepository, userRepo *repository.UserRepository) *AgentHandler {
 	return &AgentHandler{
-		client: &http.Client{Timeout: 300 * time.Second},
-		repo:   repo,
+		client:   &http.Client{Timeout: 300 * time.Second},
+		repo:     repo,
+		userRepo: userRepo,
 	}
 }
 
@@ -207,11 +209,16 @@ When the user asks about upcoming coin shows, conventions, or numismatic events:
 7. If the user mentions a location or region, prioritize shows near that area
 8. Mention any notable dealers, auction events, or special exhibits associated with the show`
 
-func (h *AgentHandler) getSystemPrompt() string {
+func (h *AgentHandler) getSystemPrompt(userID uint) string {
 	prompt := services.GetSetting(services.SettingAgentPrompt)
 	if prompt == "" {
-		return DefaultAgentPrompt
+		prompt = DefaultAgentPrompt
 	}
+
+	if user, err := h.userRepo.FindByID(userID); err == nil && user.ZipCode != "" {
+		prompt = fmt.Sprintf("The user's location ZIP code is %s. Use this to prioritize nearby coin shows, dealers, and events when relevant.\n\n%s", user.ZipCode, prompt)
+	}
+
 	return prompt
 }
 
@@ -230,6 +237,7 @@ func (h *AgentHandler) getSystemPrompt() string {
 //	@Router			/agent/chat [post]
 func (h *AgentHandler) ChatStream(c *gin.Context) {
 	logger := services.AppLogger
+	userID := c.GetUint("userId")
 
 	apiKey := services.GetSetting(services.SettingAnthropicAPIKey)
 	if apiKey == "" {
@@ -267,7 +275,7 @@ func (h *AgentHandler) ChatStream(c *gin.Context) {
 		Model:     model,
 		MaxTokens: 4096,
 		Stream:    true,
-		System:    h.getSystemPrompt(),
+		System:    h.getSystemPrompt(userID),
 		Tools: []anthropicTool{
 			{
 				Type:    "web_search_20250305",

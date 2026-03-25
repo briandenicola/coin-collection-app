@@ -181,7 +181,8 @@ func main() {
 		protected.GET("/numista/search", numistaHandler.Search)
 
 		agentRepo := repository.NewAgentRepository(database.DB)
-		agentHandler := handlers.NewAgentHandler(agentRepo)
+		userRepo := repository.NewUserRepository(database.DB)
+		agentHandler := handlers.NewAgentHandler(agentRepo, userRepo)
 		protected.POST("/agent/chat", agentHandler.ChatStream)
 		protected.POST("/coins/:id/estimate-value", agentHandler.EstimateValue)
 		protected.GET("/agent/models", agentHandler.ListModels)
@@ -197,7 +198,6 @@ func main() {
 		protected.DELETE("/agent/conversations/:id", convHandler.Delete)
 
 		// User self-service routes
-		userRepo := repository.NewUserRepository(database.DB)
 		userHandler := handlers.NewUserHandler(cfg.UploadDir, userRepo)
 		protected.GET("/auth/me", userHandler.GetMe)
 		protected.POST("/auth/change-password", userHandler.ChangePassword)

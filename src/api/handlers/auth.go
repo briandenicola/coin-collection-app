@@ -145,6 +145,7 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 			"avatarPath": user.AvatarPath,
 			"isPublic":   user.IsPublic,
 			"bio":        user.Bio,
+			"zipCode":    user.ZipCode,
 		},
 	})
 }
@@ -174,6 +175,7 @@ func (h *AuthHandler) issueTokens(c *gin.Context, user models.User, statusCode i
 			"avatarPath": user.AvatarPath,
 			"isPublic":   user.IsPublic,
 			"bio":        user.Bio,
+			"zipCode":    user.ZipCode,
 		},
 	})
 }

@@ -70,6 +70,7 @@ export interface User {
   avatarPath: string
   isPublic: boolean
   bio: string
+  zipCode: string
 }
 
 export interface AuthResponse {
@@ -150,6 +151,7 @@ export interface UserInfo {
   avatarPath: string
   isPublic: boolean
   bio: string
+  zipCode: string
   emailMissing: boolean
   createdAt: string
 }

@@ -105,6 +105,7 @@ func (h *UserHandler) GetMe(c *gin.Context) {
 		"avatarPath":   user.AvatarPath,
 		"isPublic":     user.IsPublic,
 		"bio":          user.Bio,
+		"zipCode":      user.ZipCode,
 		"emailMissing": user.Email == "",
 		"createdAt":    user.CreatedAt,
 	})
@@ -175,6 +176,7 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 		Email    *string `json:"email"`
 		Bio      *string `json:"bio"`
 		IsPublic *bool   `json:"isPublic"`
+		ZipCode  *string `json:"zipCode"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -208,6 +210,9 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 	if req.Bio != nil {
 		updates["bio"] = *req.Bio
 	}
+	if req.ZipCode != nil {
+		updates["zip_code"] = strings.TrimSpace(*req.ZipCode)
+	}
 	if req.IsPublic != nil {
 		updates["is_public"] = *req.IsPublic
 		goingPrivate := !*req.IsPublic && user.IsPublic
@@ -233,6 +238,7 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 		"avatarPath": user.AvatarPath,
 		"isPublic":   user.IsPublic,
 		"bio":        user.Bio,
+		"zipCode":    user.ZipCode,
 	})
 }
 
