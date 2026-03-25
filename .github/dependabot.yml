@@ -20,6 +20,8 @@ updates:
     ignore:
       - dependency-name: vite
         versions: [">=8.0.0"]
+      - dependency-name: typescript
+        versions: [">=6.0.0"]
 
   - package-ecosystem: github-actions
     directory: /
