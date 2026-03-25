@@ -6,17 +6,19 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/briandenicola/ancient-coins-api/database"
 	"github.com/briandenicola/ancient-coins-api/models"
+	"github.com/briandenicola/ancient-coins-api/repository"
 	"github.com/briandenicola/ancient-coins-api/services"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
-type CoinHandler struct{}
+type CoinHandler struct {
+	repo *repository.CoinRepository
+}
 
-func NewCoinHandler() *CoinHandler {
-	return &CoinHandler{}
+func NewCoinHandler(repo *repository.CoinRepository) *CoinHandler {
+	return &CoinHandler{repo: repo}
 }
 
 // List returns a paginated list of coins for the authenticated user.
@@ -40,75 +42,34 @@ func NewCoinHandler() *CoinHandler {
 //	@Router			/coins [get]
 func (h *CoinHandler) List(c *gin.Context) {
 	userID := c.GetUint("userId")
-	category := c.Query("category")
-	search := c.Query("search")
-	wishlist := c.Query("wishlist")
-	sold := c.Query("sold")
-	sortField := c.DefaultQuery("sort", "updated_at")
-	sortOrder := c.DefaultQuery("order", "desc")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 
-	if page < 1 {
-		page = 1
+	filters := repository.CoinListFilters{
+		Category:  c.Query("category"),
+		Search:    c.Query("search"),
+		SortField: c.DefaultQuery("sort", "updated_at"),
+		SortOrder: c.DefaultQuery("order", "desc"),
+		Page:      page,
+		Limit:     limit,
 	}
-	if limit < 1 || limit > 100 {
-		limit = 50
+	if w := c.Query("wishlist"); w == "true" {
+		v := true
+		filters.Wishlist = &v
+	} else if w == "false" {
+		v := false
+		filters.Wishlist = &v
 	}
-	offset := (page - 1) * limit
-
-	query := database.DB.Where("user_id = ?", userID).Preload("Images")
-
-	if category != "" {
-		query = query.Where("category = ?", category)
-	}
-
-	if wishlist == "true" {
-		query = query.Where("is_wishlist = ?", true)
-	} else if wishlist == "false" {
-		query = query.Where("is_wishlist = ?", false)
-	}
-
-	if sold == "true" {
-		query = query.Where("is_sold = ?", true)
-	} else if sold == "false" {
-		query = query.Where("is_sold = ?", false)
+	if s := c.Query("sold"); s == "true" {
+		v := true
+		filters.Sold = &v
+	} else if s == "false" {
+		v := false
+		filters.Sold = &v
 	}
 
-	if search != "" {
-		searchTerm := "%" + search + "%"
-		query = query.Where(
-			database.DB.Where("name LIKE ?", searchTerm).
-				Or("denomination LIKE ?", searchTerm).
-				Or("ruler LIKE ?", searchTerm).
-				Or("era LIKE ?", searchTerm).
-				Or("mint LIKE ?", searchTerm).
-				Or("obverse_inscription LIKE ?", searchTerm).
-				Or("reverse_inscription LIKE ?", searchTerm).
-				Or("notes LIKE ?", searchTerm).
-				Or("rarity_rating LIKE ?", searchTerm),
-		)
-	}
-
-	var total int64
-	query.Model(&models.Coin{}).Count(&total)
-
-	allowedSortFields := map[string]string{
-		"created_at":    "created_at",
-		"updated_at":    "updated_at",
-		"current_value": "current_value",
-	}
-	column, ok := allowedSortFields[sortField]
-	if !ok {
-		column = "updated_at"
-	}
-	if sortOrder != "asc" && sortOrder != "desc" {
-		sortOrder = "desc"
-	}
-	orderClause := column + " " + sortOrder
-
-	var coins []models.Coin
-	if err := query.Order(orderClause).Offset(offset).Limit(limit).Find(&coins).Error; err != nil {
+	coins, total, err := h.repo.List(userID, filters)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch coins"})
 		return
 	}
@@ -116,8 +77,8 @@ func (h *CoinHandler) List(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"coins": coins,
 		"total": total,
-		"page":  page,
-		"limit": limit,
+		"page":  filters.Page,
+		"limit": filters.Limit,
 	})
 }
 
@@ -143,8 +104,8 @@ func (h *CoinHandler) Get(c *gin.Context) {
 		return
 	}
 
-	var coin models.Coin
-	if err := database.DB.Where("id = ? AND user_id = ?", id, userID).Preload("Images").First(&coin).Error; err != nil {
+	coin, err := h.repo.FindByID(uint(id), userID)
+	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Coin not found"})
 			return
@@ -186,15 +147,14 @@ func (h *CoinHandler) Create(c *gin.Context) {
 
 	logger.Debug("coins", "Creating coin '%s' for user %d", coin.Name, userID)
 
-	if err := database.DB.Create(&coin).Error; err != nil {
+	if err := h.repo.Create(&coin); err != nil {
 		logger.Error("coins", "Failed to create coin: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create coin"})
 		return
 	}
 
 	logger.Info("coins", "Created coin %d '%s' for user %d", coin.ID, coin.Name, userID)
-	database.DB.Preload("Images").First(&coin, coin.ID)
-	RecordValueSnapshot(userID)
+	h.repo.RecordValueSnapshot(userID)
 	c.JSON(http.StatusCreated, coin)
 }
 
@@ -222,8 +182,8 @@ func (h *CoinHandler) Update(c *gin.Context) {
 		return
 	}
 
-	var existing models.Coin
-	if err := database.DB.Where("id = ? AND user_id = ?", id, userID).First(&existing).Error; err != nil {
+	existing, err := h.repo.FindByID(uint(id), userID)
+	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Coin not found"})
 		return
 	}
@@ -239,7 +199,7 @@ func (h *CoinHandler) Update(c *gin.Context) {
 	updates.ID = existing.ID
 	updates.UserID = userID
 
-	if err := database.DB.Model(&existing).Updates(updates).Error; err != nil {
+	if err := h.repo.Update(existing, &updates); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update coin"})
 		return
 	}
@@ -254,14 +214,14 @@ func (h *CoinHandler) Update(c *gin.Context) {
 		if newVal != oldVal {
 			source := c.Query("source")
 			if source != "estimate" {
-				database.DB.Create(&models.CoinValueHistory{
+				h.repo.RecordValueHistory(&models.CoinValueHistory{
 					CoinID:     existing.ID,
 					UserID:     userID,
 					Value:      newVal,
 					Confidence: "manual",
 					RecordedAt: time.Now(),
 				})
-				database.DB.Create(&models.CoinJournal{
+				h.repo.CreateJournalEntry(&models.CoinJournal{
 					CoinID: existing.ID,
 					UserID: userID,
 					Entry:  fmt.Sprintf("Current value updated manually: $%.2f", newVal),
@@ -270,8 +230,7 @@ func (h *CoinHandler) Update(c *gin.Context) {
 		}
 	}
 
-	database.DB.Preload("Images").First(&existing, existing.ID)
-	RecordValueSnapshot(userID)
+	h.repo.RecordValueSnapshot(userID)
 	c.JSON(http.StatusOK, existing)
 }
 
@@ -297,19 +256,18 @@ func (h *CoinHandler) Purchase(c *gin.Context) {
 		return
 	}
 
-	var coin models.Coin
-	if err := database.DB.Where("id = ? AND user_id = ?", id, userID).First(&coin).Error; err != nil {
+	coin, err := h.repo.FindByID(uint(id), userID)
+	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Coin not found"})
 		return
 	}
 
-	if err := database.DB.Model(&coin).Update("is_wishlist", false).Error; err != nil {
+	if err := h.repo.UpdateField(coin, "is_wishlist", false); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to mark as purchased"})
 		return
 	}
 
-	database.DB.Preload("Images").First(&coin, coin.ID)
-	RecordValueSnapshot(userID)
+	h.repo.RecordValueSnapshot(userID)
 	c.JSON(http.StatusOK, coin)
 }
 
@@ -346,8 +304,8 @@ func (h *CoinHandler) Sell(c *gin.Context) {
 		return
 	}
 
-	var coin models.Coin
-	if err := database.DB.Where("id = ? AND user_id = ?", id, userID).First(&coin).Error; err != nil {
+	coin, err := h.repo.FindByID(uint(id), userID)
+	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Coin not found"})
 		return
 	}
@@ -359,13 +317,12 @@ func (h *CoinHandler) Sell(c *gin.Context) {
 		"sold_date":  &now,
 		"sold_to":    body.SoldTo,
 	}
-	if err := database.DB.Model(&coin).Updates(updates).Error; err != nil {
+	if err := h.repo.UpdateFields(coin, updates); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to mark as sold"})
 		return
 	}
 
-	database.DB.Preload("Images").First(&coin, coin.ID)
-	RecordValueSnapshot(userID)
+	h.repo.RecordValueSnapshot(userID)
 	c.JSON(http.StatusOK, coin)
 }
 
@@ -390,16 +347,17 @@ func (h *CoinHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	result := database.DB.Where("id = ? AND user_id = ?", id, userID).Delete(&models.Coin{})
-	if result.RowsAffected == 0 {
+	rows, err := h.repo.Delete(uint(id), userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete coin"})
+		return
+	}
+	if rows == 0 {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Coin not found"})
 		return
 	}
 
-	// Clean up associated images
-	database.DB.Where("coin_id = ?", id).Delete(&models.CoinImage{})
-
-	RecordValueSnapshot(userID)
+	h.repo.RecordValueSnapshot(userID)
 	c.JSON(http.StatusOK, gin.H{"message": "Coin deleted"})
 }
 
@@ -416,124 +374,24 @@ func (h *CoinHandler) Delete(c *gin.Context) {
 func (h *CoinHandler) Stats(c *gin.Context) {
 	userID := c.GetUint("userId")
 
-	var totalCoins int64
-	var totalWishlist int64
-	var totalSold int64
-	database.DB.Model(&models.Coin{}).Where("user_id = ? AND is_wishlist = ? AND is_sold = ?", userID, false, false).Count(&totalCoins)
-	database.DB.Model(&models.Coin{}).Where("user_id = ? AND is_wishlist = ?", userID, true).Count(&totalWishlist)
-	database.DB.Model(&models.Coin{}).Where("user_id = ? AND is_sold = ?", userID, true).Count(&totalSold)
-
-	type categoryCount struct {
-		Category string `json:"category"`
-		Count    int64  `json:"count"`
+	stats, err := h.repo.GetStats(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch stats"})
+		return
 	}
-	var byCategory []categoryCount
-	database.DB.Model(&models.Coin{}).
-		Select("category, count(*) as count").
-		Where("user_id = ? AND is_wishlist = ? AND is_sold = ?", userID, false, false).
-		Group("category").
-		Scan(&byCategory)
-
-	type materialCount struct {
-		Material string `json:"material"`
-		Count    int64  `json:"count"`
-	}
-	var byMaterial []materialCount
-	database.DB.Model(&models.Coin{}).
-		Select("material, count(*) as count").
-		Where("user_id = ? AND is_wishlist = ? AND is_sold = ?", userID, false, false).
-		Group("material").
-		Scan(&byMaterial)
-
-	type gradeCount struct {
-		Grade string `json:"grade"`
-		Count int64  `json:"count"`
-	}
-	var byGrade []gradeCount
-	database.DB.Model(&models.Coin{}).
-		Select("grade, count(*) as count").
-		Where("user_id = ? AND is_wishlist = ? AND is_sold = ? AND grade != ''", userID, false, false).
-		Group("grade").
-		Order("count DESC").
-		Scan(&byGrade)
-
-	type eraCount struct {
-		Era   string `json:"era"`
-		Count int64  `json:"count"`
-	}
-	var byEra []eraCount
-	database.DB.Model(&models.Coin{}).
-		Select("era, count(*) as count").
-		Where("user_id = ? AND is_wishlist = ? AND is_sold = ? AND era != ''", userID, false, false).
-		Group("era").
-		Order("count DESC").
-		Scan(&byEra)
-
-	type rulerCount struct {
-		Ruler string `json:"ruler"`
-		Count int64  `json:"count"`
-	}
-	var byRuler []rulerCount
-	database.DB.Model(&models.Coin{}).
-		Select("ruler, count(*) as count").
-		Where("user_id = ? AND is_wishlist = ? AND is_sold = ? AND ruler != ''", userID, false, false).
-		Group("ruler").
-		Order("count DESC").
-		Limit(10).
-		Scan(&byRuler)
-
-	type priceRange struct {
-		Range string `json:"range"`
-		Count int64  `json:"count"`
-	}
-	var byPriceRange []priceRange
-	database.DB.Model(&models.Coin{}).
-		Select(`CASE
-			WHEN purchase_price < 50 THEN 'Under $50'
-			WHEN purchase_price >= 50 AND purchase_price < 200 THEN '$50 - $200'
-			WHEN purchase_price >= 200 AND purchase_price < 500 THEN '$200 - $500'
-			WHEN purchase_price >= 500 AND purchase_price < 1000 THEN '$500 - $1K'
-			ELSE '$1K+'
-		END as ` + "`range`" + `, count(*) as count`).
-		Where("user_id = ? AND is_wishlist = ? AND is_sold = ? AND purchase_price IS NOT NULL", userID, false, false).
-		Group("`range`").
-		Scan(&byPriceRange)
-
-	type valueSummary struct {
-		TotalPurchasePrice float64 `json:"totalPurchasePrice"`
-		TotalCurrentValue  float64 `json:"totalCurrentValue"`
-		AvgPurchasePrice   float64 `json:"avgPurchasePrice"`
-		AvgCurrentValue    float64 `json:"avgCurrentValue"`
-	}
-	var values valueSummary
-	database.DB.Model(&models.Coin{}).
-		Select("COALESCE(SUM(purchase_price), 0) as total_purchase_price, COALESCE(SUM(current_value), 0) as total_current_value, COALESCE(AVG(purchase_price), 0) as avg_purchase_price, COALESCE(AVG(current_value), 0) as avg_current_value").
-		Where("user_id = ? AND is_wishlist = ? AND is_sold = ?", userID, false, false).
-		Scan(&values)
-
-	// Sold coins value summary
-	type soldSummary struct {
-		TotalSoldPrice    float64 `json:"totalSoldPrice"`
-		TotalPurchaseCost float64 `json:"totalPurchaseCost"`
-	}
-	var soldValues soldSummary
-	database.DB.Model(&models.Coin{}).
-		Select("COALESCE(SUM(sold_price), 0) as total_sold_price, COALESCE(SUM(purchase_price), 0) as total_purchase_cost").
-		Where("user_id = ? AND is_sold = ?", userID, true).
-		Scan(&soldValues)
 
 	c.JSON(http.StatusOK, gin.H{
-		"totalCoins":    totalCoins,
-		"totalWishlist": totalWishlist,
-		"totalSold":     totalSold,
-		"byCategory":    byCategory,
-		"byMaterial":    byMaterial,
-		"byGrade":       byGrade,
-		"byEra":         byEra,
-		"byRuler":       byRuler,
-		"byPriceRange":  byPriceRange,
-		"values":        values,
-		"soldValues":    soldValues,
+		"totalCoins":    stats.TotalCoins,
+		"totalWishlist": stats.TotalWishlist,
+		"totalSold":     stats.TotalSold,
+		"byCategory":    stats.ByCategory,
+		"byMaterial":    stats.ByMaterial,
+		"byGrade":       stats.ByGrade,
+		"byEra":         stats.ByEra,
+		"byRuler":       stats.ByRuler,
+		"byPriceRange":  stats.ByPriceRange,
+		"values":        stats.Values,
+		"soldValues":    stats.SoldValues,
 	})
 }
 
@@ -572,17 +430,11 @@ func (h *CoinHandler) Suggestions(c *gin.Context) {
 		return
 	}
 
-	var values []string
-	query := database.DB.Model(&models.Coin{}).
-		Where("user_id = ? AND "+column+" != ''", userID).
-		Distinct(column).
-		Order(column)
-
-	if q != "" {
-		query = query.Where(column+" LIKE ?", "%"+q+"%")
+	values, err := h.repo.Suggestions(userID, column, q)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch suggestions"})
+		return
 	}
-
-	query.Limit(20).Pluck(column, &values)
 	c.JSON(http.StatusOK, values)
 }
 
@@ -599,10 +451,11 @@ func (h *CoinHandler) Suggestions(c *gin.Context) {
 func (h *CoinHandler) ValueHistory(c *gin.Context) {
 	userID := c.GetUint("userId")
 
-	var snapshots []models.ValueSnapshot
-	database.DB.Where("user_id = ?", userID).
-		Order("recorded_at ASC").
-		Find(&snapshots)
+	snapshots, err := h.repo.GetValueHistory(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch value history"})
+		return
+	}
 
 	c.JSON(http.StatusOK, snapshots)
 }
@@ -627,17 +480,21 @@ func (h *CoinHandler) CoinValueHistory(c *gin.Context) {
 		return
 	}
 
-	var count int64
-	database.DB.Model(&models.Coin{}).Where("id = ? AND user_id = ?", coinID, userID).Count(&count)
-	if count == 0 {
+	exists, err := h.repo.CoinExists(uint(coinID), userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify coin"})
+		return
+	}
+	if !exists {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Coin not found"})
 		return
 	}
 
-	var entries []models.CoinValueHistory
-	database.DB.Where("coin_id = ? AND user_id = ?", coinID, userID).
-		Order("recorded_at ASC").
-		Find(&entries)
+	entries, err := h.repo.GetCoinValueHistory(uint(coinID), userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch value history"})
+		return
+	}
 
 	c.JSON(http.StatusOK, entries)
 }

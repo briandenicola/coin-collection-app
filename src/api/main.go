@@ -11,6 +11,7 @@ import (
 	_ "github.com/briandenicola/ancient-coins-api/docs"
 	"github.com/briandenicola/ancient-coins-api/handlers"
 	"github.com/briandenicola/ancient-coins-api/middleware"
+	"github.com/briandenicola/ancient-coins-api/repository"
 	"github.com/briandenicola/ancient-coins-api/services"
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
@@ -132,7 +133,8 @@ func main() {
 	protected := api.Group("")
 	protected.Use(middleware.AuthRequired(cfg.JWTSecret))
 	{
-		coinHandler := handlers.NewCoinHandler()
+		coinRepo := repository.NewCoinRepository(database.DB)
+		coinHandler := handlers.NewCoinHandler(coinRepo)
 		protected.GET("/coins", coinHandler.List)
 		protected.GET("/coins/:id", coinHandler.Get)
 		protected.POST("/coins", coinHandler.Create)
