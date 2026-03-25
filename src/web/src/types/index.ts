@@ -178,6 +178,26 @@ export interface ValueEstimate {
   comparables: ValueComparable[]
 }
 
+export interface CoinValueHistory {
+  id: number
+  coinId: number
+  userId: number
+  value: number
+  confidence: string
+  recordedAt: string
+}
+
+export interface PortfolioSummary {
+  totalCoins: number
+  totalValue: number
+  totalInvested: number
+  categories: { category: string; count: number }[]
+  materials: { material: string; count: number }[]
+  eras: { era: string; count: number }[]
+  rulers: { ruler: string; count: number }[]
+  topCoins: { name: string; category: string; currentValue: number | null; ruler: string; era: string }[]
+}
+
 export type Theme = 'dark' | 'light'
 
 export const LOG_LEVELS = ['trace', 'debug', 'info', 'warn', 'error'] as const
