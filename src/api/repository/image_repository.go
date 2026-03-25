@@ -49,3 +49,14 @@ func (r *ImageRepository) FindImage(imageID, coinID uint) (*models.CoinImage, er
 func (r *ImageRepository) DeleteImage(image *models.CoinImage) error {
 	return r.db.Delete(image).Error
 }
+
+// SetPrimaryAndCreate clears the primary flag on existing images and creates
+// a new image record in a single transaction.
+func (r *ImageRepository) SetPrimaryAndCreate(coinID uint, image *models.CoinImage) error {
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&models.CoinImage{}).Where("coin_id = ?", coinID).Update("is_primary", false).Error; err != nil {
+			return err
+		}
+		return tx.Create(image).Error
+	})
+}

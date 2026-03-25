@@ -66,3 +66,16 @@ func (r *UserRepository) CreateCoin(coin *models.Coin) error {
 func (r *UserRepository) DeleteFollowers(userID uint) error {
 	return r.db.Where("following_id = ?", userID).Delete(&models.Follow{}).Error
 }
+
+// UpdateProfileWithPrivacy updates user profile fields and, if the user is
+// going private, removes all followers in a single transaction.
+func (r *UserRepository) UpdateProfileWithPrivacy(user *models.User, updates map[string]interface{}, goingPrivate bool) error {
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		if goingPrivate {
+			if err := tx.Where("following_id = ?", user.ID).Delete(&models.Follow{}).Error; err != nil {
+				return err
+			}
+		}
+		return tx.Model(user).Updates(updates).Error
+	})
+}

@@ -69,3 +69,15 @@ func (r *AuthRepository) RevokeRefreshToken(rt *models.RefreshToken) error {
 func (r *AuthRepository) CreateRefreshToken(rt *models.RefreshToken) error {
 	return r.db.Create(rt).Error
 }
+
+// RotateRefreshToken revokes the old token and creates a new one in a single
+// transaction to prevent token loss or duplication.
+func (r *AuthRepository) RotateRefreshToken(old *models.RefreshToken, newToken *models.RefreshToken) error {
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		now := time.Now()
+		if err := tx.Model(old).Update("revoked_at", &now).Error; err != nil {
+			return err
+		}
+		return tx.Create(newToken).Error
+	})
+}

@@ -163,19 +163,52 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 		return
 	}
 
-	// Revoke the old refresh token
-	h.repo.RevokeRefreshToken(rt)
-
 	// Look up user
-	var user models.User
-	found2, err := h.repo.FindUserByID(rt.UserID)
+	user, err := h.repo.FindUserByID(rt.UserID)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
 		return
 	}
-	user = *found2
 
-	h.issueTokens(c, user, http.StatusOK)
+	// Generate new refresh token
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
+		return
+	}
+	plainToken := "rt_" + hex.EncodeToString(b)
+	newHash := sha256.Sum256([]byte(plainToken))
+	newRT := models.RefreshToken{
+		UserID:    user.ID,
+		TokenHash: hex.EncodeToString(newHash[:]),
+		ExpiresAt: time.Now().Add(refreshTokenDuration),
+	}
+
+	// Atomically revoke old and create new refresh token
+	if err := h.repo.RotateRefreshToken(rt, &newRT); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to rotate refresh token"})
+		return
+	}
+
+	accessToken, err := h.generateAccessToken(*user)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate access token"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"token":        accessToken,
+		"refreshToken": plainToken,
+		"user": gin.H{
+			"id":         user.ID,
+			"username":   user.Username,
+			"role":       user.Role,
+			"email":      user.Email,
+			"avatarPath": user.AvatarPath,
+			"isPublic":   user.IsPublic,
+			"bio":        user.Bio,
+		},
+	})
 }
 
 // issueTokens generates and returns both access and refresh tokens.

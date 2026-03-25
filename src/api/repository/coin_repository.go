@@ -200,16 +200,31 @@ func (r *CoinRepository) UpdateFields(coin *models.Coin, updates map[string]inte
 	return r.db.Preload("Images").First(coin, coin.ID).Error
 }
 
-// Delete removes a coin and its associated images. Returns rows affected.
+// Delete removes a coin and all associated data (images, journals, value
+// history) in a single transaction. Returns rows affected for the coin delete.
 func (r *CoinRepository) Delete(id uint, userID uint) (int64, error) {
-	result := r.db.Scopes(OwnedByID(id, userID)).Delete(&models.Coin{})
-	if result.Error != nil {
-		return 0, result.Error
-	}
-	if result.RowsAffected > 0 {
-		r.db.Where("coin_id = ?", id).Delete(&models.CoinImage{})
-	}
-	return result.RowsAffected, nil
+	var rowsAffected int64
+	err := r.db.Transaction(func(tx *gorm.DB) error {
+		result := tx.Scopes(OwnedByID(id, userID)).Delete(&models.Coin{})
+		if result.Error != nil {
+			return result.Error
+		}
+		rowsAffected = result.RowsAffected
+		if rowsAffected == 0 {
+			return nil
+		}
+		if err := tx.Where("coin_id = ?", id).Delete(&models.CoinImage{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("coin_id = ?", id).Delete(&models.CoinJournal{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("coin_id = ?", id).Delete(&models.CoinValueHistory{}).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+	return rowsAffected, err
 }
 
 // GetStats returns aggregate collection statistics for a user.

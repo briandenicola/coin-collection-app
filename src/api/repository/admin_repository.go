@@ -29,17 +29,48 @@ func (r *AdminRepository) DeleteUserCascade(userID uint) (int64, error) {
 	var rowsAffected int64
 	err := r.db.Transaction(func(tx *gorm.DB) error {
 		var coinIDs []uint
-		tx.Model(&models.Coin{}).Where("user_id = ?", userID).Pluck("id", &coinIDs)
-		if len(coinIDs) > 0 {
-			tx.Where("coin_id IN ?", coinIDs).Delete(&models.CoinImage{})
-			tx.Where("coin_id IN ?", coinIDs).Delete(&models.CoinJournal{})
+		if err := tx.Model(&models.Coin{}).Where("user_id = ?", userID).Pluck("id", &coinIDs).Error; err != nil {
+			return err
 		}
-		tx.Where("user_id = ?", userID).Delete(&models.Coin{})
-		tx.Where("user_id = ?", userID).Delete(&models.AgentConversation{})
-		tx.Where("user_id = ?", userID).Delete(&models.ValueSnapshot{})
-		tx.Where("user_id = ?", userID).Delete(&models.ApiKey{})
-		tx.Where("user_id = ?", userID).Delete(&models.RefreshToken{})
-		tx.Where("user_id = ?", userID).Delete(&models.WebAuthnCredential{})
+		if len(coinIDs) > 0 {
+			if err := tx.Where("coin_id IN ?", coinIDs).Delete(&models.CoinImage{}).Error; err != nil {
+				return err
+			}
+			if err := tx.Where("coin_id IN ?", coinIDs).Delete(&models.CoinJournal{}).Error; err != nil {
+				return err
+			}
+			if err := tx.Where("coin_id IN ?", coinIDs).Delete(&models.CoinValueHistory{}).Error; err != nil {
+				return err
+			}
+			if err := tx.Where("coin_id IN ?", coinIDs).Delete(&models.CoinComment{}).Error; err != nil {
+				return err
+			}
+		}
+		// Also delete comments the user made on other users' coins
+		if err := tx.Where("user_id = ?", userID).Delete(&models.CoinComment{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("user_id = ?", userID).Delete(&models.Coin{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("user_id = ?", userID).Delete(&models.AgentConversation{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("user_id = ?", userID).Delete(&models.ValueSnapshot{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("user_id = ?", userID).Delete(&models.ApiKey{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("user_id = ?", userID).Delete(&models.RefreshToken{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("user_id = ?", userID).Delete(&models.WebAuthnCredential{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("follower_id = ? OR following_id = ?", userID, userID).Delete(&models.Follow{}).Error; err != nil {
+			return err
+		}
 
 		result := tx.Delete(&models.User{}, userID)
 		rowsAffected = result.RowsAffected

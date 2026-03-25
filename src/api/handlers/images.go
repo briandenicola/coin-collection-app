@@ -100,11 +100,7 @@ func (h *ImageHandler) Upload(c *gin.Context) {
 		return
 	}
 
-	// If this is primary, unset other primary images
-	if isPrimary {
-		h.repo.ClearPrimary(uint(coinID))
-	}
-
+	// If this is primary, atomically clear others and create
 	image := models.CoinImage{
 		CoinID:    uint(coinID),
 		FilePath:  filepath.ToSlash(filepath.Join(fmt.Sprintf("coin-%d", coinID), filename)),
@@ -112,10 +108,18 @@ func (h *ImageHandler) Upload(c *gin.Context) {
 		IsPrimary: isPrimary,
 	}
 
-	if err := h.repo.CreateImage(&image); err != nil {
-		logger.Error("images", "Failed to save image record: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save image record"})
-		return
+	if isPrimary {
+		if err := h.repo.SetPrimaryAndCreate(uint(coinID), &image); err != nil {
+			logger.Error("images", "Failed to save image record: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save image record"})
+			return
+		}
+	} else {
+		if err := h.repo.CreateImage(&image); err != nil {
+			logger.Error("images", "Failed to save image record: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save image record"})
+			return
+		}
 	}
 
 	logger.Info("images", "Uploaded %s image for coin %d: %s", imageType, coinID, image.FilePath)
@@ -215,10 +219,6 @@ func (h *ImageHandler) UploadBase64(c *gin.Context) {
 		return
 	}
 
-	if req.IsPrimary {
-		h.repo.ClearPrimary(uint(coinID))
-	}
-
 	image := models.CoinImage{
 		CoinID:    uint(coinID),
 		FilePath:  filepath.ToSlash(filepath.Join(fmt.Sprintf("coin-%d", coinID), filename)),
@@ -226,9 +226,16 @@ func (h *ImageHandler) UploadBase64(c *gin.Context) {
 		IsPrimary: req.IsPrimary,
 	}
 
-	if err := h.repo.CreateImage(&image); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save image record"})
-		return
+	if req.IsPrimary {
+		if err := h.repo.SetPrimaryAndCreate(uint(coinID), &image); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save image record"})
+			return
+		}
+	} else {
+		if err := h.repo.CreateImage(&image); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save image record"})
+			return
+		}
 	}
 
 	logger.Info("images", "Uploaded base64 %s image for coin %d: %s", imageType, coinID, image.FilePath)

@@ -210,14 +210,15 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 	}
 	if req.IsPublic != nil {
 		updates["is_public"] = *req.IsPublic
-		// Going private: remove all followers
-		if !*req.IsPublic && user.IsPublic {
-			h.repo.DeleteFollowers(userID)
-			logger.Info("user", "User %d went private — all followers removed", userID)
+		goingPrivate := !*req.IsPublic && user.IsPublic
+		if goingPrivate {
+			logger.Info("user", "User %d going private — followers will be removed", userID)
 		}
-	}
-
-	if len(updates) > 0 {
+		if len(updates) > 0 {
+			h.repo.UpdateProfileWithPrivacy(&user, updates, goingPrivate)
+			logger.Info("user", "Profile updated for user %d", userID)
+		}
+	} else if len(updates) > 0 {
 		h.repo.UpdateFields(&user, updates)
 		logger.Info("user", "Profile updated for user %d", userID)
 	}
