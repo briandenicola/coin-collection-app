@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -243,7 +244,7 @@ func (h *CoinHandler) Update(c *gin.Context) {
 		return
 	}
 
-	// Track manual value changes
+	// Track value changes — skip if applied from AI estimate (already recorded)
 	if updates.CurrentValue != nil {
 		newVal := *updates.CurrentValue
 		oldVal := 0.0
@@ -251,13 +252,21 @@ func (h *CoinHandler) Update(c *gin.Context) {
 			oldVal = *oldValue
 		}
 		if newVal != oldVal {
-			database.DB.Create(&models.CoinValueHistory{
-				CoinID:     existing.ID,
-				UserID:     userID,
-				Value:      newVal,
-				Confidence: "manual",
-				RecordedAt: time.Now(),
-			})
+			source := c.Query("source")
+			if source != "estimate" {
+				database.DB.Create(&models.CoinValueHistory{
+					CoinID:     existing.ID,
+					UserID:     userID,
+					Value:      newVal,
+					Confidence: "manual",
+					RecordedAt: time.Now(),
+				})
+				database.DB.Create(&models.CoinJournal{
+					CoinID: existing.ID,
+					UserID: userID,
+					Entry:  fmt.Sprintf("Current value updated manually: $%.2f", newVal),
+				})
+			}
 		}
 	}
 

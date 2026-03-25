@@ -27,6 +27,10 @@
             <UsersIcon :size="18" />
             <span class="nav-label">Followers</span>
           </router-link>
+          <button v-if="!isPwa" class="nav-link" @click="showChat = true">
+            <Bot :size="18" />
+            <span class="nav-label">Agent</span>
+          </button>
           <router-link to="/stats" class="nav-link" active-class="active">
             <BarChart3 :size="18" />
             <span class="nav-label">Stats</span>
@@ -55,6 +59,19 @@
       <router-view />
     </main>
 
+    <!-- PWA floating agent button -->
+    <button
+      v-if="isPwa && auth.isAuthenticated && !showChat"
+      class="agent-fab"
+      @click="showChat = true"
+      aria-label="Open AI Agent"
+    >
+      <Bot :size="22" />
+    </button>
+
+    <!-- AI Agent Chat -->
+    <CoinSearchChat v-if="showChat" @close="showChat = false" />
+
     <!-- Email prompt modal for legacy users -->
     <div v-if="showEmailPrompt" class="modal-overlay" @click.self="dismissEmailPrompt">
       <div class="modal card">
@@ -76,14 +93,16 @@
 import { ref, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
-import { Landmark, Bookmark, BadgeDollarSign, BarChart3, CirclePlus, Settings, ShieldCheck, LogOut, Users as UsersIcon, Clock } from 'lucide-vue-next'
+import { Landmark, Bookmark, BadgeDollarSign, BarChart3, CirclePlus, Settings, ShieldCheck, LogOut, Users as UsersIcon, Clock, Bot } from 'lucide-vue-next'
 import { updateProfile, getMe } from '@/api/client'
+import CoinSearchChat from '@/components/CoinSearchChat.vue'
 
 const auth = useAuthStore()
 const router = useRouter()
 const isPwa = window.matchMedia('(display-mode: standalone)').matches
   || (window.navigator as any).standalone === true
 
+const showChat = ref(false)
 const showEmailPrompt = ref(false)
 const promptEmail = ref('')
 
@@ -283,5 +302,38 @@ function handleLogout() {
   gap: 0.75rem;
   justify-content: flex-end;
   margin-top: 1.5rem;
+}
+
+/* Agent nav button */
+button.nav-link {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+}
+
+/* PWA floating agent button */
+.agent-fab {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--accent-gold);
+  color: #1a1a2e;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  z-index: 1000;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.agent-fab:active {
+  transform: scale(0.92);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 </style>

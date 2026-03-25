@@ -137,25 +137,6 @@
               Purchased {{ new Date(coin.purchaseDate).toLocaleDateString() }}
               <span v-if="coin.purchaseLocation"> from {{ coin.purchaseLocation }}</span>
             </div>
-            <div v-if="coinValueHistory.length" class="value-history-list">
-              <h4>Value History</h4>
-              <div
-                v-for="entry in visibleValueHistory"
-                :key="entry.id"
-                class="value-history-entry"
-              >
-                <span class="vh-date">{{ formatJournalDate(entry.recordedAt) }}</span>
-                <span class="vh-value">{{ formatCurrency(entry.value) }}</span>
-                <span :class="['confidence-badge', `confidence-${entry.confidence}`]">{{ entry.confidence }}</span>
-              </div>
-              <button
-                v-if="coinValueHistory.length > 5"
-                class="btn btn-ghost btn-xs"
-                @click="showAllValueHistory = !showAllValueHistory"
-              >
-                {{ showAllValueHistory ? 'Show less' : `Show all (${coinValueHistory.length})` }}
-              </button>
-            </div>
           </div>
 
           <div class="estimate-section">
@@ -374,14 +355,6 @@ const estimating = ref(false)
 const valueEstimate = ref<ValueEstimate | null>(null)
 const estimateError = ref('')
 const coinValueHistory = ref<CoinValueHistoryType[]>([])
-const showAllValueHistory = ref(false)
-
-const visibleValueHistory = computed(() => {
-  const sorted = [...coinValueHistory.value].sort((a, b) =>
-    new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime()
-  )
-  return showAllValueHistory.value ? sorted : sorted.slice(0, 5)
-})
 
 const md = new MarkdownIt({ html: false })
 
@@ -640,9 +613,8 @@ async function handleEstimateValue() {
 async function applyEstimate() {
   if (!coin.value || !valueEstimate.value) return
   try {
-    await updateCoin(coin.value.id, { currentValue: valueEstimate.value.estimatedValue })
+    await updateCoin(coin.value.id, { currentValue: valueEstimate.value.estimatedValue }, { source: 'estimate' })
     await store.fetchCoin(coin.value.id)
-    loadValueHistory(coin.value.id)
     valueEstimate.value = null
   } catch {
     alert('Failed to update coin value')
@@ -794,44 +766,6 @@ function formatCurrency(value: number) {
   margin-top: 0.5rem;
   font-size: 0.8rem;
   color: var(--text-muted);
-}
-
-.value-history-list {
-  margin-top: 0.75rem;
-  border-top: 1px solid var(--border-subtle);
-  padding-top: 0.75rem;
-}
-
-.value-history-list h4 {
-  font-size: 0.85rem;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  margin: 0 0 0.5rem;
-}
-
-.value-history-entry {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.35rem 0;
-  border-bottom: 1px solid var(--border-subtle);
-  font-size: 0.85rem;
-}
-
-.value-history-entry:last-of-type {
-  border-bottom: none;
-}
-
-.vh-date {
-  color: var(--text-muted);
-  min-width: 140px;
-}
-
-.vh-value {
-  font-weight: 600;
-  color: var(--text-primary);
-  flex: 1;
 }
 
 .notes-section p {
