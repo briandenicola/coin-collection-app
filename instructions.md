@@ -1,7 +1,8 @@
-# Ancient Coins – Agent Instructions
+# Ancient Coins -- Agent Instructions
 
-> This document helps AI coding agents understand and work with this codebase.
-> Read this before making changes.
+> **Note:** This file is superseded by `.github/copilot-instructions.md` (auto-read by Copilot),
+> `docs/ARCHITECTURE.md`, and `CONTRIBUTING.md`. This file is retained for reference but
+> those documents are the authoritative source.
 
 ## What This App Does
 
