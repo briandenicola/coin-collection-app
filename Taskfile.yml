@@ -50,6 +50,12 @@ tasks:
       - build-api
       - build-web
 
+  test:
+    desc: Run Go architecture and unit tests
+    dir: src/api
+    cmds:
+      - go test -v ./...
+
   run:
     desc: Run both API and web servers in parallel
     deps:
