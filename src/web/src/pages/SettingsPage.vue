@@ -716,11 +716,11 @@ const tabIcons: Record<string, Component> = {
 
 const tabs = [
   { id: 'account', label: 'Account' },
-  { id: 'blocked', label: 'Blocked' },
   { id: 'appearance', label: 'Appearance' },
   { id: 'data', label: 'Data' },
   { id: 'process', label: 'Process' },
   { id: 'conversations', label: 'Conversations' },
+  { id: 'blocked', label: 'Blocked' },
   { id: 'help', label: 'Help' },
 ]
 const activeTab = ref('account')
