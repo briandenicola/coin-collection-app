@@ -114,7 +114,7 @@ func (h *AnalysisHandler) Analyze(c *gin.Context) {
 	analysis, err := ollamaSvc.AnalyzeCoinImages(imagePaths, *coin, ollamaModel, customPrompt)
 	if err != nil {
 		logger.Error("analysis", "AI analysis failed for coin %d: %v", coinID, err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "AI analysis failed: " + err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "AI analysis failed. Check Ollama configuration."})
 		return
 	}
 
@@ -248,7 +248,7 @@ func (h *AnalysisHandler) ExtractText(c *gin.Context) {
 	text, err := ollamaSvc.ExtractTextFromImage(imageData, ollamaModel, customPrompt)
 	if err != nil {
 		logger.Error("extract-text", "Text extraction failed: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Text extraction failed: " + err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Text extraction failed. Check Ollama configuration."})
 		return
 	}
 

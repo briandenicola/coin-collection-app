@@ -177,7 +177,7 @@ func (h *WebAuthnHandler) RegisterBegin(c *gin.Context) {
 
 	options, session, err := h.webAuthn.BeginRegistration(wUser)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to begin registration: " + err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to begin registration"})
 		return
 	}
 
@@ -242,7 +242,7 @@ func (h *WebAuthnHandler) RegisterFinish(c *gin.Context) {
 	if err != nil {
 		logger.Error("webauthn", "Registration failed for user %s: %v", user.Username, err)
 		log.Printf("WebAuthn RegisterFinish error: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Registration failed: " + err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Registration failed"})
 		return
 	}
 
@@ -321,7 +321,7 @@ func (h *WebAuthnHandler) LoginBegin(c *gin.Context) {
 
 	options, session, err := h.webAuthn.BeginLogin(wUser)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to begin login: " + err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to begin login"})
 		return
 	}
 
@@ -385,7 +385,7 @@ func (h *WebAuthnHandler) LoginFinish(c *gin.Context) {
 	if err != nil {
 		logger.Error("webauthn", "Login failed for user %s: %v", username, err)
 		log.Printf("WebAuthn LoginFinish error: %v", err)
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication failed: " + err.Error()})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication failed"})
 		return
 	}
 
