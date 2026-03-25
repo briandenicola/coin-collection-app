@@ -4,7 +4,7 @@
       <div class="nav-content">
         <component :is="isPwa ? 'router-link' : 'router-link'" to="/" class="nav-brand">
           <img src="/coin-logo.jpg" alt="Ancient Coins" class="nav-logo" />
-          <span class="nav-title">Ancient Coins</span>
+          <span class="nav-title">Coins</span>
         </component>
         <div class="nav-links">
           <router-link v-if="!isPwa" to="/" class="nav-link" active-class="active">
