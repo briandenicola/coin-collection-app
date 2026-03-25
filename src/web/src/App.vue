@@ -305,12 +305,17 @@ function handleLogout() {
   margin-top: 1.5rem;
 }
 
-/* Agent nav button */
+/* Agent nav button — match <a> nav-link appearance */
 button.nav-link {
   background: none;
   border: none;
   cursor: pointer;
   font: inherit;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  padding: 0.5rem 0.8rem;
+  line-height: normal;
+  letter-spacing: inherit;
 }
 
 /* PWA floating agent button */
