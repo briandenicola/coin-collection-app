@@ -39,3 +39,6 @@ Thumbs.db
 
 # Data
 data/
+
+# Copilot CLI session state
+.copilot/
