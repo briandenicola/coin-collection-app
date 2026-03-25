@@ -203,14 +203,14 @@ async function sendPortfolioAnalysis() {
     const res = await getPortfolioSummary()
     const summary = res.data
     const context = `Analyze my coin collection portfolio. Here is my collection summary:\n\n` +
-      `Total Coins: ${summary.totalCoins}\n` +
-      `Total Value: $${summary.totalValue?.toFixed(2) || '0'}\n` +
-      `Total Invested: $${summary.totalInvested?.toFixed(2) || '0'}\n` +
-      `Categories: ${summary.categories?.map((c: any) => `${c.category} (${c.count})`).join(', ') || 'none'}\n` +
-      `Materials: ${summary.materials?.map((m: any) => `${m.material} (${m.count})`).join(', ') || 'none'}\n` +
-      `Eras: ${summary.eras?.map((e: any) => `${e.era} (${e.count})`).join(', ') || 'none'}\n` +
-      `Top Rulers: ${summary.rulers?.map((r: any) => `${r.ruler} (${r.count})`).join(', ') || 'none'}\n` +
-      `Top Coins by Value: ${summary.topCoins?.map((c: any) => `${c.name} ($${c.currentValue?.toFixed(2) || '?'})`).join(', ') || 'none'}\n\n` +
+      `Total Coins: ${summary.totalCoins ?? 0}\n` +
+      `Total Value: $${summary.totalValue?.toFixed(2) ?? '0'}\n` +
+      `Total Invested: $${summary.totalInvested?.toFixed(2) ?? '0'}\n` +
+      `Categories: ${summary.categories?.map((c) => `${c.category} (${c.count})`).join(', ') || 'none'}\n` +
+      `Materials: ${summary.materials?.map((m) => `${m.material} (${m.count})`).join(', ') || 'none'}\n` +
+      `Eras: ${summary.eras?.map((e) => `${e.era} (${e.count})`).join(', ') || 'none'}\n` +
+      `Top Rulers: ${summary.rulers?.map((r) => `${r.ruler} (${r.count})`).join(', ') || 'none'}\n` +
+      `Top Coins by Value: ${summary.topCoins?.map((c) => `${c.name} ($${c.currentValue?.toFixed(2) ?? '?'})`).join(', ') || 'none'}\n\n` +
       `Please analyze my collection, identify gaps, and suggest what I should consider adding.`
     input.value = context
     sendMessage()

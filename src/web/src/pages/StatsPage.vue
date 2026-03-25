@@ -335,14 +335,14 @@ const coinsWithValues = computed(() => {
   if (!store.coins.length) return []
   return store.coins
     .filter((c) => !c.isWishlist && !c.isSold && (c.purchasePrice || c.currentValue))
-    .sort((a, b) => a.name.localeCompare(b.name))
+    .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
 })
 
 const coinChartData = computed(() => {
   const coin = store.coins.find((c) => c.id === selectedCoinId.value)
   if (!coin) return []
   const points: { date: string; value: number }[] = []
-  if (coin.purchasePrice && coin.purchaseDate) {
+  if (coin.purchasePrice != null && coin.purchaseDate != null) {
     points.push({ date: coin.purchaseDate, value: coin.purchasePrice })
   }
   for (const e of coinValueEntries.value) {

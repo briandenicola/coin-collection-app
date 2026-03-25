@@ -187,6 +187,17 @@ export interface CoinValueHistory {
   recordedAt: string
 }
 
+export interface PortfolioSummary {
+  totalCoins: number
+  totalValue: number
+  totalInvested: number
+  categories: { category: string; count: number }[]
+  materials: { material: string; count: number }[]
+  eras: { era: string; count: number }[]
+  rulers: { ruler: string; count: number }[]
+  topCoins: { name: string; category: string; currentValue: number | null; ruler: string; era: string }[]
+}
+
 export type Theme = 'dark' | 'light'
 
 export const LOG_LEVELS = ['trace', 'debug', 'info', 'warn', 'error'] as const
