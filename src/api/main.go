@@ -194,7 +194,8 @@ func main() {
 		protected.POST("/user/import", userHandler.ImportCollection)
 
 		// Social routes
-		socialHandler := handlers.NewSocialHandler()
+		socialRepo := repository.NewSocialRepository(database.DB)
+		socialHandler := handlers.NewSocialHandler(socialRepo)
 		protected.POST("/social/follow/:userId", socialHandler.FollowUser)
 		protected.DELETE("/social/follow/:userId", socialHandler.UnfollowUser)
 		protected.PUT("/social/followers/:userId/accept", socialHandler.AcceptFollower)
