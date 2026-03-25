@@ -101,7 +101,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick, onMounted, computed } from 'vue'
+import { ref, nextTick, onMounted, onBeforeUnmount, computed } from 'vue'
 import { agentChatStream, createCoin, proxyImage, scrapeImage, uploadImage, saveConversation, getPortfolioSummary } from '@/api/client'
 import type { CoinSuggestion, AgentChatMessage, Category, Material } from '@/types'
 import { Bot, X, SendHorizontal, CirclePlus, ExternalLink, Save } from 'lucide-vue-next'
@@ -394,7 +394,27 @@ onMounted(() => {
       scrollToBottom()
     } catch { /* ignore parse errors */ }
   }
+  // Handle iOS keyboard resizing the visual viewport
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', handleViewportResize)
+    window.visualViewport.addEventListener('scroll', handleViewportResize)
+  }
 })
+
+onBeforeUnmount(() => {
+  if (window.visualViewport) {
+    window.visualViewport.removeEventListener('resize', handleViewportResize)
+    window.visualViewport.removeEventListener('scroll', handleViewportResize)
+  }
+})
+
+function handleViewportResize() {
+  const overlay = document.querySelector('.chat-overlay') as HTMLElement | null
+  if (!overlay || !window.visualViewport) return
+  const vv = window.visualViewport
+  overlay.style.height = `${vv.height}px`
+  overlay.style.top = `${vv.offsetTop}px`
+}
 </script>
 
 <style scoped>
@@ -405,6 +425,8 @@ onMounted(() => {
   z-index: 300;
   display: flex;
   justify-content: flex-end;
+  height: 100%;
+  height: 100dvh;
 }
 
 .chat-drawer {
@@ -494,9 +516,11 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   text-align: center;
-  padding: 2rem 1rem;
+  padding: 1rem;
   color: var(--text-secondary);
   gap: 0.75rem;
+  flex-shrink: 1;
+  overflow-y: auto;
 }
 
 .chat-intro p {
