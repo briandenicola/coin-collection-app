@@ -217,6 +217,8 @@ func (h *AgentHandler) getSystemPrompt(userID uint) string {
 
 	if user, err := h.userRepo.FindByID(userID); err == nil && user.ZipCode != "" {
 		prompt = fmt.Sprintf("The user's location ZIP code is %s. Use this to prioritize nearby coin shows, dealers, and events when relevant.\n\n%s", user.ZipCode, prompt)
+	} else {
+		prompt = fmt.Sprintf("The user has not set a ZIP code. If they ask about nearby coin shows or local events, ask them where they are located before searching.\n\n%s", prompt)
 	}
 
 	return prompt

@@ -32,8 +32,8 @@
             <button class="example-btn" @click="sendExample('Show me ancient Greek tetradrachms from Athens')">
               Greek tetradrachms from Athens
             </button>
-            <button class="example-btn" @click="sendExample('What ancient coin shows are coming up in the next few months?')">
-              Upcoming coin shows
+            <button class="example-btn" @click="sendExample('What ancient coin shows are coming up near me?')">
+              Upcoming coin shows near me
             </button>
             <button class="example-btn" @click="sendPortfolioAnalysis">
               Analyze my portfolio
