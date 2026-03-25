@@ -6,16 +6,18 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"github.com/briandenicola/ancient-coins-api/database"
 	"github.com/briandenicola/ancient-coins-api/models"
+	"github.com/briandenicola/ancient-coins-api/repository"
 	"github.com/briandenicola/ancient-coins-api/services"
 	"github.com/gin-gonic/gin"
 )
 
-type AnalysisHandler struct{}
+type AnalysisHandler struct {
+	repo *repository.AnalysisRepository
+}
 
-func NewAnalysisHandler() *AnalysisHandler {
-	return &AnalysisHandler{}
+func NewAnalysisHandler(repo *repository.AnalysisRepository) *AnalysisHandler {
+	return &AnalysisHandler{repo: repo}
 }
 
 // Analyze runs AI analysis on a coin's images using Ollama.
@@ -45,8 +47,8 @@ func (h *AnalysisHandler) Analyze(c *gin.Context) {
 
 	logger.Info("analysis", "Starting analysis for coin %d (user %d)", coinID, userID)
 
-	var coin models.Coin
-	if err := database.DB.Where("id = ? AND user_id = ?", coinID, userID).Preload("Images").First(&coin).Error; err != nil {
+	coin, err := h.repo.FindCoinWithImages(uint(coinID), userID)
+	if err != nil {
 		logger.Warn("analysis", "Coin %d not found for user %d: %v", coinID, userID, err)
 		c.JSON(http.StatusNotFound, gin.H{"error": "Coin not found"})
 		return
@@ -63,6 +65,7 @@ func (h *AnalysisHandler) Analyze(c *gin.Context) {
 	// Filter by side if requested
 	side := c.Query("side")
 	var analyzeImages []models.CoinImage
+
 	if side == "obverse" || side == "reverse" {
 		for _, img := range coin.Images {
 			if string(img.ImageType) == side {
@@ -108,7 +111,7 @@ func (h *AnalysisHandler) Analyze(c *gin.Context) {
 	}
 
 	logger.Info("analysis", "Sending %d image(s) to Ollama for coin %d", len(imagePaths), coinID)
-	analysis, err := ollamaSvc.AnalyzeCoinImages(imagePaths, coin, ollamaModel, customPrompt)
+	analysis, err := ollamaSvc.AnalyzeCoinImages(imagePaths, *coin, ollamaModel, customPrompt)
 	if err != nil {
 		logger.Error("analysis", "AI analysis failed for coin %d: %v", coinID, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "AI analysis failed: " + err.Error()})
@@ -121,13 +124,13 @@ func (h *AnalysisHandler) Analyze(c *gin.Context) {
 	// Store in the appropriate field based on side
 	switch side {
 	case "obverse":
-		database.DB.Model(&coin).Update("obverse_analysis", analysis)
+		h.repo.UpdateCoinField(coin, "obverse_analysis", analysis)
 		coin.ObverseAnalysis = analysis
 	case "reverse":
-		database.DB.Model(&coin).Update("reverse_analysis", analysis)
+		h.repo.UpdateCoinField(coin, "reverse_analysis", analysis)
 		coin.ReverseAnalysis = analysis
 	default:
-		database.DB.Model(&coin).Update("ai_analysis", analysis)
+		h.repo.UpdateCoinField(coin, "ai_analysis", analysis)
 		coin.AIAnalysis = analysis
 	}
 
@@ -167,8 +170,8 @@ func (h *AnalysisHandler) DeleteAnalysis(c *gin.Context) {
 		return
 	}
 
-	var coin models.Coin
-	if err := database.DB.Where("id = ? AND user_id = ?", coinID, userID).First(&coin).Error; err != nil {
+	coin, err := h.repo.FindCoinWithImages(uint(coinID), userID)
+	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Coin not found"})
 		return
 	}
@@ -183,11 +186,11 @@ func (h *AnalysisHandler) DeleteAnalysis(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid side value"})
 		return
 	}
-	database.DB.Model(&coin).Update(column, "")
+	h.repo.UpdateCoinField(coin, column, "")
 	logger.Info("analysis", "Cleared %s analysis for coin %d", side, coinID)
 
 	// Reload to return updated coin
-	database.DB.Where("id = ?", coinID).Preload("Images").First(&coin)
+	coin, _ = h.repo.ReloadCoinWithImages(uint(coinID))
 	c.JSON(http.StatusOK, gin.H{"coin": coin})
 }
 

@@ -11,8 +11,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/briandenicola/ancient-coins-api/database"
 	"github.com/briandenicola/ancient-coins-api/models"
+	"github.com/briandenicola/ancient-coins-api/repository"
 	"github.com/briandenicola/ancient-coins-api/services"
 	"github.com/gin-gonic/gin"
 	"github.com/go-webauthn/webauthn/protocol"
@@ -22,6 +22,7 @@ import (
 type WebAuthnHandler struct {
 	webAuthn  *webauthn.WebAuthn
 	auth      *AuthHandler
+	repo      *repository.WebAuthnRepository
 	rpID      string
 	rpOrigins []string
 	sessions  map[string]*webauthn.SessionData
@@ -47,7 +48,7 @@ func (u *webAuthnUser) WebAuthnName() string        { return u.user.Username }
 func (u *webAuthnUser) WebAuthnDisplayName() string  { return u.user.Username }
 func (u *webAuthnUser) WebAuthnCredentials() []webauthn.Credential { return u.credentials }
 
-func NewWebAuthnHandler(rpID, rpOrigin string, authHandler *AuthHandler) (*WebAuthnHandler, error) {
+func NewWebAuthnHandler(rpID, rpOrigin string, authHandler *AuthHandler, repo *repository.WebAuthnRepository) (*WebAuthnHandler, error) {
 	// Support comma-separated origins
 	origins := strings.Split(rpOrigin, ",")
 	for i := range origins {
@@ -73,6 +74,7 @@ func NewWebAuthnHandler(rpID, rpOrigin string, authHandler *AuthHandler) (*WebAu
 	return &WebAuthnHandler{
 		webAuthn:  w,
 		auth:      authHandler,
+		repo:      repo,
 		rpID:      rpID,
 		rpOrigins: origins,
 		sessions:  make(map[string]*webauthn.SessionData),
@@ -129,8 +131,7 @@ func (h *WebAuthnHandler) getWebAuthnForRequest(c *gin.Context) *webauthn.WebAut
 }
 
 func (h *WebAuthnHandler) loadCredentials(userID uint) []webauthn.Credential {
-	var creds []models.WebAuthnCredential
-	database.DB.Where("user_id = ?", userID).Find(&creds)
+	creds, _ := h.repo.LoadCredentials(userID)
 
 	result := make([]webauthn.Credential, len(creds))
 	for i, c := range creds {
@@ -162,10 +163,12 @@ func (h *WebAuthnHandler) RegisterBegin(c *gin.Context) {
 	userID := c.GetUint("userId")
 
 	var user models.User
-	if err := database.DB.First(&user, userID).Error; err != nil {
+	found, err := h.repo.FindUserByID(userID)
+	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
 		return
 	}
+	user = *found
 
 	wUser := &webAuthnUser{
 		user:        user,
@@ -205,10 +208,12 @@ func (h *WebAuthnHandler) RegisterFinish(c *gin.Context) {
 	logger := services.AppLogger
 
 	var user models.User
-	if err := database.DB.First(&user, userID).Error; err != nil {
+	found, err := h.repo.FindUserByID(userID)
+	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
 		return
 	}
+	user = *found
 
 	h.sessionMu.RLock()
 	session, ok := h.sessions[sessionKey("reg", userID)]
@@ -264,7 +269,7 @@ func (h *WebAuthnHandler) RegisterFinish(c *gin.Context) {
 		SignCount:       credential.Authenticator.SignCount,
 		Name:            credName,
 	}
-	if err := database.DB.Create(&dbCred).Error; err != nil {
+	if err := h.repo.CreateCredential(&dbCred); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save credential"})
 		return
 	}
@@ -296,10 +301,12 @@ func (h *WebAuthnHandler) LoginBegin(c *gin.Context) {
 	}
 
 	var user models.User
-	if err := database.DB.Where("username = ?", req.Username).First(&user).Error; err != nil {
+	found, err := h.repo.FindUserByUsername(req.Username)
+	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
+	user = *found
 
 	creds := h.loadCredentials(user.ID)
 	if len(creds) == 0 {
@@ -353,10 +360,12 @@ func (h *WebAuthnHandler) LoginFinish(c *gin.Context) {
 	}
 
 	var user models.User
-	if err := database.DB.Where("username = ?", username).First(&user).Error; err != nil {
+	found, err := h.repo.FindUserByUsername(username)
+	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
 		return
 	}
+	user = *found
 
 	h.sessionMu.RLock()
 	session, ok := h.sessions[sessionKey("login", user.ID)]
@@ -387,9 +396,7 @@ func (h *WebAuthnHandler) LoginFinish(c *gin.Context) {
 
 	// Update sign count
 	credID := base64.RawURLEncoding.EncodeToString(credential.ID)
-	database.DB.Model(&models.WebAuthnCredential{}).
-		Where("credential_id = ? AND user_id = ?", credID, user.ID).
-		Update("sign_count", credential.Authenticator.SignCount)
+	h.repo.UpdateSignCount(credID, user.ID, credential.Authenticator.SignCount)
 
 	logger.Info("webauthn", "Biometric login succeeded for user %s", username)
 	// Issue tokens
@@ -408,8 +415,7 @@ func (h *WebAuthnHandler) LoginFinish(c *gin.Context) {
 //	@Router			/auth/webauthn/credentials [get]
 func (h *WebAuthnHandler) ListCredentials(c *gin.Context) {
 	userID := c.GetUint("userId")
-	var creds []models.WebAuthnCredential
-	database.DB.Where("user_id = ?", userID).Find(&creds)
+	creds, _ := h.repo.LoadCredentials(userID)
 	c.JSON(http.StatusOK, creds)
 }
 
@@ -428,8 +434,8 @@ func (h *WebAuthnHandler) DeleteCredential(c *gin.Context) {
 	userID := c.GetUint("userId")
 	credID := c.Param("id")
 
-	result := database.DB.Where("id = ? AND user_id = ?", credID, userID).Delete(&models.WebAuthnCredential{})
-	if result.RowsAffected == 0 {
+	rowsAffected, _ := h.repo.DeleteCredential(credID, userID)
+	if rowsAffected == 0 {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Credential not found"})
 		return
 	}
@@ -454,13 +460,14 @@ func (h *WebAuthnHandler) CheckCredentials(c *gin.Context) {
 	}
 
 	var user models.User
-	if err := database.DB.Where("username = ?", username).First(&user).Error; err != nil {
+	found, err := h.repo.FindUserByUsername(username)
+	if err != nil {
 		c.JSON(http.StatusOK, gin.H{"available": false})
 		return
 	}
+	user = *found
 
-	var count int64
-	database.DB.Model(&models.WebAuthnCredential{}).Where("user_id = ?", user.ID).Count(&count)
+	count, _ := h.repo.CountCredentials(user.ID)
 	c.JSON(http.StatusOK, gin.H{"available": count > 0})
 }
 

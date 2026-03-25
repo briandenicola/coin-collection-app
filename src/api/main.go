@@ -110,7 +110,8 @@ func main() {
 	// Auth routes (public) — rate limited to prevent brute force
 	authRepo := repository.NewAuthRepository(database.DB)
 	authHandler := handlers.NewAuthHandler(cfg.JWTSecret, authRepo)
-	webauthnHandler, err := handlers.NewWebAuthnHandler(cfg.WebAuthnID, cfg.WebAuthnOrigin, authHandler)
+	webauthnRepo := repository.NewWebAuthnRepository(database.DB)
+	webauthnHandler, err := handlers.NewWebAuthnHandler(cfg.WebAuthnID, cfg.WebAuthnOrigin, authHandler, webauthnRepo)
 	if err != nil {
 		log.Fatalf("Failed to initialize WebAuthn: %v", err)
 	}
@@ -163,7 +164,8 @@ func main() {
 		protected.GET("/proxy-image", imageHandler.ProxyImage)
 		protected.GET("/scrape-image", imageHandler.ScrapeImage)
 
-		analysisHandler := handlers.NewAnalysisHandler()
+		analysisRepo := repository.NewAnalysisRepository(database.DB)
+		analysisHandler := handlers.NewAnalysisHandler(analysisRepo)
 		protected.POST("/coins/:id/analyze", analysisHandler.Analyze)
 		protected.DELETE("/coins/:id/analyze", analysisHandler.DeleteAnalysis)
 		protected.POST("/extract-text", analysisHandler.ExtractText)
@@ -172,7 +174,8 @@ func main() {
 		numistaHandler := handlers.NewNumistaHandler()
 		protected.GET("/numista/search", numistaHandler.Search)
 
-		agentHandler := handlers.NewAgentHandler()
+		agentRepo := repository.NewAgentRepository(database.DB)
+		agentHandler := handlers.NewAgentHandler(agentRepo)
 		protected.POST("/agent/chat", agentHandler.ChatStream)
 		protected.POST("/coins/:id/estimate-value", agentHandler.EstimateValue)
 		protected.GET("/agent/models", agentHandler.ListModels)
@@ -220,7 +223,8 @@ func main() {
 		protected.GET("/social/coins/:coinId/rating", socialHandler.GetCoinRating)
 
 		// API key management
-		apiKeyHandler := handlers.NewApiKeyHandler()
+		apiKeyRepo := repository.NewApiKeyRepository(database.DB)
+		apiKeyHandler := handlers.NewApiKeyHandler(apiKeyRepo)
 		protected.POST("/auth/api-keys", apiKeyHandler.Generate)
 		protected.GET("/auth/api-keys", apiKeyHandler.List)
 		protected.DELETE("/auth/api-keys/:id", apiKeyHandler.Revoke)
@@ -237,7 +241,8 @@ func main() {
 	admin.Use(middleware.AuthRequired(cfg.JWTSecret))
 	admin.Use(handlers.AdminRequired())
 	{
-		adminHandler := handlers.NewAdminHandler(cfg.UploadDir)
+		adminRepo := repository.NewAdminRepository(database.DB)
+		adminHandler := handlers.NewAdminHandler(cfg.UploadDir, adminRepo)
 		admin.GET("/users", adminHandler.ListUsers)
 		admin.DELETE("/users/:id", adminHandler.DeleteUser)
 		admin.POST("/users/:id/reset-password", adminHandler.ResetPassword)

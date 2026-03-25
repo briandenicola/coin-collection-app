@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/briandenicola/ancient-coins-api/database"
 	"github.com/briandenicola/ancient-coins-api/models"
+	"github.com/briandenicola/ancient-coins-api/repository"
 	"github.com/briandenicola/ancient-coins-api/services"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
@@ -16,10 +16,11 @@ import (
 
 type AdminHandler struct {
 	UploadDir string
+	repo      *repository.AdminRepository
 }
 
-func NewAdminHandler(uploadDir string) *AdminHandler {
-	return &AdminHandler{UploadDir: uploadDir}
+func NewAdminHandler(uploadDir string, repo *repository.AdminRepository) *AdminHandler {
+	return &AdminHandler{UploadDir: uploadDir, repo: repo}
 }
 
 // AdminRequired middleware ensures only admin users can access
@@ -46,8 +47,7 @@ func AdminRequired() gin.HandlerFunc {
 //	@Security		BearerAuth
 //	@Router			/admin/users [get]
 func (h *AdminHandler) ListUsers(c *gin.Context) {
-	var users []models.User
-	database.DB.Find(&users)
+	users, _ := h.repo.ListUsers()
 
 	type userDTO struct {
 		ID        uint           `json:"id"`
@@ -97,21 +97,8 @@ func (h *AdminHandler) DeleteUser(c *gin.Context) {
 	}
 
 	// Delete user's coin images, coins, then user
-	var coinIDs []uint
-	database.DB.Model(&models.Coin{}).Where("user_id = ?", targetID).Pluck("id", &coinIDs)
-	if len(coinIDs) > 0 {
-		database.DB.Where("coin_id IN ?", coinIDs).Delete(&models.CoinImage{})
-		database.DB.Where("coin_id IN ?", coinIDs).Delete(&models.CoinJournal{})
-	}
-	database.DB.Where("user_id = ?", targetID).Delete(&models.Coin{})
-	database.DB.Where("user_id = ?", targetID).Delete(&models.AgentConversation{})
-	database.DB.Where("user_id = ?", targetID).Delete(&models.ValueSnapshot{})
-	database.DB.Where("user_id = ?", targetID).Delete(&models.ApiKey{})
-	database.DB.Where("user_id = ?", targetID).Delete(&models.RefreshToken{})
-	database.DB.Where("user_id = ?", targetID).Delete(&models.WebAuthnCredential{})
-
-	result := database.DB.Delete(&models.User{}, targetID)
-	if result.RowsAffected == 0 {
+	rowsAffected, _ := h.repo.DeleteUserCascade(uint(targetID))
+	if rowsAffected == 0 {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
@@ -157,8 +144,8 @@ func (h *AdminHandler) ResetPassword(c *gin.Context) {
 		return
 	}
 
-	result := database.DB.Model(&models.User{}).Where("id = ?", targetID).Update("password_hash", string(hash))
-	if result.RowsAffected == 0 {
+	result, _ := h.repo.ResetPassword(uint(targetID), string(hash))
+	if result == 0 {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
@@ -278,8 +265,7 @@ func (h *AdminHandler) GetLogs(c *gin.Context) {
 
 // ExportAllData exports all coins and images as a zip archive
 func (h *AdminHandler) ExportAllData(c *gin.Context) {
-	var coins []models.Coin
-	database.DB.Preload("Images").Find(&coins)
+	coins, _ := h.repo.ExportAllCoins()
 
 	filename := fmt.Sprintf("ancient-coins-export-%s.zip", time.Now().Format("2006-01-02"))
 	writeCollectionZip(c, coins, h.UploadDir, filename)
@@ -296,7 +282,7 @@ func (h *AdminHandler) ImportData(c *gin.Context) {
 	imported := 0
 	for _, coin := range coins {
 		coin.ID = 0
-		if err := database.DB.Create(&coin).Error; err == nil {
+		if err := h.repo.ImportCoin(&coin); err == nil {
 			imported++
 		}
 	}
