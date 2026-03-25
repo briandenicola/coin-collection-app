@@ -61,7 +61,7 @@
 
     <!-- PWA floating agent button -->
     <button
-      v-if="isPwa && auth.isAuthenticated"
+      v-if="isPwa && auth.isAuthenticated && !showChat"
       class="agent-fab"
       @click="showChat = true"
       aria-label="Open AI Agent"
