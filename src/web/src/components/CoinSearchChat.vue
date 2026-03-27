@@ -72,6 +72,7 @@
                     <ExternalLink :size="12" /> {{ coin.sourceName || 'Source' }}
                   </a>
                   <button
+                    v-if="coin.era || coin.material || coin.denomination"
                     class="btn btn-primary btn-sm add-btn"
                     :disabled="addingIdx === `${i}-${j}`"
                     @click="addToWishlist(coin, `${i}-${j}`)"
