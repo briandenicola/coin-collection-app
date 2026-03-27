@@ -130,13 +130,12 @@ def create_coin_search_team(llm_config: LLMConfig, user_prompt: str = ""):
             ]
             response = await model.ainvoke(messages)
         else:
-            # Claude mode: let Claude use its built-in web_search
-            search_model = model.bind_tools([], tool_choice="auto") if hasattr(model, "bind_tools") else model
+            # Claude mode: let Claude use its built-in web_search tool natively
             messages = [
                 SystemMessage(content=SEARCH_PROMPT),
                 HumanMessage(content=f"Search for: {user_msg}"),
             ]
-            response = await search_model.ainvoke(messages)
+            response = await model.ainvoke(messages)
 
         return {
             "search_results": response.content if isinstance(response.content, str) else str(response.content),
