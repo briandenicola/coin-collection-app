@@ -15,6 +15,7 @@ from langgraph.types import Command
 
 from app.llm.provider import get_chat_model
 from app.models.requests import LLMConfig
+from app.teams.coin_search import create_coin_search_team
 
 ROUTER_PROMPT = """You are a routing agent for a numismatic (coin collecting) application.
 Your ONLY job is to classify the user's request into exactly one category.
@@ -54,16 +55,31 @@ def create_router(llm_config: LLMConfig):
 
 def create_supervisor(
     llm_config: LLMConfig,
-    coin_search_node=None,
+    user_message: str = "",
+    agent_prompt: str = "",
     coin_shows_node=None,
     analysis_node=None,
     portfolio_node=None,
 ):
     """Build the top-level supervisor graph.
 
-    Each team node is optional — if not provided, a passthrough is used.
-    This allows incremental development (Phase 3-6).
+    Team 1 (coin_search) is always wired. Other teams are optional —
+    passthrough is used if not provided.
     """
+
+    # Build Team 1 as a callable node
+    coin_search_graph = create_coin_search_team(llm_config, user_prompt=agent_prompt)
+
+    async def coin_search_node(state: MessagesState) -> dict:
+        """Delegate to Team 1 coin search pipeline."""
+        result = await coin_search_graph.ainvoke({
+            "messages": [],
+            "search_results": "",
+            "verification_results": "",
+            "formatted_results": "",
+            "user_message": user_message,
+        })
+        return {"messages": result.get("messages", [])}
 
     async def passthrough(state: MessagesState) -> dict:
         """Placeholder for teams not yet implemented."""
@@ -82,7 +98,7 @@ def create_supervisor(
     graph = StateGraph(MessagesState)
 
     graph.add_node("router", router)
-    graph.add_node("coin_search", coin_search_node or passthrough)
+    graph.add_node("coin_search", coin_search_node)
     graph.add_node("coin_shows", coin_shows_node or passthrough)
     graph.add_node("analysis", analysis_node or passthrough)
     graph.add_node("portfolio", portfolio_node or passthrough)

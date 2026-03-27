@@ -36,7 +36,11 @@ def _build_messages(message: str, history: list | None = None, system_prompt: st
 async def search_coins(request: CoinSearchRequest):
     """Search for coins using multi-agent pipeline with verification. Streams SSE."""
     messages = _build_messages(request.message, request.history, request.agent_prompt)
-    graph = create_supervisor(request.llm)
+    graph = create_supervisor(
+        request.llm,
+        user_message=request.message,
+        agent_prompt=request.agent_prompt,
+    )
 
     async def event_stream():
         async for chunk in stream_graph_events(graph, {"messages": messages}):
@@ -49,7 +53,11 @@ async def search_coins(request: CoinSearchRequest):
 async def search_shows(request: CoinShowSearchRequest):
     """Search for upcoming coin shows with date verification. Streams SSE."""
     messages = _build_messages(request.message, request.history, request.agent_prompt)
-    graph = create_supervisor(request.llm)
+    graph = create_supervisor(
+        request.llm,
+        user_message=request.message,
+        agent_prompt=request.agent_prompt,
+    )
 
     async def event_stream():
         async for chunk in stream_graph_events(graph, {"messages": messages}):
@@ -70,7 +78,11 @@ async def review_portfolio(request: PortfolioReviewRequest):
     """Review portfolio with live valuation. Streams SSE."""
     prompt = request.valuation_prompt or "You are a numismatic portfolio analyst."
     messages = _build_messages(request.message or "Analyze my portfolio", request.history, prompt)
-    graph = create_supervisor(request.llm)
+    graph = create_supervisor(
+        request.llm,
+        user_message=request.message or "Analyze my portfolio",
+        agent_prompt=prompt,
+    )
 
     async def event_stream():
         async for chunk in stream_graph_events(graph, {"messages": messages}):
