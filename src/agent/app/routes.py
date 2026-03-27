@@ -107,6 +107,7 @@ async def review_portfolio(request: PortfolioReviewRequest):
         user_message=request.message or "Analyze my portfolio",
         agent_prompt=prompt,
         user_context=request.user,
+        portfolio=request.portfolio,
     )
 
     async def event_stream():
