@@ -123,6 +123,12 @@ func (p *AgentProxy) StreamPortfolioReview(ctx context.Context, w http.ResponseW
 	return p.proxySSE(ctx, w, "/api/portfolio/review", req)
 }
 
+// CollectPortfolioReview POSTs to /api/portfolio/review, reads the full SSE
+// stream, and returns the final message text (from the "done" event).
+func (p *AgentProxy) CollectPortfolioReview(ctx context.Context, req PortfolioReviewProxyRequest) (string, error) {
+	return p.collectSSE(ctx, "/api/portfolio/review", req)
+}
+
 // AnalyzeCoin POSTs to /api/analyze and returns the analysis text.
 func (p *AgentProxy) AnalyzeCoin(ctx context.Context, req AnalyzeProxyRequest) (string, error) {
 	logger := AppLogger
@@ -296,4 +302,70 @@ func (p *AgentProxy) proxySSE(ctx context.Context, w http.ResponseWriter, path s
 	}
 
 	return nil
+}
+
+// collectSSE posts to the Python service, reads the full SSE stream, and
+// returns the final message from the "done" event. Used for non-streaming
+// endpoints (like value estimation) that need a complete response.
+func (p *AgentProxy) collectSSE(ctx context.Context, path string, payload any) (string, error) {
+	logger := AppLogger
+
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return "", fmt.Errorf("marshal request: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", p.baseURL+path, bytes.NewReader(body))
+	if err != nil {
+		return "", fmt.Errorf("create request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := p.streamClient.Do(httpReq)
+	if err != nil {
+		logger.Error("agent-proxy", "collectSSE request to %s failed: %v", path, err)
+		return "", fmt.Errorf("agent service unreachable: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		errMsg := string(respBody)
+		if len(errMsg) > 200 {
+			errMsg = errMsg[:200] + "... (truncated)"
+		}
+		logger.Error("agent-proxy", "collectSSE %s returned %d: %s", path, resp.StatusCode, errMsg)
+		return "", fmt.Errorf("agent service returned HTTP %d", resp.StatusCode)
+	}
+
+	// Read all SSE events and extract the "done" event's message
+	var fullMessage string
+	scanner := bufio.NewScanner(resp.Body)
+	buf := make([]byte, 0, 64*1024)
+	scanner.Buffer(buf, 1024*1024)
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		if !strings.HasPrefix(line, "data: ") {
+			continue
+		}
+		data := strings.TrimPrefix(line, "data: ")
+		var event struct {
+			Type    string `json:"type"`
+			Message string `json:"message"`
+			Text    string `json:"text"`
+		}
+		if err := json.Unmarshal([]byte(data), &event); err != nil {
+			continue
+		}
+		if event.Type == "done" && event.Message != "" {
+			fullMessage = event.Message
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return fullMessage, fmt.Errorf("stream read error: %w", err)
+	}
+
+	return fullMessage, nil
 }

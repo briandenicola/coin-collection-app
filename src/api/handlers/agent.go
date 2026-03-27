@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -505,7 +506,9 @@ func (h *AgentHandler) EstimateValue(c *gin.Context) {
 		parts = append(parts, fmt.Sprintf("Purchase Price: $%.2f", *coin.PurchasePrice))
 	}
 
-	userMessage := fmt.Sprintf("Please estimate the current market value of this coin:\n\n%s", strings.Join(parts, "\n"))
+	userMessage := fmt.Sprintf("Please estimate the current market value of this coin:\n\n%s\n\n"+
+		"IMPORTANT: Include in your response a specific dollar estimate (e.g. $150-200) and "+
+		"a confidence level (high, medium, or low). Explain your reasoning.", strings.Join(parts, "\n"))
 
 	proxyReq := services.PortfolioReviewProxyRequest{
 		LLM: llmCfg,
@@ -517,14 +520,64 @@ func (h *AgentHandler) EstimateValue(c *gin.Context) {
 		ValuationPrompt: h.getValuationPrompt(),
 	}
 
-	if err := h.proxy.StreamPortfolioReview(c.Request.Context(), c.Writer, proxyReq); err != nil {
+	// Collect the full AI response (not streaming — the frontend expects JSON)
+	aiText, err := h.proxy.CollectPortfolioReview(c.Request.Context(), proxyReq)
+	if err != nil {
 		logger.Error("agent", "EstimateValue proxy failed: %v", err)
-		if !c.Writer.Written() {
-			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Agent service unavailable"})
-		}
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Agent service unavailable"})
 		return
 	}
 
-	// Auto-record value history and journal entry are now handled
-	// by the Python agent service or by the frontend after parsing the SSE response.
+	if aiText == "" {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "No response from AI"})
+		return
+	}
+
+	// Parse structured fields from the AI's free-text response
+	estimate := parseValueEstimate(aiText)
+	c.JSON(http.StatusOK, estimate)
+}
+
+// parseValueEstimate extracts structured fields from free-text AI response.
+func parseValueEstimate(text string) gin.H {
+	result := gin.H{
+		"estimatedValue": 0.0,
+		"confidence":     "medium",
+		"reasoning":      text,
+		"comparables":    []gin.H{},
+	}
+
+	// Extract dollar amount: look for patterns like $150, $150-200, $1,500
+	priceRe := regexp.MustCompile(`\$[\d,]+(?:\.\d{2})?(?:\s*[-–]\s*\$?[\d,]+(?:\.\d{2})?)?`)
+	if match := priceRe.FindString(text); match != "" {
+		// Parse the first number from the match
+		numRe := regexp.MustCompile(`[\d,]+(?:\.\d{2})?`)
+		nums := numRe.FindAllString(match, -1)
+		if len(nums) > 0 {
+			// If it's a range, use the midpoint
+			first := parsePrice(nums[0])
+			if len(nums) > 1 {
+				second := parsePrice(nums[len(nums)-1])
+				result["estimatedValue"] = (first + second) / 2
+			} else {
+				result["estimatedValue"] = first
+			}
+		}
+	}
+
+	// Extract confidence
+	lower := strings.ToLower(text)
+	if strings.Contains(lower, "high confidence") || strings.Contains(lower, "confidence: high") || strings.Contains(lower, "confidence level: high") {
+		result["confidence"] = "high"
+	} else if strings.Contains(lower, "low confidence") || strings.Contains(lower, "confidence: low") || strings.Contains(lower, "confidence level: low") {
+		result["confidence"] = "low"
+	}
+
+	return result
+}
+
+func parsePrice(s string) float64 {
+	s = strings.ReplaceAll(s, ",", "")
+	val, _ := strconv.ParseFloat(s, 64)
+	return val
 }
