@@ -65,6 +65,14 @@ def create_searxng_search(searxng_url: str = ""):
 searxng_search = create_searxng_search()
 
 
+# Standard browser user-agent — many dealer sites block bot-like strings
+_USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/131.0.0.0 Safari/537.36"
+)
+
+
 @tool
 async def verify_url(url: str) -> str:
     """Fetch a URL and return its status and key content indicators.
@@ -78,7 +86,7 @@ async def verify_url(url: str) -> str:
 
     try:
         async with httpx.AsyncClient(timeout=settings.verification_timeout, follow_redirects=True) as client:
-            resp = await client.get(url, headers={"User-Agent": "Mozilla/5.0 AncientCoinsBot/1.0"})
+            resp = await client.get(url, headers={"User-Agent": _USER_AGENT})
 
         status = resp.status_code
         text = resp.text[:5000].lower()
