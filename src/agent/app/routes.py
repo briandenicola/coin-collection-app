@@ -36,11 +36,12 @@ def _build_messages(message: str, history: list | None = None, system_prompt: st
 @router.post("/search/coins")
 async def search_coins(request: CoinSearchRequest):
     """Search for coins using multi-agent pipeline with verification. Streams SSE."""
-    messages = _build_messages(request.message, request.history, request.agent_prompt)
+    messages = _build_messages(request.message, request.history)
     graph = create_supervisor(
         request.llm,
         user_message=request.message,
-        agent_prompt=request.agent_prompt,
+        coin_search_prompt=request.coin_search_prompt,
+        coin_shows_prompt=request.coin_shows_prompt,
         user_context=request.user,
     )
 
@@ -54,11 +55,12 @@ async def search_coins(request: CoinSearchRequest):
 @router.post("/search/shows")
 async def search_shows(request: CoinShowSearchRequest):
     """Search for upcoming coin shows with date verification. Streams SSE."""
-    messages = _build_messages(request.message, request.history, request.agent_prompt)
+    messages = _build_messages(request.message, request.history)
     graph = create_supervisor(
         request.llm,
         user_message=request.message,
-        agent_prompt=request.agent_prompt,
+        coin_search_prompt=request.coin_search_prompt,
+        coin_shows_prompt=request.coin_shows_prompt,
         user_context=request.user,
     )
 
@@ -105,7 +107,6 @@ async def review_portfolio(request: PortfolioReviewRequest):
     graph = create_supervisor(
         request.llm,
         user_message=request.message or "Analyze my portfolio",
-        agent_prompt=prompt,
         user_context=request.user,
         portfolio=request.portfolio,
     )

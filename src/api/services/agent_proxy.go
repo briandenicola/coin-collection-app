@@ -48,11 +48,12 @@ type ChatMessageProxy struct {
 }
 
 type AgentChatProxyRequest struct {
-	LLM         LLMConfig          `json:"llm"`
-	User        UserContextProxy   `json:"user"`
-	Message     string             `json:"message"`
-	History     []ChatMessageProxy `json:"history"`
-	AgentPrompt string             `json:"agent_prompt"`
+	LLM              LLMConfig          `json:"llm"`
+	User             UserContextProxy   `json:"user"`
+	Message          string             `json:"message"`
+	History          []ChatMessageProxy `json:"history"`
+	CoinSearchPrompt string             `json:"coin_search_prompt"`
+	CoinShowsPrompt  string             `json:"coin_shows_prompt"`
 }
 
 type PortfolioData struct {

@@ -155,23 +155,40 @@
           <!-- Shared Prompt Settings (visible when a provider is selected) -->
           <template v-if="settings.AIProvider">
             <hr class="section-divider" />
-            <h3 class="subsection-title">Prompts</h3>
+            <h3 class="subsection-title">Agent Prompts</h3>
             <div class="form-group">
               <div class="prompt-header">
-                <label class="form-label">Agent Search Prompt</label>
+                <label class="form-label">Coin Search Prompt</label>
                 <button
                   type="button"
                   class="btn btn-ghost btn-xs"
-                  :disabled="settings.AgentPrompt === agentPromptDefault"
-                  @click="settings.AgentPrompt = agentPromptDefault"
+                  :disabled="settings.CoinSearchPrompt === coinSearchPromptDefault"
+                  @click="settings.CoinSearchPrompt = coinSearchPromptDefault"
                 >Revert to Default</button>
               </div>
               <textarea
-                v-model="settings.AgentPrompt"
+                v-model="settings.CoinSearchPrompt"
                 class="form-textarea"
                 rows="8"
               />
-              <span class="form-hint">System prompt for the AI coin search agent. Controls how it searches and formats results.</span>
+              <span class="form-hint">Search instructions for the coin search agent (Team 1). Controls which dealer sites to search, availability rules, and search strategy.</span>
+            </div>
+            <div class="form-group">
+              <div class="prompt-header">
+                <label class="form-label">Coin Shows Prompt</label>
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-xs"
+                  :disabled="settings.CoinShowsPrompt === coinShowsPromptDefault"
+                  @click="settings.CoinShowsPrompt = coinShowsPromptDefault"
+                >Revert to Default</button>
+              </div>
+              <textarea
+                v-model="settings.CoinShowsPrompt"
+                class="form-textarea"
+                rows="8"
+              />
+              <span class="form-hint">Search instructions for the coin shows agent (Team 2). Controls which show directories and organizations to search.</span>
             </div>
             <div class="form-group">
               <div class="prompt-header">
@@ -190,6 +207,7 @@
               />
               <span class="form-hint">System prompt for the AI value estimator. Controls how it researches and estimates coin values.</span>
             </div>
+            <h3 class="subsection-title">Analysis Prompts</h3>
             <div class="form-group">
               <div class="prompt-header">
                 <label class="form-label">Obverse Analysis Prompt</label>
@@ -344,7 +362,7 @@ import { useAuthStore } from '@/stores/auth'
 import {
   getUsers, deleteUser, resetUserPassword,
   getAppSettings, getAppSettingDefaults, updateAppSettings, getAdminLogs, getOllamaStatus,
-  getAnthropicModels, getAgentPrompt, getValuationPrompt,
+  getAnthropicModels, getCoinSearchPrompt, getCoinShowsPrompt, getValuationPrompt,
   testAnthropicConnection, testSearXNGConnection,
 } from '@/api/client'
 import type { AnthropicModel } from '@/api/client'
@@ -473,7 +491,8 @@ const anthropicModels = ref<AnthropicModel[]>([
   { id: 'claude-haiku-4-20250414', name: 'Claude Haiku 4' },
   { id: 'claude-opus-4-20250514', name: 'Claude Opus 4' },
 ])
-const agentPromptDefault = ref('')
+const coinSearchPromptDefault = ref('')
+const coinShowsPromptDefault = ref('')
 const valuationPromptDefault = ref('')
 
 async function loadSettings() {
@@ -486,9 +505,10 @@ async function loadSettings() {
     settings.value = { ...settings.value, ...settingsRes.data }
 
     // Load Anthropic models and prompts in parallel
-    const [modelsRes, promptRes, valPromptRes] = await Promise.all([
+    const [modelsRes, coinSearchRes, coinShowsRes, valPromptRes] = await Promise.all([
       getAnthropicModels().catch(() => null),
-      getAgentPrompt().catch(() => null),
+      getCoinSearchPrompt().catch(() => null),
+      getCoinShowsPrompt().catch(() => null),
       getValuationPrompt().catch(() => null),
     ])
 
@@ -496,10 +516,17 @@ async function loadSettings() {
       anthropicModels.value = modelsRes.data
     }
 
-    if (promptRes?.data) {
-      agentPromptDefault.value = promptRes.data.default
-      if (!settings.value.AgentPrompt) {
-        settings.value.AgentPrompt = promptRes.data.prompt
+    if (coinSearchRes?.data) {
+      coinSearchPromptDefault.value = coinSearchRes.data.default
+      if (!settings.value.CoinSearchPrompt) {
+        settings.value.CoinSearchPrompt = coinSearchRes.data.prompt
+      }
+    }
+
+    if (coinShowsRes?.data) {
+      coinShowsPromptDefault.value = coinShowsRes.data.default
+      if (!settings.value.CoinShowsPrompt) {
+        settings.value.CoinShowsPrompt = coinShowsRes.data.prompt
       }
     }
 

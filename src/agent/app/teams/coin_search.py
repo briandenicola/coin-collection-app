@@ -100,13 +100,18 @@ class CoinSearchState(TypedDict):
     user_message: str
 
 
-def create_coin_search_team(llm_config: LLMConfig, user_prompt: str = ""):
+def create_coin_search_team(llm_config: LLMConfig, search_prompt: str = ""):
     """Create the Team 1 coin search graph.
 
     Args:
         llm_config: LLM provider configuration
-        user_prompt: Optional custom system prompt from admin settings
+        search_prompt: Search prompt from admin settings (required from Go)
     """
+    if not search_prompt:
+        logger.warning("No search prompt provided — using hardcoded fallback")
+    effective_search_prompt = search_prompt or SEARCH_PROMPT
+    logger.debug("Coin search prompt (%d chars): %.80s...", len(effective_search_prompt), effective_search_prompt)
+
     model = get_chat_model(llm_config)
     use_searxng = llm_config.provider == "ollama"
     search_tool = create_searxng_search(llm_config.searxng_url) if use_searxng else None
@@ -121,7 +126,7 @@ def create_coin_search_team(llm_config: LLMConfig, user_prompt: str = ""):
             raw_results = await search_tool.ainvoke(search_query)
 
             messages = [
-                SystemMessage(content=SEARCH_PROMPT),
+                SystemMessage(content=effective_search_prompt),
                 HumanMessage(
                     content=f"The user is looking for: {user_msg}\n\n"
                     f"Here are web search results:\n{raw_results}\n\n"
@@ -130,13 +135,12 @@ def create_coin_search_team(llm_config: LLMConfig, user_prompt: str = ""):
             ]
             response = await model.ainvoke(messages)
         else:
-            # Claude mode: let Claude use its built-in web_search
-            search_model = model.bind_tools([], tool_choice="auto") if hasattr(model, "bind_tools") else model
+            # Claude mode: let Claude use its built-in web_search tool natively
             messages = [
-                SystemMessage(content=SEARCH_PROMPT),
+                SystemMessage(content=effective_search_prompt),
                 HumanMessage(content=f"Search for: {user_msg}"),
             ]
-            response = await search_model.ainvoke(messages)
+            response = await model.ainvoke(messages)
 
         return {
             "search_results": response.content if isinstance(response.content, str) else str(response.content),

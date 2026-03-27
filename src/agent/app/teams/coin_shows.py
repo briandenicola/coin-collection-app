@@ -27,7 +27,7 @@ CRITICAL RULES:
 - Use your search tool to find REAL, UPCOMING coin shows and events
 - Search on reputable sources: coinshows.com, ANA (money.org), PNG (pngdealers.org),
   NYINC, Whitman Expo, local coin club sites, Eventbrite (coin shows)
-- Look for shows within the next 12 months
+- Focus on shows within the next 30 days unless the user specifies a different timeframe
 - For EACH result, provide the exact URL from the search results
 - NEVER invent, guess, or recall event details from memory
 - Return ONLY events you actually found in your search
@@ -107,15 +107,20 @@ class CoinShowSearchState(TypedDict):
 def create_coin_show_team(
     llm_config: LLMConfig,
     user_context: UserContext | None = None,
-    agent_prompt: str = "",
+    search_prompt: str = "",
 ):
     """Create the Team 2 coin show search graph.
 
     Args:
         llm_config: LLM provider configuration
         user_context: Optional user context with zip code for location
-        agent_prompt: Optional custom system prompt from admin settings
+        search_prompt: Search prompt from admin settings (required from Go)
     """
+    if not search_prompt:
+        logger.warning("No search prompt provided — using hardcoded fallback")
+    base_search_prompt = search_prompt or SEARCH_PROMPT
+    logger.debug("Coin shows prompt (%d chars): %.80s...", len(base_search_prompt), base_search_prompt)
+
     model = get_chat_model(llm_config)
     use_searxng = llm_config.provider == "ollama"
     search_tool = create_searxng_search(llm_config.searxng_url) if use_searxng else None
@@ -134,9 +139,15 @@ def create_coin_show_team(
         user_msg = state.get("user_message", "")
         loc_ctx = state.get("location_context", "") or location_hint
 
-        prompt = SEARCH_PROMPT.format(
-            location_context=loc_ctx if loc_ctx else "No specific location preference."
-        )
+        # Inject location context if the prompt has a placeholder, otherwise append
+        if "{location_context}" in base_search_prompt:
+            prompt = base_search_prompt.format(
+                location_context=loc_ctx if loc_ctx else "No specific location preference."
+            )
+        elif loc_ctx:
+            prompt = f"{loc_ctx}\n\n{base_search_prompt}"
+        else:
+            prompt = base_search_prompt
 
         if use_searxng and search_tool:
             search_query = f"{user_msg} upcoming coin show numismatic convention"

@@ -38,7 +38,8 @@ class CoinSearchRequest(BaseModel):
     user: UserContext
     message: str
     history: list[ChatMessage] = []
-    agent_prompt: str = ""  # Custom system prompt from admin settings
+    coin_search_prompt: str = ""
+    coin_shows_prompt: str = ""
 
 
 class CoinShowSearchRequest(BaseModel):
@@ -48,7 +49,8 @@ class CoinShowSearchRequest(BaseModel):
     user: UserContext
     message: str
     history: list[ChatMessage] = []
-    agent_prompt: str = ""
+    coin_search_prompt: str = ""
+    coin_shows_prompt: str = ""
 
 
 class CoinData(BaseModel):

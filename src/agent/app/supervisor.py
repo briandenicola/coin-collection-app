@@ -59,7 +59,8 @@ def create_router(llm_config: LLMConfig):
 def create_supervisor(
     llm_config: LLMConfig,
     user_message: str = "",
-    agent_prompt: str = "",
+    coin_search_prompt: str = "",
+    coin_shows_prompt: str = "",
     user_context: UserContext | None = None,
     portfolio: PortfolioSummary | None = None,
     analysis_node=None,
@@ -71,7 +72,7 @@ def create_supervisor(
     """
 
     # Build Team 1 as a callable node
-    coin_search_graph = create_coin_search_team(llm_config, user_prompt=agent_prompt)
+    coin_search_graph = create_coin_search_team(llm_config, search_prompt=coin_search_prompt)
 
     async def coin_search_node(state: MessagesState) -> dict:
         """Delegate to Team 1 coin search pipeline."""
@@ -86,7 +87,7 @@ def create_supervisor(
 
     # Build Team 2 as a callable node
     coin_show_graph = create_coin_show_team(
-        llm_config, user_context=user_context, agent_prompt=agent_prompt,
+        llm_config, user_context=user_context, search_prompt=coin_shows_prompt,
     )
 
     async def coin_shows_node(state: MessagesState) -> dict:
