@@ -6,7 +6,7 @@ from langchain_core.runnables import Runnable
 from app.models.requests import LLMConfig
 
 # Anthropic server-side tool — executed by Anthropic's servers, not us.
-WEB_SEARCH_TOOL = {"type": "web_search_20250305"}
+WEB_SEARCH_TOOL = {"type": "web_search_20250305", "name": "web_search"}
 
 
 def get_chat_model(config: LLMConfig) -> BaseChatModel:
