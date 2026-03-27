@@ -372,8 +372,8 @@ interface PublicKeyCredentialRequestOptionsJSON {
 // --- Social / Profile API ---
 
 // Profile
-export const updateProfile = (data: { email?: string; bio?: string; isPublic?: boolean }) =>
-  api.put<{ id: number; username: string; role: string; email: string; avatarPath: string; isPublic: boolean; bio: string }>('/user/profile', data)
+export const updateProfile = (data: { email?: string; bio?: string; zipCode?: string; isPublic?: boolean }) =>
+  api.put<{ id: number; username: string; role: string; email: string; avatarPath: string; isPublic: boolean; bio: string; zipCode: string }>('/user/profile', data)
 export const uploadAvatar = (file: File) => {
   const form = new FormData()
   form.append('avatar', file)

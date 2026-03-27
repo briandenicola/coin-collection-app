@@ -5,11 +5,31 @@ services:
       - JWT_SECRET=${JWT_SECRET:?Set JWT_SECRET in .env (min 32 chars)}
       - DB_PATH=/app/data/ancientcoins.db
       - PORT=8080
+      - AGENT_SERVICE_URL=http://agent:8081
     ports:
       - "8080:8080"
     volumes:
       - db-data:/app/data
       - uploads:/app/uploads
+    depends_on:
+      agent:
+        condition: service_healthy
+    restart: unless-stopped
+
+  agent:
+    image: ${DOCKERHUB_USERNAME:-ancient-coins}/ancient-coins-agent:latest
+    environment:
+      - AGENT_SEARXNG_URL=${SEARXNG_URL:-}
+      - AGENT_LOG_LEVEL=${AGENT_LOG_LEVEL:-INFO}
+      - AGENT_DEBUG=false
+    ports:
+      - "8081:8081"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8081/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
     restart: unless-stopped
 
 volumes:

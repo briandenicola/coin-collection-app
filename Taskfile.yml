@@ -50,6 +50,44 @@ tasks:
       - build-api
       - build-web
 
+  test:
+    desc: Run Go architecture and unit tests
+    dir: src/api
+    cmds:
+      - go test -v ./...
+
+  build-agent:
+    desc: Build the Python agent service
+    dir: src/agent
+    cmds:
+      - pip install -e ".[dev]"
+
+  run-agent:
+    desc: Run the Python agent dev server
+    dir: src/agent
+    cmds:
+      - uvicorn app.main:app --host 0.0.0.0 --port 8081 --reload
+
+  test-agent:
+    desc: Run Python agent tests
+    dir: src/agent
+    cmds:
+      - python -m pytest tests/ -v
+
+  lint-agent:
+    desc: Lint Python agent code
+    dir: src/agent
+    cmds:
+      - ruff check app/ tests/
+
+  up-all:
+    desc: Run API, web, and agent servers in parallel
+    deps:
+      - run-api
+      - run-web
+      - run-agent
+    silent: true
+
   run:
     desc: Run both API and web servers in parallel
     deps:

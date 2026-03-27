@@ -27,10 +27,10 @@
             <UsersIcon :size="18" />
             <span class="nav-label">Followers</span>
           </router-link>
-          <button v-if="!isPwa" class="nav-link" @click="showChat = true">
+          <a v-if="!isPwa" href="#" class="nav-link" @click.prevent="showChat = true">
             <Bot :size="18" />
             <span class="nav-label">Agent</span>
-          </button>
+          </a>
           <router-link to="/stats" class="nav-link" active-class="active">
             <BarChart3 :size="18" />
             <span class="nav-label">Stats</span>
@@ -303,14 +303,6 @@ function handleLogout() {
   gap: 0.75rem;
   justify-content: flex-end;
   margin-top: 1.5rem;
-}
-
-/* Agent nav button */
-button.nav-link {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font: inherit;
 }
 
 /* PWA floating agent button */

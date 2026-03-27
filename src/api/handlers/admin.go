@@ -15,12 +15,13 @@ import (
 )
 
 type AdminHandler struct {
-	UploadDir string
-	repo      *repository.AdminRepository
+	UploadDir  string
+	repo       *repository.AdminRepository
+	agentProxy *services.AgentProxy
 }
 
-func NewAdminHandler(uploadDir string, repo *repository.AdminRepository) *AdminHandler {
-	return &AdminHandler{UploadDir: uploadDir, repo: repo}
+func NewAdminHandler(uploadDir string, repo *repository.AdminRepository, agentProxy *services.AgentProxy) *AdminHandler {
+	return &AdminHandler{UploadDir: uploadDir, repo: repo, agentProxy: agentProxy}
 }
 
 // AdminRequired middleware ensures only admin users can access
@@ -249,11 +250,35 @@ func (h *AdminHandler) GetLogs(c *gin.Context) {
 		logs = filtered
 	}
 
+	// Merge agent service logs if available
+	if h.agentProxy != nil {
+		agentLogs := h.agentProxy.FetchLogs(c.Request.Context(), limit, level)
+		logs = mergeLogsByTimestamp(logs, agentLogs)
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"logs":     logs,
 		"count":    len(logs),
 		"logLevel": services.AppLogger.GetLevel(),
 	})
+}
+
+// mergeLogsByTimestamp merges two sorted log slices by timestamp (oldest first).
+func mergeLogsByTimestamp(a, b []services.LogEntry) []services.LogEntry {
+	merged := make([]services.LogEntry, 0, len(a)+len(b))
+	i, j := 0, 0
+	for i < len(a) && j < len(b) {
+		if a[i].Timestamp <= b[j].Timestamp {
+			merged = append(merged, a[i])
+			i++
+		} else {
+			merged = append(merged, b[j])
+			j++
+		}
+	}
+	merged = append(merged, a[i:]...)
+	merged = append(merged, b[j:]...)
+	return merged
 }
 
 // ExportAllData exports all coins and images as a zip archive

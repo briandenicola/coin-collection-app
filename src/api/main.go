@@ -136,6 +136,8 @@ func main() {
 	}
 
 	// Protected routes
+	agentProxy := services.NewAgentProxy(cfg.AgentServiceURL)
+
 	protected := api.Group("")
 	protected.Use(middleware.AuthRequired(cfg.JWTSecret, database.DB))
 	{
@@ -171,7 +173,7 @@ func main() {
 		protected.GET("/scrape-image", imageHandler.ScrapeImage)
 
 		analysisRepo := repository.NewAnalysisRepository(database.DB)
-		analysisHandler := handlers.NewAnalysisHandler(analysisRepo)
+		analysisHandler := handlers.NewAnalysisHandler(analysisRepo, agentProxy)
 		protected.POST("/coins/:id/analyze", analysisHandler.Analyze)
 		protected.DELETE("/coins/:id/analyze", analysisHandler.DeleteAnalysis)
 		protected.POST("/extract-text", analysisHandler.ExtractText)
@@ -181,7 +183,8 @@ func main() {
 		protected.GET("/numista/search", numistaHandler.Search)
 
 		agentRepo := repository.NewAgentRepository(database.DB)
-		agentHandler := handlers.NewAgentHandler(agentRepo)
+		userRepo := repository.NewUserRepository(database.DB)
+		agentHandler := handlers.NewAgentHandler(agentRepo, userRepo, agentProxy)
 		protected.POST("/agent/chat", agentHandler.ChatStream)
 		protected.POST("/coins/:id/estimate-value", agentHandler.EstimateValue)
 		protected.GET("/agent/models", agentHandler.ListModels)
@@ -197,7 +200,6 @@ func main() {
 		protected.DELETE("/agent/conversations/:id", convHandler.Delete)
 
 		// User self-service routes
-		userRepo := repository.NewUserRepository(database.DB)
 		userHandler := handlers.NewUserHandler(cfg.UploadDir, userRepo)
 		protected.GET("/auth/me", userHandler.GetMe)
 		protected.POST("/auth/change-password", userHandler.ChangePassword)
@@ -249,7 +251,7 @@ func main() {
 	admin.Use(handlers.AdminRequired())
 	{
 		adminRepo := repository.NewAdminRepository(database.DB)
-		adminHandler := handlers.NewAdminHandler(cfg.UploadDir, adminRepo)
+		adminHandler := handlers.NewAdminHandler(cfg.UploadDir, adminRepo, agentProxy)
 		admin.GET("/users", adminHandler.ListUsers)
 		admin.DELETE("/users/:id", adminHandler.DeleteUser)
 		admin.POST("/users/:id/reset-password", adminHandler.ResetPassword)

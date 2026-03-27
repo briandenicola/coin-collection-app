@@ -329,9 +329,11 @@ This library downloads ONNX ML models from external CDNs at runtime (50–300MB)
 
 No evidence of required code reviews or status checks before merging to `main` or `beta`. Any contributor push triggers immediate Docker build and push to registry.
 
-**Recommendation:** Configure in GitHub repository settings:
-- Require pull request reviews (≥1 reviewer)
-- Require status checks to pass before merging
+**Update:** A CI workflow (`.github/workflows/ci.yml`) now runs Go build, vet, architecture tests, and Vue type checks on every PR and push to `main`/`beta`. Dependabot (`.github/dependabot.yml`) automates dependency updates weekly for Go, npm, and GitHub Actions.
+
+**Remaining action — configure in GitHub repository settings:**
+- Require pull request reviews (>=1 reviewer)
+- Require `CI / Go Build & Test` and `CI / Vue Type Check` status checks to pass before merging
 - Restrict direct push to `main`
 
 ---

@@ -2,7 +2,7 @@
   <div class="chat-overlay" @click.self="$emit('close')">
     <div class="chat-drawer">
       <div class="chat-header">
-        <h3><Bot :size="18" /> Coin Search Agent</h3>
+        <h1><Bot :size="20" /> Coin Search Agent</h1>
         <div class="chat-header-actions">
           <button
             v-if="messages.length > 0"
@@ -31,6 +31,9 @@
             </button>
             <button class="example-btn" @click="sendExample('Show me ancient Greek tetradrachms from Athens')">
               Greek tetradrachms from Athens
+            </button>
+            <button class="example-btn" @click="sendExample('What ancient coin shows are coming up near me?')">
+              Upcoming coin shows near me
             </button>
             <button class="example-btn" @click="sendPortfolioAnalysis">
               Analyze my portfolio
@@ -448,11 +451,11 @@ function handleViewportResize() {
   flex-shrink: 0;
 }
 
-.chat-header h3 {
+.chat-header h1 {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 1rem;
+  font-size: 1.4rem;
   margin: 0;
   color: var(--accent-gold);
 }

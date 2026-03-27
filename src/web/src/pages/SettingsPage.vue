@@ -81,6 +81,11 @@
           <label class="form-label">Bio</label>
           <input v-model="profileBio" class="form-input" placeholder="Tell collectors about yourself..." maxlength="200" />
         </div>
+        <div class="form-group">
+          <label class="form-label">ZIP Code</label>
+          <input v-model="profileZipCode" class="form-input" placeholder="e.g. 90210" maxlength="10" />
+          <span class="setting-desc" style="font-size: 0.8rem; margin-top: 0.25rem; display: block">Used by the Agent to find nearby coin shows and dealers</span>
+        </div>
         <div class="setting-item">
           <div class="setting-info">
             <span class="setting-label">Public Collection</span>
@@ -802,6 +807,7 @@ async function handleAvatarDelete() {
 // Profile
 const profileEmail = ref(auth.user?.email || '')
 const profileBio = ref(auth.user?.bio || '')
+const profileZipCode = ref(auth.user?.zipCode || '')
 const profilePublic = ref(auth.user?.isPublic || false)
 const profileMsg = ref('')
 const profileError = ref(false)
@@ -836,11 +842,13 @@ async function handleSaveProfile() {
     const res = await updateProfile({
       email: profileEmail.value,
       bio: profileBio.value,
+      zipCode: profileZipCode.value,
       isPublic: profilePublic.value,
     })
     if (auth.user) {
       auth.user.email = res.data.email
       auth.user.bio = res.data.bio
+      auth.user.zipCode = res.data.zipCode
       auth.user.isPublic = res.data.isPublic
       localStorage.setItem('user', JSON.stringify(auth.user))
     }

@@ -70,6 +70,7 @@ export interface User {
   avatarPath: string
   isPublic: boolean
   bio: string
+  zipCode: string
 }
 
 export interface AuthResponse {
@@ -150,6 +151,7 @@ export interface UserInfo {
   avatarPath: string
   isPublic: boolean
   bio: string
+  zipCode: string
   emailMissing: boolean
   createdAt: string
 }
@@ -161,6 +163,7 @@ export interface AppSettings {
   ReversePrompt: string
   TextExtractionPrompt: string
   OllamaTimeout: string
+  SearXNGURL: string
   LogLevel: string
   [key: string]: string
 }
@@ -185,6 +188,17 @@ export interface CoinValueHistory {
   value: number
   confidence: string
   recordedAt: string
+}
+
+export interface CoinShow {
+  name: string
+  dates: string
+  location: string
+  venue: string
+  url: string
+  description: string
+  entryFee: string
+  notableDealers: string[]
 }
 
 export interface PortfolioSummary {
