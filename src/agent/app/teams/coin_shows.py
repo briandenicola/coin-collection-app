@@ -132,7 +132,7 @@ def create_coin_show_team(
     async def search_node(state: CoinShowSearchState) -> dict:
         """Search Agent: finds upcoming coin shows via web search."""
         user_msg = state.get("user_message", "")
-        loc_ctx = state.get("location_context", location_hint)
+        loc_ctx = state.get("location_context", "") or location_hint
 
         prompt = SEARCH_PROMPT.format(
             location_context=loc_ctx if loc_ctx else "No specific location preference."

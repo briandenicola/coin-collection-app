@@ -216,6 +216,21 @@ func (p *AgentProxy) FetchLogs(ctx context.Context, limit int, level string) []L
 	return result.Logs
 }
 
+// SetLogLevel pushes a new log level to the Python agent service.
+func (p *AgentProxy) SetLogLevel(ctx context.Context, level string) {
+	payload := []byte(fmt.Sprintf(`{"level":"%s"}`, level))
+	httpReq, err := http.NewRequestWithContext(ctx, "PUT", p.baseURL+"/log-level", bytes.NewReader(payload))
+	if err != nil {
+		return
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	resp, err := (&http.Client{Timeout: 5 * time.Second}).Do(httpReq)
+	if err != nil {
+		return
+	}
+	resp.Body.Close()
+}
+
 // proxySSE is the shared helper that posts JSON to the Python service and
 // forwards the SSE byte stream line-by-line back to the Go response writer.
 func (p *AgentProxy) proxySSE(ctx context.Context, w http.ResponseWriter, path string, payload any) error {

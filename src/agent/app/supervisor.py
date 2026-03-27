@@ -90,14 +90,49 @@ def create_supervisor(
     )
 
     async def coin_shows_node(state: MessagesState) -> dict:
-        """Delegate to Team 2 coin show search pipeline."""
+        """Delegate to Team 2 coin show search pipeline.
+
+        If the user has no ZIP code and hasn't provided a location in their
+        message, ask them where they'd like to search before running the team.
+        """
+        from langchain_core.messages import AIMessage
+
+        has_zip = user_context and user_context.zip_code
+        if not has_zip:
+            # Check if the user's message already contains a location hint
+            msg_lower = user_message.lower()
+            location_keywords = [
+                "near ", "in ", "around ", "close to ",
+                "zip ", "zipcode", "zip code",
+            ]
+            has_location_in_msg = any(kw in msg_lower for kw in location_keywords)
+
+            if not has_location_in_msg:
+                return {
+                    "messages": [
+                        AIMessage(
+                            content=(
+                                "I'd be happy to find upcoming coin shows for you. "
+                                "Could you tell me your city, state, or ZIP code so I "
+                                "can prioritize shows in your area?\n\n"
+                                "You can also set your ZIP code in **Settings** so I'll "
+                                "remember it for next time."
+                            )
+                        )
+                    ]
+                }
+
+        location_ctx = ""
+        if has_zip:
+            location_ctx = f"User is near ZIP code {user_context.zip_code}."
+
         result = await coin_show_graph.ainvoke({
             "messages": [],
             "search_results": "",
             "verification_results": "",
             "formatted_results": "",
             "user_message": user_message,
-            "location_context": "",
+            "location_context": location_ctx,
         })
         return {"messages": result.get("messages", [])}
 
