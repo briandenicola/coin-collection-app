@@ -9,7 +9,9 @@ Pipeline: Search Agent → Date Verification Agent → Formatter Agent
 
 import json
 import logging
+import re
 from typing import Annotated, TypedDict
+from urllib.parse import urlparse
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langgraph.graph import END, StateGraph
@@ -28,8 +30,13 @@ CRITICAL RULES:
 - Search multiple sources: coinshows.com, coinshows-usa.com, ANA (money.org),
   PNG (pngdealers.org), NYINC, Whitman Expo, local coin club sites, Eventbrite
 - Focus on shows within the next 30 days unless the user specifies a different timeframe
-- For EACH result, provide the exact URL from the search results
 - NEVER invent event details from memory
+
+URL RULES (CRITICAL):
+- For EACH result, use ONLY URLs that appeared verbatim in your web search results
+- NEVER construct, guess, or modify a URL path — copy it exactly as returned
+- If you are unsure of the exact URL, use the search results page URL instead
+- A real URL from a search result is ALWAYS better than a fabricated "correct-looking" one
 
 IMPORTANT — DO NOT SELF-FILTER:
 - Your job is to SEARCH and REPORT, not to verify or validate dates
@@ -48,7 +55,7 @@ For each show found, output a JSON object with these fields:
   of each month" or "March 15-17, 2025")
 - location: city/state/country
 - venue: venue name if available
-- url: the source URL from search results
+- url: the EXACT URL from your search results (copy verbatim — do not construct)
 - description: brief description
 - entryFee: entry fee if listed
 - dealers: notable dealers or "bourse" info if listed
@@ -79,6 +86,9 @@ KEEP shows where:
 - If user asked for nearby shows, the location is within reasonable driving
   distance (~50 miles) of their location or ZIP code
 
+IMPORTANT: Preserve ALL URLs exactly as provided. Do NOT modify, construct, or
+"fix" any URL. Copy them character-for-character from the input.
+
 Output the VERIFIED shows as a JSON array with the same fields.
 For recurring shows, update the "dates" field with the computed next occurrence.
 Wrap in ```json and ``` markers. If none pass verification, return an empty array."""
@@ -93,7 +103,7 @@ You receive verified coin show data. Structure each into this exact JSON schema:
     "dates": "Human-readable date range e.g. March 15-17, 2025",
     "location": "City, State/Province, Country",
     "venue": "Venue name",
-    "url": "Source URL",
+    "url": "Source URL — MUST be copied exactly from the input, never modified",
     "description": "Brief description of the show",
     "entryFee": "Entry fee or 'Free' or 'Unknown'",
     "notableDealers": ["Dealer 1", "Dealer 2"]
@@ -103,7 +113,8 @@ You receive verified coin show data. Structure each into this exact JSON schema:
 
 Rules:
 - Use ONLY data from the verified shows. Do NOT invent any fields.
-- url MUST be exactly the URL from the verified data
+- url MUST be copied character-for-character from the verified data. NEVER construct,
+  guess, or "fix" a URL. If the input URL looks wrong, keep it exactly as-is.
 - Normalize dates into a human-readable format
 - Normalize location into "City, State, Country" format
 - If a field is unknown, use empty string or empty array
@@ -278,6 +289,10 @@ def create_coin_show_team(
         response = await model.ainvoke(messages)
         formatted = response.content if isinstance(response.content, str) else str(response.content)
 
+        # Sanitize URLs: replace any fabricated URLs with originals from search results
+        search_results = state.get("search_results", "")
+        formatted = _sanitize_urls(formatted, search_results, verified)
+
         count = _count_shows(formatted)
         summary = (
             f"I found {count} upcoming coin show{'s' if count != 1 else ''} "
@@ -337,3 +352,64 @@ def _is_empty_json_result(text: str) -> bool:
         except json.JSONDecodeError:
             pass
     return False
+
+
+def _extract_urls_from_text(text: str) -> list[str]:
+    """Extract all http/https URLs from free text."""
+    return re.findall(r'https?://[^\s"\'<>\])+,]+', text)
+
+
+def _sanitize_urls(
+    formatted: str, search_results: str, verified: str, url_field: str = "url"
+) -> str:
+    """Replace fabricated URLs in formatted output with real ones from search results.
+
+    LLMs often modify URLs across pipeline hops (search -> verify -> format).
+    This extracts real URLs from search and verify stages, then checks each URL
+    in the formatted output. Fabricated URLs are replaced with the best matching
+    real URL from the same domain.
+    """
+    real_urls = set(_extract_urls_from_text(search_results))
+    real_urls.update(_extract_urls_from_text(verified))
+
+    if not real_urls:
+        return formatted
+
+    json_block = _extract_json_block(formatted)
+    if not json_block:
+        return formatted
+
+    try:
+        items = json.loads(json_block)
+        if not isinstance(items, list):
+            return formatted
+    except json.JSONDecodeError:
+        return formatted
+
+    changed = False
+    for item in items:
+        url = item.get(url_field, "")
+        if not url or url in real_urls:
+            continue
+
+        try:
+            fabricated_domain = urlparse(url).netloc.lower()
+        except Exception:
+            continue
+
+        domain_matches = [u for u in real_urls if fabricated_domain in urlparse(u).netloc.lower()]
+        if domain_matches:
+            item[url_field] = domain_matches[0]
+            changed = True
+            logger.warning("Replaced fabricated URL %s with real URL %s", url, item[url_field])
+        else:
+            logger.warning("Fabricated URL %s has no domain match in search results", url)
+
+    if changed:
+        new_json = json.dumps(items, indent=2)
+        start = formatted.find("```json")
+        end_marker = formatted.find("```", start + len("```json"))
+        if start != -1 and end_marker != -1:
+            formatted = formatted[:start] + "```json\n" + new_json + "\n" + formatted[end_marker:]
+
+    return formatted

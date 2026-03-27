@@ -9,7 +9,9 @@ Pipeline: Search Agent → Verification Agent → Formatter Agent
 
 import json
 import logging
+import re
 from typing import Annotated, TypedDict
+from urllib.parse import urlparse
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langgraph.graph import END, StateGraph
@@ -29,12 +31,17 @@ CRITICAL RULES:
 - ONLY search on reputable dealer sites: vcoins.com, ma-shops.com, forumancientcoins.com,
   biddr.com, catawiki.com, hjbltd.com
 - Add "for sale" or "buy now" to your search queries
-- For EACH result, you MUST provide the exact URL to the listing page
-- NEVER invent, guess, or recall URLs from memory — only use URLs from search results
+- NEVER invent, guess, or recall details from memory
 - Return ONLY results you actually found in your search
 
+URL RULES (CRITICAL):
+- For EACH result, use ONLY URLs that appeared verbatim in your web search results
+- NEVER construct, guess, or modify a URL path — copy it exactly as returned
+- If you are unsure of the exact URL, use the search results page URL instead
+- A real URL from a search result is ALWAYS better than a fabricated "correct-looking" one
+
 For each coin found, output a JSON object with these fields:
-- url: the exact listing URL from the search results
+- url: the EXACT listing URL from your search results (copy verbatim — do not construct)
 - title: the coin title/name as listed
 - price: the listed price
 - dealer: the dealer or site name
@@ -59,6 +66,9 @@ KEEP listings where:
 - Not marked as sold
 - Has an active buy or bid option, OR the sold/buy indicators are inconclusive
 
+IMPORTANT: Preserve ALL URLs exactly as provided. Do NOT modify, construct, or
+"fix" any URL. Copy them character-for-character from the input.
+
 Output the VERIFIED listings as a JSON array with the same fields.
 Wrap in ```json and ``` markers. If none pass verification, return an empty array."""
 
@@ -77,7 +87,7 @@ You receive verified coin listing data. Structure each into this exact JSON sche
     "denomination": "e.g. Denarius, Tetradrachm",
     "estPrice": "Listed price e.g. $275",
     "imageUrl": "",
-    "sourceUrl": "The verified listing URL",
+    "sourceUrl": "The verified listing URL — MUST be copied exactly, never modified",
     "sourceName": "Dealer or site name"
   }
 ]
@@ -85,7 +95,8 @@ You receive verified coin listing data. Structure each into this exact JSON sche
 
 Rules:
 - Use ONLY data from the verified listings. Do NOT invent any fields.
-- sourceUrl MUST be exactly the URL from the verified data
+- sourceUrl MUST be copied character-for-character from the verified data. NEVER
+  construct, guess, or "fix" a URL.
 - Set imageUrl to empty string "" (the frontend extracts images automatically)
 - Infer category, era, ruler, material, denomination from the listing title/description
 - If you cannot determine a field, use an empty string
@@ -227,6 +238,10 @@ def create_coin_search_team(llm_config: LLMConfig, search_prompt: str = ""):
         response = await model.ainvoke(messages)
         formatted = response.content if isinstance(response.content, str) else str(response.content)
 
+        # Sanitize URLs: replace any fabricated URLs with originals from search results
+        search_results = state.get("search_results", "")
+        formatted = _sanitize_urls(formatted, search_results, verified, url_field="sourceUrl")
+
         # Build a user-friendly response message
         summary = (
             "I found some coins matching your search. "
@@ -264,9 +279,7 @@ def _extract_urls(text: str) -> list[str]:
             pass
 
     # Fallback: extract URLs with regex
-    import re
-
-    return re.findall(r'https?://[^\s"\'<>]+', text)
+    return re.findall(r'https?://[^\s"\'<>\])+,]+', text)
 
 
 def _extract_json_block(text: str) -> str | None:
@@ -291,3 +304,64 @@ def _is_empty_json_result(text: str) -> bool:
         except json.JSONDecodeError:
             pass
     return False
+
+
+def _extract_urls_from_text(text: str) -> list[str]:
+    """Extract all http/https URLs from free text."""
+    return re.findall(r'https?://[^\s"\'<>\])+,]+', text)
+
+
+def _sanitize_urls(
+    formatted: str, search_results: str, verified: str, url_field: str = "sourceUrl"
+) -> str:
+    """Replace fabricated URLs in formatted output with real ones from search results.
+
+    LLMs often modify URLs across pipeline hops (search -> verify -> format).
+    This extracts real URLs from search and verify stages, then checks each URL
+    in the formatted output. Fabricated URLs are replaced with the best matching
+    real URL from the same domain.
+    """
+    real_urls = set(_extract_urls_from_text(search_results))
+    real_urls.update(_extract_urls_from_text(verified))
+
+    if not real_urls:
+        return formatted
+
+    json_block = _extract_json_block(formatted)
+    if not json_block:
+        return formatted
+
+    try:
+        items = json.loads(json_block)
+        if not isinstance(items, list):
+            return formatted
+    except json.JSONDecodeError:
+        return formatted
+
+    changed = False
+    for item in items:
+        url = item.get(url_field, "")
+        if not url or url in real_urls:
+            continue
+
+        try:
+            fabricated_domain = urlparse(url).netloc.lower()
+        except Exception:
+            continue
+
+        domain_matches = [u for u in real_urls if fabricated_domain in urlparse(u).netloc.lower()]
+        if domain_matches:
+            item[url_field] = domain_matches[0]
+            changed = True
+            logger.warning("Replaced fabricated URL %s with real URL %s", url, item[url_field])
+        else:
+            logger.warning("Fabricated URL %s has no domain match in search results", url)
+
+    if changed:
+        new_json = json.dumps(items, indent=2)
+        start = formatted.find("```json")
+        end_marker = formatted.find("```", start + len("```json"))
+        if start != -1 and end_marker != -1:
+            formatted = formatted[:start] + "```json\n" + new_json + "\n" + formatted[end_marker:]
+
+    return formatted
