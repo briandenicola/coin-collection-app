@@ -47,14 +47,17 @@ VERIFY_PROMPT = """You are a verification specialist. You will receive coin list
 and URL verification results. Your job is to FILTER OUT bad listings.
 
 REMOVE any listing where:
-- The URL returned an error (status != 200)
-- The page indicates the item is SOLD or UNAVAILABLE
-- The page has no buy/bid option
+- The page clearly indicates the item is SOLD or UNAVAILABLE
+- The URL is from an unknown or untrustworthy source
 
 KEEP listings where:
-- Status is 200
+- Status is 200 and item appears available
+- Status is 403 or 503 BUT the URL is from a known reputable dealer site
+  (vcoins.com, ma-shops.com, forumancientcoins.com, biddr.com, catawiki.com,
+  hjbltd.com). Many dealer sites block automated requests — a 403 does NOT
+  mean the listing is invalid.
 - Not marked as sold
-- Has an active buy or bid option, OR the sold/buy indicators are inconclusive (both false)
+- Has an active buy or bid option, OR the sold/buy indicators are inconclusive
 
 Output the VERIFIED listings as a JSON array with the same fields.
 Wrap in ```json and ``` markers. If none pass verification, return an empty array."""
@@ -105,12 +108,14 @@ def create_coin_search_team(llm_config: LLMConfig, search_prompt: str = ""):
 
     Args:
         llm_config: LLM provider configuration
-        search_prompt: Search prompt from admin settings (required from Go)
+        search_prompt: Additional search context from admin settings (prepended to system prompt)
     """
-    if not search_prompt:
-        logger.warning("No search prompt provided — using hardcoded fallback")
-    effective_search_prompt = search_prompt or SEARCH_PROMPT
-    logger.debug("Coin search prompt (%d chars): %.80s...", len(effective_search_prompt), effective_search_prompt)
+    # The admin prompt provides personality/context; SEARCH_PROMPT provides structure
+    if search_prompt:
+        combined_prompt = f"{search_prompt}\n\n{SEARCH_PROMPT}"
+    else:
+        combined_prompt = SEARCH_PROMPT
+    logger.debug("Coin search prompt (%d chars): %.80s...", len(combined_prompt), combined_prompt)
 
     model = get_chat_model(llm_config)
     use_searxng = llm_config.provider == "ollama"
@@ -126,7 +131,7 @@ def create_coin_search_team(llm_config: LLMConfig, search_prompt: str = ""):
             raw_results = await search_tool.ainvoke(search_query)
 
             messages = [
-                SystemMessage(content=effective_search_prompt),
+                SystemMessage(content=combined_prompt),
                 HumanMessage(
                     content=f"The user is looking for: {user_msg}\n\n"
                     f"Here are web search results:\n{raw_results}\n\n"
@@ -137,7 +142,7 @@ def create_coin_search_team(llm_config: LLMConfig, search_prompt: str = ""):
         else:
             # Claude mode: let Claude use its built-in web_search tool natively
             messages = [
-                SystemMessage(content=effective_search_prompt),
+                SystemMessage(content=combined_prompt),
                 HumanMessage(content=f"Search for: {user_msg}"),
             ]
             response = await model.ainvoke(messages)
@@ -160,13 +165,14 @@ def create_coin_search_team(llm_config: LLMConfig, search_prompt: str = ""):
                 "messages": [],
             }
 
-        # Verify each URL
-        verification_data = []
-        for url in urls[:settings.max_search_results]:
-            result = await verify_url.ainvoke(url)
-            verification_data.append(result)
+        # Verify URLs in parallel for speed
+        import asyncio
 
-        verification_text = "\n\n".join(verification_data)
+        tasks = [verify_url.ainvoke(url) for url in urls[:settings.max_search_results]]
+        verification_data = await asyncio.gather(*tasks, return_exceptions=True)
+        verification_text = "\n\n".join(
+            str(r) for r in verification_data if not isinstance(r, Exception)
+        )
 
         # Ask LLM to filter based on verification
         messages = [

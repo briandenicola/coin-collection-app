@@ -71,6 +71,11 @@ async def verify_url(url: str) -> str:
 
     Used by verification agents to confirm a listing is live and available.
     """
+    from urllib.parse import urlparse
+
+    domain = urlparse(url).netloc.lower().lstrip("www.")
+    is_trusted = any(d in domain for d in TRUSTED_DOMAINS)
+
     try:
         async with httpx.AsyncClient(timeout=settings.verification_timeout, follow_redirects=True) as client:
             resp = await client.get(url, headers={"User-Agent": "Mozilla/5.0 AncientCoinsBot/1.0"})
@@ -86,9 +91,10 @@ async def verify_url(url: str) -> str:
 
         return (
             f"Status: {status}\n"
+            f"Trusted Dealer Site: {is_trusted}\n"
             f"Sold/Unavailable: {is_sold}\n"
             f"Has Buy/Bid Option: {has_buy}\n"
             f"URL: {url}"
         )
     except Exception as e:
-        return f"Error fetching URL: {e}\nURL: {url}"
+        return f"Error fetching URL: {e}\nTrusted Dealer Site: {is_trusted}\nURL: {url}"

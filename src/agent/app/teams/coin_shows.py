@@ -119,11 +119,13 @@ def create_coin_show_team(
     Args:
         llm_config: LLM provider configuration
         user_context: Optional user context with zip code for location
-        search_prompt: Search prompt from admin settings (required from Go)
+        search_prompt: Additional search context from admin settings (prepended to system prompt)
     """
-    if not search_prompt:
-        logger.warning("No search prompt provided — using hardcoded fallback")
-    base_search_prompt = search_prompt or SEARCH_PROMPT
+    # The admin prompt provides personality/context; SEARCH_PROMPT provides structure
+    if search_prompt:
+        base_search_prompt = f"{search_prompt}\n\n{SEARCH_PROMPT}"
+    else:
+        base_search_prompt = SEARCH_PROMPT
     logger.debug("Coin shows prompt (%d chars): %.80s...", len(base_search_prompt), base_search_prompt)
 
     model = get_chat_model(llm_config)
