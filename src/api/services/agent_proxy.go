@@ -54,6 +54,7 @@ type AgentChatProxyRequest struct {
 	History          []ChatMessageProxy `json:"history"`
 	CoinSearchPrompt string             `json:"coin_search_prompt"`
 	CoinShowsPrompt  string             `json:"coin_shows_prompt"`
+	Portfolio        *PortfolioData     `json:"portfolio,omitempty"`
 }
 
 type PortfolioData struct {

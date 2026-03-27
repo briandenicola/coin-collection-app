@@ -43,6 +43,7 @@ async def search_coins(request: CoinSearchRequest):
         coin_search_prompt=request.coin_search_prompt,
         coin_shows_prompt=request.coin_shows_prompt,
         user_context=request.user,
+        portfolio=request.portfolio,
     )
 
     async def event_stream():

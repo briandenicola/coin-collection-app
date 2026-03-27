@@ -207,6 +207,12 @@ func (h *AgentHandler) ChatStream(c *gin.Context) {
 		zipCode = user.ZipCode
 	}
 
+	// Fetch portfolio summary so the agent has it if the router sends to portfolio team
+	var portfolio *services.PortfolioData
+	if summary, err := h.repo.GetPortfolioSummary(userID); err == nil && summary.TotalCoins > 0 {
+		portfolio = buildPortfolioData(summary)
+	}
+
 	proxyReq := services.AgentChatProxyRequest{
 		LLM: llmCfg,
 		User: services.UserContextProxy{
@@ -217,6 +223,7 @@ func (h *AgentHandler) ChatStream(c *gin.Context) {
 		History:          history,
 		CoinSearchPrompt: h.getCoinSearchPrompt(),
 		CoinShowsPrompt:  h.getCoinShowsPrompt(userID),
+		Portfolio:        portfolio,
 	}
 
 	if err := h.proxy.StreamChat(c.Request.Context(), c.Writer, proxyReq); err != nil {
@@ -689,4 +696,48 @@ func parsePrice(s string) float64 {
 	s = strings.ReplaceAll(s, ",", "")
 	val, _ := strconv.ParseFloat(s, 64)
 	return val
+}
+
+// buildPortfolioData converts the repository PortfolioSummary into the proxy PortfolioData.
+func buildPortfolioData(s *repository.PortfolioSummary) *services.PortfolioData {
+	cats := make(map[string]int, len(s.Categories))
+	for _, c := range s.Categories {
+		cats[c.Category] = c.Count
+	}
+	mats := make(map[string]int, len(s.Materials))
+	for _, m := range s.Materials {
+		mats[m.Material] = m.Count
+	}
+	eras := make([]map[string]any, 0, len(s.Eras))
+	for _, e := range s.Eras {
+		eras = append(eras, map[string]any{"name": e.Era, "count": e.Count})
+	}
+	rulers := make([]map[string]any, 0, len(s.Rulers))
+	for _, r := range s.Rulers {
+		rulers = append(rulers, map[string]any{"name": r.Ruler, "count": r.Count})
+	}
+	coins := make([]services.PortfolioCoinProxy, 0, len(s.TopCoins))
+	for _, tc := range s.TopCoins {
+		var cv float64
+		if tc.CurrentValue != nil {
+			cv = *tc.CurrentValue
+		}
+		coins = append(coins, services.PortfolioCoinProxy{
+			Name:         tc.Name,
+			Category:     tc.Category,
+			Era:          tc.Era,
+			Ruler:        tc.Ruler,
+			CurrentValue: cv,
+		})
+	}
+	return &services.PortfolioData{
+		TotalCoins:    int(s.TotalCoins),
+		TotalValue:    s.TotalValue,
+		TotalInvested: s.TotalInvested,
+		Categories:    cats,
+		Materials:     mats,
+		Eras:          eras,
+		Rulers:        rulers,
+		TopCoins:      coins,
+	}
 }
