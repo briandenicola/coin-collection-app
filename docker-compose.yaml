@@ -21,7 +21,7 @@ services:
       context: src/agent
       dockerfile: Dockerfile
     environment:
-      - AGENT_SEARXNG_URL=http://searxng:8888
+      - AGENT_SEARXNG_URL=${SEARXNG_URL:-}
       - AGENT_DEBUG=false
     ports:
       - "8081:8081"
@@ -31,16 +31,6 @@ services:
       timeout: 5s
       retries: 3
       start_period: 15s
-    restart: unless-stopped
-
-  searxng:
-    image: searxng/searxng:latest
-    volumes:
-      - ./services/searxng/settings.yml:/etc/searxng/settings.yml:ro
-    ports:
-      - "8888:8888"
-    environment:
-      - SEARXNG_SECRET=change-me-in-production
     restart: unless-stopped
 
 volumes:
