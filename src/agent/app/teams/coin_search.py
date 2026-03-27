@@ -105,12 +105,16 @@ def create_coin_search_team(llm_config: LLMConfig, search_prompt: str = ""):
 
     Args:
         llm_config: LLM provider configuration
-        search_prompt: Custom search prompt from admin settings (overrides default)
+        search_prompt: Search prompt from admin settings (required from Go)
     """
+    if not search_prompt:
+        logger.warning("No search prompt provided — using hardcoded fallback")
+    effective_search_prompt = search_prompt or SEARCH_PROMPT
+    logger.debug("Coin search prompt (%d chars): %.80s...", len(effective_search_prompt), effective_search_prompt)
+
     model = get_chat_model(llm_config)
     use_searxng = llm_config.provider == "ollama"
     search_tool = create_searxng_search(llm_config.searxng_url) if use_searxng else None
-    effective_search_prompt = search_prompt or SEARCH_PROMPT
 
     async def search_node(state: CoinSearchState) -> dict:
         """Search Agent: finds coin listings via web search."""

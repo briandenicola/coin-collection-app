@@ -114,12 +114,16 @@ def create_coin_show_team(
     Args:
         llm_config: LLM provider configuration
         user_context: Optional user context with zip code for location
-        search_prompt: Custom search prompt from admin settings (overrides default)
+        search_prompt: Search prompt from admin settings (required from Go)
     """
+    if not search_prompt:
+        logger.warning("No search prompt provided — using hardcoded fallback")
+    base_search_prompt = search_prompt or SEARCH_PROMPT
+    logger.debug("Coin shows prompt (%d chars): %.80s...", len(base_search_prompt), base_search_prompt)
+
     model = get_chat_model(llm_config)
     use_searxng = llm_config.provider == "ollama"
     search_tool = create_searxng_search(llm_config.searxng_url) if use_searxng else None
-    base_search_prompt = search_prompt or SEARCH_PROMPT
 
     # Build location context from user's zip code
     location_hint = ""
