@@ -136,6 +136,8 @@ func main() {
 	}
 
 	// Protected routes
+	agentProxy := services.NewAgentProxy(cfg.AgentServiceURL)
+
 	protected := api.Group("")
 	protected.Use(middleware.AuthRequired(cfg.JWTSecret, database.DB))
 	{
@@ -169,8 +171,6 @@ func main() {
 		protected.DELETE("/coins/:id/images/:imageId", imageHandler.Delete)
 		protected.GET("/proxy-image", imageHandler.ProxyImage)
 		protected.GET("/scrape-image", imageHandler.ScrapeImage)
-
-		agentProxy := services.NewAgentProxy(cfg.AgentServiceURL)
 
 		analysisRepo := repository.NewAnalysisRepository(database.DB)
 		analysisHandler := handlers.NewAnalysisHandler(analysisRepo, agentProxy)
@@ -251,7 +251,7 @@ func main() {
 	admin.Use(handlers.AdminRequired())
 	{
 		adminRepo := repository.NewAdminRepository(database.DB)
-		adminHandler := handlers.NewAdminHandler(cfg.UploadDir, adminRepo)
+		adminHandler := handlers.NewAdminHandler(cfg.UploadDir, adminRepo, agentProxy)
 		admin.GET("/users", adminHandler.ListUsers)
 		admin.DELETE("/users/:id", adminHandler.DeleteUser)
 		admin.POST("/users/:id/reset-password", adminHandler.ResetPassword)

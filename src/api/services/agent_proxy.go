@@ -179,6 +179,43 @@ func (p *AgentProxy) CheckHealth(ctx context.Context) error {
 	return nil
 }
 
+// FetchLogs retrieves log entries from the Python agent's /logs endpoint
+// and returns them as LogEntry slices compatible with the Go logger format.
+func (p *AgentProxy) FetchLogs(ctx context.Context, limit int, level string) []LogEntry {
+	url := fmt.Sprintf("%s/logs?limit=%d", p.baseURL, limit)
+	if level != "" {
+		url += "&level=" + level
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return nil
+	}
+	resp, err := (&http.Client{Timeout: 5 * time.Second}).Do(httpReq)
+	if err != nil {
+		return nil
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil
+	}
+
+	var result struct {
+		Logs []LogEntry `json:"logs"`
+	}
+	body, _ := io.ReadAll(resp.Body)
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil
+	}
+
+	// Tag each entry so the UI can distinguish agent vs api logs
+	for i := range result.Logs {
+		result.Logs[i].Message = "[agent] " + result.Logs[i].Message
+	}
+	return result.Logs
+}
+
 // proxySSE is the shared helper that posts JSON to the Python service and
 // forwards the SSE byte stream line-by-line back to the Go response writer.
 func (p *AgentProxy) proxySSE(ctx context.Context, w http.ResponseWriter, path string, payload any) error {

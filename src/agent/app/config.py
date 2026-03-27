@@ -9,6 +9,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     debug: bool = False
+    log_level: str = "INFO"  # TRACE/DEBUG/INFO/WARN/ERROR
     searxng_url: str = ""  # External SearXNG instance URL (required for Ollama mode)
     max_search_results: int = 10
     verification_timeout: int = 10

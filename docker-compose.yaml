@@ -22,6 +22,7 @@ services:
       dockerfile: Dockerfile
     environment:
       - AGENT_SEARXNG_URL=${SEARXNG_URL:-}
+      - AGENT_LOG_LEVEL=${AGENT_LOG_LEVEL:-INFO}
       - AGENT_DEBUG=false
     ports:
       - "8081:8081"
