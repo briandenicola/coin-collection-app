@@ -15,11 +15,12 @@ const (
 	SettingOllamaTimeout        = "OllamaTimeout"
 	SettingLogLevel             = "LogLevel"
 	SettingNumistaAPIKey        = "NumistaAPIKey"
-	SettingAnthropicAPIKey     = "AnthropicAPIKey"
-	SettingAnthropicModel      = "AnthropicModel"
-	SettingAgentPrompt         = "AgentPrompt"
-	SettingValuationPrompt     = "ValuationPrompt"
-	SettingSearXNGURL          = "SearXNGURL"
+	SettingAnthropicAPIKey      = "AnthropicAPIKey"
+	SettingAnthropicModel       = "AnthropicModel"
+	SettingCoinSearchPrompt     = "CoinSearchPrompt"
+	SettingCoinShowsPrompt      = "CoinShowsPrompt"
+	SettingValuationPrompt      = "ValuationPrompt"
+	SettingSearXNGURL           = "SearXNGURL"
 )
 
 const DefaultObversePrompt = `You are an expert numismatist specializing in ancient and modern coins. Analyze the obverse (front) of this coin and provide:
@@ -54,11 +55,12 @@ var settingDefaults = map[string]string{
 	SettingOllamaTimeout:        "300",
 	SettingLogLevel:             "info",
 	SettingNumistaAPIKey:        "",
-	SettingAnthropicAPIKey:     "",
-	SettingAnthropicModel:      "claude-sonnet-4-20250514",
-	SettingAgentPrompt:         "",
-	SettingValuationPrompt:     "",
-	SettingSearXNGURL:          "",
+	SettingAnthropicAPIKey:      "",
+	SettingAnthropicModel:       "claude-sonnet-4-20250514",
+	SettingCoinSearchPrompt:     "",
+	SettingCoinShowsPrompt:      "",
+	SettingValuationPrompt:      "",
+	SettingSearXNGURL:           "",
 }
 
 var settingsDB *gorm.DB

@@ -220,7 +220,8 @@ export interface AnthropicModel {
 
 export const getAnthropicModels = () => api.get<AnthropicModel[]>('/agent/models')
 
-export const getAgentPrompt = () => api.get<{ prompt: string; default: string }>('/agent/prompt')
+export const getCoinSearchPrompt = () => api.get<{ prompt: string; default: string }>('/agent/coin-search-prompt')
+export const getCoinShowsPrompt = () => api.get<{ prompt: string; default: string }>('/agent/coin-shows-prompt')
 
 // Agent Conversations
 export interface ConversationSummary {

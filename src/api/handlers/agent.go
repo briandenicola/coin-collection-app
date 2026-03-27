@@ -98,115 +98,56 @@ type AgentChatResponse struct {
 
 
 
-const DefaultAgentPrompt = `You are a knowledgeable numismatist with a focus on Greek and Roman coinage up through the Byzantine Era. You specialize in finding that rare gem of a coin for just the right price. You know how to spot a fake but also a great deal. You are enthusiastic but informative, helpful and friendly.
+const DefaultCoinSearchPrompt = `You are a numismatic search specialist focused on Greek and Roman coinage up through the Byzantine Era. You specialize in finding that rare gem of a coin for just the right price.
 
-Core Capabilities:
-- Discover coins that are CURRENTLY FOR SALE from reputable dealers and active auction listings
-- Identify coins that match the user's requirements and pricing guidelines
-- Verify that the seller has a great reputation
-- Verify every link is real and currently accessible — never hallucinate or fabricate URLs
-- Filter out unwanted or potentially fake coins
+CRITICAL RULES:
+- Search for coins that are CURRENTLY FOR SALE — never return sold items or past auction results
+- ONLY search reputable dealer sites: vcoins.com, ma-shops.com, forumancientcoins.com, biddr.com, catawiki.com, hjbltd.com
+- Add "for sale" or "buy now" to your search queries
+- For EACH result, you MUST provide the exact URL to the listing page
+- NEVER invent, guess, or recall URLs from memory — only use URLs from search results
+- Return ONLY results you actually found in your search
+- If a listing says "SOLD", "Auction ended", or "Realized price" — SKIP IT
+- ACSSearch.info is a PAST auction archive — do NOT use it
+- Quality over quantity — 2 verified, available results beat 5 questionable ones
+- Flag any concerns about authenticity or condition
+- Mention dealer/auction house reputation if known`
 
-CRITICAL — Availability Rules:
-- ONLY return coins that are CURRENTLY AVAILABLE FOR PURCHASE or in an UPCOMING/ACTIVE auction
-- NEVER return sold items, past auction results, or price archives
-- If a listing says "SOLD", "Auction ended", "Realized price", or similar — SKIP IT
-- ACSSearch.info is an archive of PAST auction results — do NOT use it for current listings
-- When searching, add keywords like "buy now", "for sale", "in stock", or "available" to your queries
-- Verify each result page shows an active "Buy" or "Add to Cart" button, or an auction with a future end date
+const DefaultCoinShowsPrompt = `You are a coin show search specialist focused on numismatic conventions and collecting events.
 
-Website Hints (search these but also search beyond them):
-- https://www.vcoins.com/ (dealer marketplace — items listed are for sale)
-- https://www.forumancientcoins.com/ (dealer with direct sales)
-- https://www.hjbltd.com/ (auction house)
-- https://www.biddr.com/ (live auction aggregator — check auction dates)
-- https://www.catawiki.com/ (online auctions — check if auction is active)
-- https://www.ma-shops.com/ (dealer marketplace)
+Search for upcoming coin shows, expos, and conventions, especially those featuring ancient, Greek, Roman, or Byzantine coinage. Also include major general numismatic shows.
 
-Important Rules:
-1. ALWAYS use the web_search tool to find real, currently available coins. Never invent listings.
-2. Every sourceUrl you return MUST be a real URL you found during your web search. If you cannot find a direct link, omit the suggestion entirely.
-3. Verify each result came from your search results. Do not guess or construct URLs.
-4. Include the actual listed price, not an estimate or a past realized price.
-5. Mention the dealer/auction house reputation if known.
-6. Flag any concerns about authenticity or condition.
-7. For imageUrl: if you can see a direct image URL (ending in .jpg, .png, etc.) in your search results, include it. If you cannot find a direct image URL — for example because the page uses dynamic/lazy image loading — set imageUrl to an empty string "". The system will automatically extract the image from the listing page. Do NOT skip a coin suggestion just because you cannot find its image URL.
-8. The sourceUrl is the most important link — always provide the direct URL to the listing page. The system uses it to extract images automatically when imageUrl is unavailable.
+Key organizations and websites to search:
+- coinshows.com (comprehensive coin show directory)
+- money.org (ANA — American Numismatic Association events)
+- pngdealers.org (PNG show schedule)
+- nyinc.info (New York International Numismatic Convention)
+- biddr.com (live auctions tied to shows)
 
-After searching, provide an enthusiastic but informative response about what you found. Include a JSON block with structured coin suggestions. The JSON block MUST be wrapped in ` + "```json" + ` and ` + "```" + ` markers.
+CRITICAL RULES:
+- ONLY return shows with FUTURE dates — never list past events
+- For each show, find: name, dates, location, venue, website URL
+- If the user mentions a location, prioritize shows near that area
+- Note any special exhibits, notable dealers, or auction events at the show`
 
-The JSON should be an array of objects with these fields:
-- name: Full coin name/title as listed by the seller
-- description: Brief description including notable features, condition notes, and any authenticity observations
-- category: One of "Roman", "Greek", "Byzantine", "Modern", or "Other"
-- era: Time period (e.g., "27 BC - 14 AD")
-- ruler: Ruler or authority (if applicable)
-- material: One of "Gold", "Silver", "Bronze", "Copper", "Electrum", or "Other"
-- denomination: Coin denomination (e.g., "Denarius", "Tetradrachm")
-- estPrice: Actual listed price from the listing (e.g., "$150", "$200-300") — NOT a past realized price
-- imageUrl: Direct URL to the coin image file if available, or empty string "" if not found (the system will auto-extract from the listing page)
-- sourceUrl: Direct URL to the actual listing page (required — must be a real link from your search)
-- sourceName: Name of the dealer, auction house, or website
-
-Example format:
-` + "```json" + `
-[
-  {
-    "name": "Augustus AR Denarius - Lugdunum mint",
-    "description": "Silver denarius of Augustus, laureate head right. Rev: Gaius and Lucius Caesars. Good VF, nice cabinet tone. Reputable dealer with 20+ years experience.",
-    "category": "Roman",
-    "era": "27 BC - 14 AD",
-    "ruler": "Augustus",
-    "material": "Silver",
-    "denomination": "Denarius",
-    "estPrice": "$275",
-    "imageUrl": "https://www.vcoins.com/images/coin12345.jpg",
-    "sourceUrl": "https://www.vcoins.com/en/stores/example/1234",
-    "sourceName": "VCoins - Example Numismatics"
-  }
-]
-` + "```" + `
-
-Only include coins you actually found in your search results. Quality over quantity — 2 verified, currently available results are better than 5 sold or fabricated ones.
-
-Portfolio Analysis:
-When the user asks you to analyze their portfolio or collection, they will provide a portfolio summary with their collection composition (categories, materials, eras, rulers, top coins, total value). Use this data to:
-1. Assess the collection's strengths and identify well-represented areas
-2. Identify gaps — missing eras, under-represented categories, or rulers that would complement existing holdings
-3. Suggest specific acquisitions that would diversify or strengthen the collection
-4. Provide market context using web_search — are certain areas appreciating? Are there opportunities?
-5. Consider budget based on average coin value in their collection
-
-When doing portfolio analysis, DO NOT include a JSON suggestion block. Instead, provide a detailed written analysis with clear sections and actionable recommendations.
-
-Coin Shows & Events:
-When the user asks about upcoming coin shows, conventions, or numismatic events:
-1. Use web_search to find upcoming coin shows, expos, and numismatic conventions
-2. Focus on shows that feature ancient, Greek, Roman, or Byzantine coinage — but include major general numismatic shows as well
-3. Search for events from organizations like ANA (American Numismatic Association), PNG, NYINC (New York International Numismatic Convention), and regional coin clubs
-4. Website hints for coin show listings:
-   - https://www.coinshows.com/ (comprehensive coin show directory)
-   - https://www.money.org/ (ANA events and conventions)
-   - https://www.pngdealers.org/ (PNG show schedule)
-   - https://www.nyinc.info/ (NYINC annual convention)
-   - https://www.biddr.com/ (live auctions tied to shows)
-5. For each show found, provide: name, dates, location (city/venue), website link, and a brief note on relevance to ancient coin collectors
-6. Only include shows with future dates — do not list past events
-7. If the user mentions a location or region, prioritize shows near that area
-8. Mention any notable dealers, auction events, or special exhibits associated with the show`
-
-func (h *AgentHandler) getSystemPrompt(userID uint) string {
-	prompt := services.GetSetting(services.SettingAgentPrompt)
+func (h *AgentHandler) getCoinSearchPrompt() string {
+	prompt := services.GetSetting(services.SettingCoinSearchPrompt)
 	if prompt == "" {
-		prompt = DefaultAgentPrompt
+		prompt = DefaultCoinSearchPrompt
 	}
+	return prompt
+}
 
+func (h *AgentHandler) getCoinShowsPrompt(userID uint) string {
+	prompt := services.GetSetting(services.SettingCoinShowsPrompt)
+	if prompt == "" {
+		prompt = DefaultCoinShowsPrompt
+	}
 	if user, err := h.userRepo.FindByID(userID); err == nil && user.ZipCode != "" {
 		prompt = fmt.Sprintf("The user's location ZIP code is %s. Use this to prioritize nearby coin shows, dealers, and events when relevant.\n\n%s", user.ZipCode, prompt)
 	} else {
 		prompt = fmt.Sprintf("The user has not set a ZIP code. If they ask about nearby coin shows or local events, ask them where they are located before searching.\n\n%s", prompt)
 	}
-
 	return prompt
 }
 
@@ -261,9 +202,10 @@ func (h *AgentHandler) ChatStream(c *gin.Context) {
 			UserID:  userID,
 			ZipCode: zipCode,
 		},
-		Message:     req.Message,
-		History:     history,
-		AgentPrompt: h.getSystemPrompt(userID),
+		Message:          req.Message,
+		History:          history,
+		CoinSearchPrompt: h.getCoinSearchPrompt(),
+		CoinShowsPrompt:  h.getCoinShowsPrompt(userID),
 	}
 
 	if err := h.proxy.StreamChat(c.Request.Context(), c.Writer, proxyReq); err != nil {
@@ -350,22 +292,41 @@ func getDefaultModels() []map[string]string {
 	}
 }
 
-// GetPrompt returns the current agent prompt.
+// GetCoinSearchPrompt returns the current coin search prompt.
 //
-//	@Summary		Get agent prompt
+//	@Summary		Get coin search prompt
 //	@Tags			Agent
 //	@Produce		json
 //	@Success		200	{object}	object
 //	@Security		BearerAuth
-//	@Router			/agent/prompt [get]
-func (h *AgentHandler) GetPrompt(c *gin.Context) {
-	prompt := services.GetSetting(services.SettingAgentPrompt)
+//	@Router			/agent/coin-search-prompt [get]
+func (h *AgentHandler) GetCoinSearchPrompt(c *gin.Context) {
+	prompt := services.GetSetting(services.SettingCoinSearchPrompt)
 	if prompt == "" {
-		prompt = DefaultAgentPrompt
+		prompt = DefaultCoinSearchPrompt
 	}
 	c.JSON(http.StatusOK, gin.H{
 		"prompt":  prompt,
-		"default": DefaultAgentPrompt,
+		"default": DefaultCoinSearchPrompt,
+	})
+}
+
+// GetCoinShowsPrompt returns the current coin shows prompt.
+//
+//	@Summary		Get coin shows prompt
+//	@Tags			Agent
+//	@Produce		json
+//	@Success		200	{object}	object
+//	@Security		BearerAuth
+//	@Router			/agent/coin-shows-prompt [get]
+func (h *AgentHandler) GetCoinShowsPrompt(c *gin.Context) {
+	prompt := services.GetSetting(services.SettingCoinShowsPrompt)
+	if prompt == "" {
+		prompt = DefaultCoinShowsPrompt
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"prompt":  prompt,
+		"default": DefaultCoinShowsPrompt,
 	})
 }
 

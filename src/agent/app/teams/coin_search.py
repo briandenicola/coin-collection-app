@@ -100,16 +100,17 @@ class CoinSearchState(TypedDict):
     user_message: str
 
 
-def create_coin_search_team(llm_config: LLMConfig, user_prompt: str = ""):
+def create_coin_search_team(llm_config: LLMConfig, search_prompt: str = ""):
     """Create the Team 1 coin search graph.
 
     Args:
         llm_config: LLM provider configuration
-        user_prompt: Optional custom system prompt from admin settings
+        search_prompt: Custom search prompt from admin settings (overrides default)
     """
     model = get_chat_model(llm_config)
     use_searxng = llm_config.provider == "ollama"
     search_tool = create_searxng_search(llm_config.searxng_url) if use_searxng else None
+    effective_search_prompt = search_prompt or SEARCH_PROMPT
 
     async def search_node(state: CoinSearchState) -> dict:
         """Search Agent: finds coin listings via web search."""
@@ -121,7 +122,7 @@ def create_coin_search_team(llm_config: LLMConfig, user_prompt: str = ""):
             raw_results = await search_tool.ainvoke(search_query)
 
             messages = [
-                SystemMessage(content=SEARCH_PROMPT),
+                SystemMessage(content=effective_search_prompt),
                 HumanMessage(
                     content=f"The user is looking for: {user_msg}\n\n"
                     f"Here are web search results:\n{raw_results}\n\n"
@@ -132,7 +133,7 @@ def create_coin_search_team(llm_config: LLMConfig, user_prompt: str = ""):
         else:
             # Claude mode: let Claude use its built-in web_search tool natively
             messages = [
-                SystemMessage(content=SEARCH_PROMPT),
+                SystemMessage(content=effective_search_prompt),
                 HumanMessage(content=f"Search for: {user_msg}"),
             ]
             response = await model.ainvoke(messages)
