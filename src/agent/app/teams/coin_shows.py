@@ -27,7 +27,7 @@ CRITICAL RULES:
 - Use your search tool to find REAL, UPCOMING coin shows and events
 - Search on reputable sources: coinshows.com, ANA (money.org), PNG (pngdealers.org),
   NYINC, Whitman Expo, local coin club sites, Eventbrite (coin shows)
-- Look for shows within the next 12 months
+- Focus on shows within the next 30 days unless the user specifies a different timeframe
 - For EACH result, provide the exact URL from the search results
 - NEVER invent, guess, or recall event details from memory
 - Return ONLY events you actually found in your search

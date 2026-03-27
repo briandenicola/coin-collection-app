@@ -126,6 +126,7 @@ Key organizations and websites to search:
 
 CRITICAL RULES:
 - ONLY return shows with FUTURE dates — never list past events
+- Focus on shows within the next 30 days unless the user specifies a different timeframe
 - For each show, find: name, dates, location, venue, website URL
 - If the user mentions a location, prioritize shows near that area
 - Note any special exhibits, notable dealers, or auction events at the show`
@@ -143,6 +144,14 @@ func (h *AgentHandler) getCoinShowsPrompt(userID uint) string {
 	if prompt == "" {
 		prompt = DefaultCoinShowsPrompt
 	}
+
+	// Inject current date so the agent knows what "upcoming" means
+	now := time.Now()
+	deadline := now.AddDate(0, 0, 30)
+	datePreamble := fmt.Sprintf("Today's date is %s. Unless the user specifies a different timeframe, only return shows between now and %s (next 30 days).\n\n",
+		now.Format("January 2, 2006"), deadline.Format("January 2, 2006"))
+	prompt = datePreamble + prompt
+
 	if user, err := h.userRepo.FindByID(userID); err == nil && user.ZipCode != "" {
 		prompt = fmt.Sprintf("The user's location ZIP code is %s. Use this to prioritize nearby coin shows, dealers, and events when relevant.\n\n%s", user.ZipCode, prompt)
 	} else {
