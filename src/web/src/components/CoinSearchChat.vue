@@ -18,6 +18,12 @@
         </div>
       </div>
 
+      <!-- Unconfigured provider banner -->
+      <div v-if="!providerConfigured" class="provider-banner">
+        <AlertTriangle :size="16" />
+        <span>AI provider not configured. <a href="/admin" @click="$emit('close')">Go to Admin Settings</a> to select Anthropic or Ollama.</span>
+      </div>
+
       <div class="chat-messages" ref="messagesEl">
         <div v-if="messages.length === 0" class="chat-intro">
           <Bot :size="32" />
@@ -91,11 +97,11 @@
         <input
           v-model="input"
           class="chat-input"
-          placeholder="Describe the coins you're looking for..."
-          :disabled="loading"
+          :placeholder="providerConfigured ? 'Describe the coins you\'re looking for...' : 'Configure AI provider in Admin Settings'"
+          :disabled="loading || !providerConfigured"
           ref="inputEl"
         />
-        <button type="submit" class="send-btn" :disabled="!input.trim() || loading">
+        <button type="submit" class="send-btn" :disabled="!input.trim() || loading || !providerConfigured">
           <SendHorizontal :size="18" />
         </button>
       </form>
@@ -105,9 +111,9 @@
 
 <script setup lang="ts">
 import { ref, nextTick, onMounted, onBeforeUnmount, computed } from 'vue'
-import { agentChatStream, createCoin, proxyImage, scrapeImage, uploadImage, saveConversation, getPortfolioSummary } from '@/api/client'
+import { agentChatStream, createCoin, proxyImage, scrapeImage, uploadImage, saveConversation, getPortfolioSummary, getAgentStatus } from '@/api/client'
 import type { CoinSuggestion, AgentChatMessage, Category, Material } from '@/types'
-import { Bot, X, SendHorizontal, CirclePlus, ExternalLink, Save } from 'lucide-vue-next'
+import { Bot, X, SendHorizontal, CirclePlus, ExternalLink, Save, AlertTriangle } from 'lucide-vue-next'
 import DOMPurify from 'dompurify'
 
 interface ChatMsg {
@@ -137,6 +143,7 @@ const conversationId = ref<number | null>(null)
 const saving = ref(false)
 const scrapedImages = ref<Map<string, string>>(new Map())
 const saveLabel = ref('Save')
+const providerConfigured = ref(true)  // assume configured until checked
 
 const VALID_CATEGORIES = ['Roman', 'Greek', 'Byzantine', 'Modern', 'Other']
 const VALID_MATERIALS = ['Gold', 'Silver', 'Bronze', 'Copper', 'Electrum', 'Other']
@@ -388,7 +395,7 @@ function handleImgError(e: Event) {
   img.style.display = 'none'
 }
 
-onMounted(() => {
+onMounted(async () => {
   inputEl.value?.focus()
   if (props.loadConversation) {
     conversationId.value = props.loadConversation.id
@@ -396,6 +403,13 @@ onMounted(() => {
       messages.value = JSON.parse(props.loadConversation.messages)
       scrollToBottom()
     } catch { /* ignore parse errors */ }
+  }
+  // Check if AI provider is configured
+  try {
+    const res = await getAgentStatus()
+    providerConfigured.value = res.data.configured
+  } catch {
+    providerConfigured.value = true // don't block on network error
   }
   // Handle iOS keyboard resizing the visual viewport
   if (window.visualViewport) {
@@ -464,6 +478,24 @@ function handleViewportResize() {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.provider-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: rgba(231, 176, 60, 0.1);
+  border-bottom: 1px solid rgba(231, 176, 60, 0.3);
+  color: #e7b03c;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+.provider-banner a {
+  color: var(--accent-gold, #d4a843);
+  text-decoration: underline;
+  font-weight: 600;
 }
 
 .chat-save {

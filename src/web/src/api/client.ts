@@ -311,6 +311,16 @@ export const getAdminLogs = (limit = 500, level?: string) => {
   return api.get<{ logs: LogEntry[]; count: number; logLevel: string }>('/admin/logs', { params })
 }
 
+type ConnectivityResult = { available: boolean; message: string }
+export const testAnthropicConnection = () =>
+  api.get<ConnectivityResult>('/admin/test-anthropic')
+export const testSearXNGConnection = () =>
+  api.get<ConnectivityResult>('/admin/test-searxng')
+
+// Agent status
+export const getAgentStatus = () =>
+  api.get<{ provider: string; configured: boolean }>('/agent/status')
+
 // WebAuthn
 export const webauthnRegisterBegin = () =>
   api.post('/auth/webauthn/register/begin')

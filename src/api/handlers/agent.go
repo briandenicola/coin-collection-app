@@ -28,6 +28,43 @@ func NewAgentHandler(repo *repository.AgentRepository, userRepo *repository.User
 	}
 }
 
+// resolveLLMConfig reads the explicit AIProvider setting and builds LLMConfig.
+// Returns an error message if the provider is not configured.
+func resolveLLMConfig() (services.LLMConfig, string) {
+	provider := services.GetSetting(services.SettingAIProvider)
+	if provider == "" {
+		return services.LLMConfig{}, "AI provider not configured. Please select Anthropic or Ollama in Admin Settings."
+	}
+
+	cfg := services.LLMConfig{
+		Provider:   provider,
+		OllamaURL:  services.GetSetting(services.SettingOllamaURL),
+		SearXNGURL: services.GetSetting(services.SettingSearXNGURL),
+	}
+
+	switch provider {
+	case "anthropic":
+		cfg.APIKey = services.GetSetting(services.SettingAnthropicAPIKey)
+		cfg.Model = services.GetSetting(services.SettingAnthropicModel)
+		if cfg.APIKey == "" {
+			return services.LLMConfig{}, "Anthropic API key is required. Configure it in Admin Settings."
+		}
+	case "ollama":
+		cfg.Model = services.GetSetting(services.SettingOllamaModel)
+		if cfg.OllamaURL == "" {
+			return services.LLMConfig{}, "Ollama URL is required. Configure it in Admin Settings."
+		}
+	default:
+		return services.LLMConfig{}, "Invalid AI provider. Please select Anthropic or Ollama in Admin Settings."
+	}
+
+	if cfg.Model == "" {
+		cfg.Model = "claude-sonnet-4-20250514"
+	}
+
+	return cfg, ""
+}
+
 // Chat request/response types
 
 type AgentChatRequest struct {
@@ -196,21 +233,11 @@ func (h *AgentHandler) ChatStream(c *gin.Context) {
 		return
 	}
 
-	// Determine LLM provider based on available settings
-	provider := "anthropic"
-	apiKey := services.GetSetting(services.SettingAnthropicAPIKey)
-	model := services.GetSetting(services.SettingAnthropicModel)
-	ollamaURL := services.GetSetting(services.SettingOllamaURL)
-	ollamaModel := services.GetSetting(services.SettingOllamaModel)
-	searxngURL := services.GetSetting(services.SettingSearXNGURL)
-
-	if apiKey == "" && ollamaURL != "" {
-		provider = "ollama"
-		model = ollamaModel
-	}
-
-	if model == "" {
-		model = "claude-sonnet-4-20250514"
+	// Resolve LLM provider from explicit setting
+	llmCfg, errMsg := resolveLLMConfig()
+	if errMsg != "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": errMsg})
+		return
 	}
 
 	// Build history for the proxy
@@ -229,13 +256,7 @@ func (h *AgentHandler) ChatStream(c *gin.Context) {
 	}
 
 	proxyReq := services.AgentChatProxyRequest{
-		LLM: services.LLMConfig{
-			Provider:   provider,
-			APIKey:     apiKey,
-			Model:      model,
-			OllamaURL:  ollamaURL,
-			SearXNGURL: searxngURL,
-		},
+		LLM: llmCfg,
 		User: services.UserContextProxy{
 			UserID:  userID,
 			ZipCode: zipCode,
@@ -252,6 +273,17 @@ func (h *AgentHandler) ChatStream(c *gin.Context) {
 			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Agent service unavailable"})
 		}
 	}
+}
+
+// AgentStatus returns the current AI provider configuration status.
+func (h *AgentHandler) AgentStatus(c *gin.Context) {
+	provider := services.GetSetting(services.SettingAIProvider)
+	configured := provider == "anthropic" || provider == "ollama"
+
+	c.JSON(http.StatusOK, gin.H{
+		"provider":   provider,
+		"configured": configured,
+	})
 }
 
 // ListModels returns the list of available Anthropic models.
@@ -451,20 +483,11 @@ func (h *AgentHandler) EstimateValue(c *gin.Context) {
 		return
 	}
 
-	// Determine LLM provider based on available settings
-	provider := "anthropic"
-	apiKey := services.GetSetting(services.SettingAnthropicAPIKey)
-	model := services.GetSetting(services.SettingAnthropicModel)
-	ollamaURL := services.GetSetting(services.SettingOllamaURL)
-	ollamaModel := services.GetSetting(services.SettingOllamaModel)
-
-	if apiKey == "" && ollamaURL != "" {
-		provider = "ollama"
-		model = ollamaModel
-	}
-
-	if model == "" {
-		model = "claude-sonnet-4-20250514"
+	// Resolve LLM provider from explicit setting
+	llmCfg, errMsg := resolveLLMConfig()
+	if errMsg != "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": errMsg})
+		return
 	}
 
 	var zipCode string
@@ -514,13 +537,7 @@ func (h *AgentHandler) EstimateValue(c *gin.Context) {
 	userMessage := fmt.Sprintf("Please estimate the current market value of this coin:\n\n%s", strings.Join(parts, "\n"))
 
 	proxyReq := services.PortfolioReviewProxyRequest{
-		LLM: services.LLMConfig{
-			Provider:   provider,
-			APIKey:     apiKey,
-			Model:      model,
-			OllamaURL:  ollamaURL,
-			SearXNGURL: services.GetSetting(services.SettingSearXNGURL),
-		},
+		LLM: llmCfg,
 		User: services.UserContextProxy{
 			UserID:  userID,
 			ZipCode: zipCode,

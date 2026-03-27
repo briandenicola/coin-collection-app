@@ -6,6 +6,7 @@ import (
 )
 
 const (
+	SettingAIProvider           = "AIProvider"
 	SettingOllamaURL            = "OllamaURL"
 	SettingOllamaModel          = "OllamaModel"
 	SettingObversePrompt        = "ObversePrompt"
@@ -44,6 +45,7 @@ Include store name, coin description, price, grade, reference numbers, dates, an
 Return ONLY the extracted text, no commentary.`
 
 var settingDefaults = map[string]string{
+	SettingAIProvider:           "",
 	SettingOllamaURL:            "http://localhost:11434",
 	SettingOllamaModel:          "llava",
 	SettingObversePrompt:        DefaultObversePrompt,
@@ -56,6 +58,7 @@ var settingDefaults = map[string]string{
 	SettingAnthropicModel:      "claude-sonnet-4-20250514",
 	SettingAgentPrompt:         "",
 	SettingValuationPrompt:     "",
+	SettingSearXNGURL:          "",
 }
 
 var settingsDB *gorm.DB
@@ -74,8 +77,9 @@ func GetSetting(key string) string {
 		}
 		return ""
 	}
-	// Treat empty prompt settings as unset so the default is used
-	if setting.Value == "" {
+	// Treat empty prompt settings as unset so the default is used.
+	// AIProvider intentionally allows empty (means unconfigured).
+	if setting.Value == "" && key != SettingAIProvider {
 		if def, ok := settingDefaults[key]; ok {
 			return def
 		}
