@@ -1,7 +1,6 @@
 """Team 1: Coin Search — two-phase search with page fetching.
 
-Phase 1: Claude searches the web using its built-in web_search tool
-         (no bind_tools — web_search is available by default).
+Phase 1: Claude searches the web using web_search (enabled via get_search_model).
 Phase 2: We fetch dealer pages from the URLs found and extract real listings.
 Phase 3: Claude formats the extracted listings into the CoinSuggestion JSON schema.
 """
