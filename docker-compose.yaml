@@ -18,9 +18,6 @@ services:
 
   agent:
     image: ${DOCKERHUB_USERNAME:-ancient-coins}/ancient-coins-agent:latest
-    build:
-      context: src/agent
-      dockerfile: Dockerfile
     environment:
       - AGENT_SEARXNG_URL=${SEARXNG_URL:-}
       - AGENT_LOG_LEVEL=${AGENT_LOG_LEVEL:-INFO}
