@@ -13,7 +13,7 @@ from typing import Annotated, TypedDict
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langgraph.graph import END, StateGraph
 
-from app.llm.provider import get_chat_model
+from app.llm.provider import get_chat_model, get_search_model
 from app.models.requests import LLMConfig
 from app.tools.search import create_searxng_search, fetch_dealer_page
 
@@ -103,8 +103,8 @@ def create_coin_search_team(llm_config: LLMConfig, search_prompt: str = ""):
     async def search_node(state: CoinSearchState) -> dict:
         """Phase 1: Search the web for dealer pages."""
         user_msg = state.get("user_message", "")
-        # Plain model — no bind_tools — so Claude's built-in web_search works
-        model = get_chat_model(llm_config)
+        # get_search_model enables Anthropic's built-in web_search tool
+        model = get_search_model(llm_config)
 
         if use_searxng:
             search_tool = create_searxng_search(llm_config.searxng_url)

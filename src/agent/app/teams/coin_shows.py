@@ -16,7 +16,7 @@ from urllib.parse import urlparse
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langgraph.graph import END, StateGraph
 
-from app.llm.provider import get_chat_model
+from app.llm.provider import get_chat_model, get_search_model
 from app.models.requests import LLMConfig, UserContext
 from app.tools.search import create_searxng_search
 
@@ -154,6 +154,7 @@ def create_coin_show_team(
     logger.debug("Coin shows prompt (%d chars): %.80s...", len(base_search_prompt), base_search_prompt)
 
     model = get_chat_model(llm_config)
+    search_model = get_search_model(llm_config)
     use_searxng = llm_config.provider == "ollama"
     search_tool = create_searxng_search(llm_config.searxng_url) if use_searxng else None
 
@@ -197,12 +198,12 @@ def create_coin_show_team(
             ]
             response = await model.ainvoke(messages)
         else:
-            # Claude mode: use built-in web_search
+            # Claude mode: web_search enabled via get_search_model
             messages = [
                 SystemMessage(content=prompt),
                 HumanMessage(content=f"Search for: {user_msg}"),
             ]
-            response = await model.ainvoke(messages)
+            response = await search_model.ainvoke(messages)
 
         return {
             "search_results": response.content if isinstance(response.content, str) else str(response.content),
