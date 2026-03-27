@@ -60,12 +60,12 @@ async def stream_graph_events(graph, input_data: dict, config: dict | None = Non
         yield format_sse({"type": "error", "message": "An error occurred while processing your request."})
         return
 
-    # Prefer the last complete AI message for suggestion extraction — it's the
-    # formatter output. The streamed full_text may contain intermediate LLM calls
-    # (search, verify) concatenated together.
-    suggestion_source = last_ai_content or full_text
-    suggestions = extract_suggestions(suggestion_source)
-    clean_message = remove_json_block(full_text) if suggestions else full_text
+    # Use the last complete AI message as the authoritative final response.
+    # full_text may contain concatenated output from multiple LLM calls
+    # (e.g., search node + format node), so prefer last_ai_content.
+    final_text = last_ai_content or full_text
+    suggestions = extract_suggestions(final_text)
+    clean_message = remove_json_block(final_text) if suggestions else final_text
 
     # Safety net: if no LLM text was streamed (e.g. error/validation paths that
     # return hardcoded AIMessages without calling a model), use the last node
