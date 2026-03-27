@@ -456,9 +456,11 @@ func (h *AgentHandler) EstimateValue(c *gin.Context) {
 	apiKey := services.GetSetting(services.SettingAnthropicAPIKey)
 	model := services.GetSetting(services.SettingAnthropicModel)
 	ollamaURL := services.GetSetting(services.SettingOllamaURL)
+	ollamaModel := services.GetSetting(services.SettingOllamaModel)
 
 	if apiKey == "" && ollamaURL != "" {
 		provider = "ollama"
+		model = ollamaModel
 	}
 
 	if model == "" {

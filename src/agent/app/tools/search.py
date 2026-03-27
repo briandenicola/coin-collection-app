@@ -31,18 +31,23 @@ def create_searxng_search(searxng_url: str = ""):
     @tool
     async def searxng_search(query: str) -> str:
         """Search the web using SearXNG. Used when LLM provider is Ollama."""
-        async with httpx.AsyncClient(timeout=settings.verification_timeout) as client:
-            resp = await client.get(
-                f"{url}/search",
-                params={
-                    "q": query,
-                    "format": "json",
-                    "engines": "google,bing,duckduckgo",
-                    "categories": "general",
-                },
-            )
-            resp.raise_for_status()
-            data = resp.json()
+        try:
+            async with httpx.AsyncClient(timeout=settings.verification_timeout) as client:
+                resp = await client.get(
+                    f"{url}/search",
+                    params={
+                        "q": query,
+                        "format": "json",
+                        "engines": "google,bing,duckduckgo",
+                        "categories": "general",
+                    },
+                )
+                resp.raise_for_status()
+                data = resp.json()
+        except httpx.HTTPError as e:
+            return f"Search error: {e}. SearXNG may be unavailable."
+        except Exception as e:
+            return f"Search failed: {e}"
 
         results = data.get("results", [])[:settings.max_search_results]
         if not results:

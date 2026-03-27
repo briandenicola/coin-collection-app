@@ -14,14 +14,16 @@ import (
 
 // AgentProxy forwards requests to the Python LangGraph agent service.
 type AgentProxy struct {
-	baseURL string
-	client  *http.Client
+	baseURL       string
+	streamClient  *http.Client // No timeout — SSE streams can run long
+	requestClient *http.Client // Short timeout for non-streaming requests
 }
 
 func NewAgentProxy(baseURL string) *AgentProxy {
 	return &AgentProxy{
-		baseURL: strings.TrimRight(baseURL, "/"),
-		client:  &http.Client{Timeout: 5 * time.Minute},
+		baseURL:       strings.TrimRight(baseURL, "/"),
+		streamClient:  &http.Client{Timeout: 0},
+		requestClient: &http.Client{Timeout: 5 * time.Minute},
 	}
 }
 
@@ -135,7 +137,7 @@ func (p *AgentProxy) AnalyzeCoin(ctx context.Context, req AnalyzeProxyRequest) (
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 
-	resp, err := p.client.Do(httpReq)
+	resp, err := p.requestClient.Do(httpReq)
 	if err != nil {
 		logger.Error("agent-proxy", "Analyze request failed: %v", err)
 		return "", fmt.Errorf("agent service unreachable: %w", err)
@@ -145,7 +147,11 @@ func (p *AgentProxy) AnalyzeCoin(ctx context.Context, req AnalyzeProxyRequest) (
 	respBody, _ := io.ReadAll(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
-		logger.Error("agent-proxy", "Analyze returned %d: %s", resp.StatusCode, string(respBody))
+		errMsg := string(respBody)
+		if len(errMsg) > 200 {
+			errMsg = errMsg[:200] + "... (truncated)"
+		}
+		logger.Error("agent-proxy", "Analyze returned %d: %s", resp.StatusCode, errMsg)
 		return "", fmt.Errorf("agent service returned HTTP %d", resp.StatusCode)
 	}
 
@@ -189,7 +195,7 @@ func (p *AgentProxy) proxySSE(ctx context.Context, w http.ResponseWriter, path s
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 
-	resp, err := p.client.Do(httpReq)
+	resp, err := p.streamClient.Do(httpReq)
 	if err != nil {
 		logger.Error("agent-proxy", "SSE proxy request to %s failed: %v", path, err)
 		return fmt.Errorf("agent service unreachable: %w", err)
@@ -198,7 +204,12 @@ func (p *AgentProxy) proxySSE(ctx context.Context, w http.ResponseWriter, path s
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
-		logger.Error("agent-proxy", "SSE proxy %s returned %d: %s", path, resp.StatusCode, string(respBody))
+		// Truncate error body to avoid logging sensitive data (API keys in echoed requests)
+		errMsg := string(respBody)
+		if len(errMsg) > 200 {
+			errMsg = errMsg[:200] + "... (truncated)"
+		}
+		logger.Error("agent-proxy", "SSE proxy %s returned %d: %s", path, resp.StatusCode, errMsg)
 		return fmt.Errorf("agent service returned HTTP %d", resp.StatusCode)
 	}
 

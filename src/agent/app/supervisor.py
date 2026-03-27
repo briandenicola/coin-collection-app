@@ -44,7 +44,8 @@ def create_router(llm_config: LLMConfig):
             HumanMessage(content=state["messages"][-1].content if state["messages"] else ""),
         ]
         response = await model.ainvoke(messages)
-        route = response.content.strip().lower().replace('"', "").replace("'", "")
+        content = response.content if isinstance(response.content, str) else str(response.content)
+        route = content.strip().lower().replace('"', "").replace("'", "")
 
         valid_routes = {"coin_search", "coin_shows", "analysis", "portfolio", "general"}
         if route not in valid_routes:

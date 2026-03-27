@@ -5,10 +5,13 @@ proxies directly to the Vue frontend.
 """
 
 import json
+import logging
 import re
 from collections.abc import AsyncGenerator
 
 from langchain_core.messages import AIMessage, AIMessageChunk
+
+logger = logging.getLogger(__name__)
 
 
 async def stream_graph_events(graph, input_data: dict, config: dict | None = None) -> AsyncGenerator[str, None]:
@@ -17,26 +20,33 @@ async def stream_graph_events(graph, input_data: dict, config: dict | None = Non
     Yields SSE data lines compatible with the Go API's existing SSE proxy format:
     - data: {"type": "text", "text": "..."} for incremental text
     - data: {"type": "done", "message": "...", "suggestions": [...]} for completion
+    - data: {"type": "error", "message": "..."} on failure
     """
     full_text = ""
 
-    async for event in graph.astream_events(input_data, config=config or {}, version="v2"):
-        kind = event.get("event", "")
+    try:
+        async for event in graph.astream_events(input_data, config=config or {}, version="v2"):
+            kind = event.get("event", "")
 
-        if kind == "on_chat_model_stream":
-            chunk = event.get("data", {}).get("chunk")
-            if isinstance(chunk, AIMessageChunk) and chunk.content:
-                text = chunk.content if isinstance(chunk.content, str) else ""
-                if text:
-                    full_text += text
-                    yield format_sse({"type": "text", "text": text})
+            if kind == "on_chat_model_stream":
+                chunk = event.get("data", {}).get("chunk")
+                if isinstance(chunk, AIMessageChunk) and chunk.content:
+                    text = chunk.content if isinstance(chunk.content, str) else ""
+                    if text:
+                        full_text += text
+                        yield format_sse({"type": "text", "text": text})
 
-        elif kind == "on_chat_model_end":
-            output = event.get("data", {}).get("output")
-            if isinstance(output, AIMessage) and output.content:
-                content = output.content if isinstance(output.content, str) else ""
-                if content and not full_text:
-                    full_text = content
+            elif kind == "on_chat_model_end":
+                output = event.get("data", {}).get("output")
+                if isinstance(output, AIMessage) and output.content:
+                    content = output.content if isinstance(output.content, str) else ""
+                    if content and not full_text:
+                        full_text = content
+
+    except Exception:
+        logger.exception("Error during graph streaming")
+        yield format_sse({"type": "error", "message": "An error occurred while processing your request."})
+        return
 
     # Extract suggestions JSON from the final text and strip it from the display message
     suggestions = extract_suggestions(full_text)
