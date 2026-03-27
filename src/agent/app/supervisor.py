@@ -79,9 +79,11 @@ def create_supervisor(
     coin_search_graph = create_coin_search_team(llm_config, search_prompt=coin_search_prompt)
 
     async def coin_search_node(state: MessagesState) -> dict:
-        """Delegate to Team 1 coin search agent."""
+        """Delegate to Team 1 coin search pipeline."""
         result = await coin_search_graph.ainvoke({
             "messages": [],
+            "search_results": "",
+            "fetched_listings": "",
             "user_message": user_message,
         })
         return {"messages": result.get("messages", [])}

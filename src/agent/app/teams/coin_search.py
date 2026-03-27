@@ -1,12 +1,13 @@
-"""Team 1: Coin Search — single agent with tools.
+"""Team 1: Coin Search — two-phase search with page fetching.
 
-Single agent design: Claude searches the web, then uses fetch_dealer_page
-to visit dealer search result pages and extract REAL individual listings.
-This avoids the fundamental problem of the old 3-agent pipeline where
-URLs were fabricated across pipeline hops.
+Phase 1: Claude searches the web using its built-in web_search tool
+         (no bind_tools — web_search is available by default).
+Phase 2: We fetch dealer pages from the URLs found and extract real listings.
+Phase 3: Claude formats the extracted listings into the CoinSuggestion JSON schema.
 """
 
 import logging
+import re
 from typing import Annotated, TypedDict
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
@@ -18,134 +19,202 @@ from app.tools.search import create_searxng_search, fetch_dealer_page
 
 logger = logging.getLogger(__name__)
 
-SYSTEM_PROMPT = """You are a numismatic search assistant helping collectors find coins for sale.
+SEARCH_PROMPT = """You are a numismatic search specialist. Search the web to find coins
+currently for sale that match the user's request.
 
-You have access to the `fetch_dealer_page` tool. Here is your workflow:
+Search on these dealer sites:
+- vcoins.com, ma-shops.com, forumancientcoins.com, biddr.com, catawiki.com, hjbltd.com
 
-STEP 1 — SEARCH: Use web_search to find dealer pages selling the coins the user wants.
-Search on: vcoins.com, ma-shops.com, forumancientcoins.com, biddr.com, catawiki.com.
-Use targeted queries like: "Aurelian antoninianus for sale site:vcoins.com"
+Use targeted site-specific queries like:
+- "Domitian denarius for sale site:vcoins.com"
+- "Greek tetradrachm Athens site:ma-shops.com"
 
-STEP 2 — FETCH: When you find dealer search result pages or listing pages, call
-`fetch_dealer_page` with that URL. This tool fetches the actual page and extracts
-real coin listings with titles, prices, and URLs.
+Include the user's budget/price range in your searches if mentioned.
+Run at least 3-5 searches across different dealer sites.
 
-STEP 3 — PRESENT: Format the REAL listings you found into a JSON array.
+For each result you find, report the URL exactly as it appeared in the search results.
+Do NOT invent or modify URLs. Do not use emojis."""
 
-CRITICAL RULES:
-- ALWAYS use fetch_dealer_page to get real listing data — never guess listing URLs
-- Only include coins that were found by your tools — never invent listings from memory
-- Include the user's budget/price range in your search queries
-- Do not use emojis
-
-OUTPUT FORMAT: After gathering listings, output a JSON array wrapped in ```json and ```
-markers with these fields for each coin:
+FORMAT_PROMPT = """You are a formatting specialist for a coin collecting application.
+You receive raw coin listing data extracted from dealer websites.
+Structure each listing into this exact JSON schema:
 
 ```json
 [
   {
-    "name": "Coin title from the dealer listing",
+    "name": "Coin title from the listing",
     "description": "Brief description from the listing",
     "category": "Roman|Greek|Byzantine|Modern|Other",
     "era": "Time period",
     "ruler": "Ruler name",
     "material": "Gold|Silver|Bronze|Copper|Other",
-    "denomination": "e.g. Denarius, Antoninianus",
+    "denomination": "e.g. Denarius, Tetradrachm",
     "estPrice": "Listed price e.g. $150.00",
     "imageUrl": "",
-    "sourceUrl": "The REAL URL from fetch_dealer_page — never fabricate",
+    "sourceUrl": "The exact URL from the listing data — never fabricate",
     "sourceName": "Dealer or site name"
   }
 ]
 ```
 
-If you find nothing after searching, say so honestly. Do not invent results."""
+Rules:
+- Use ONLY data from the listing extracts. Do NOT invent fields.
+- sourceUrl MUST be copied exactly from the data. NEVER fabricate URLs.
+- Set imageUrl to "" (the frontend handles images)
+- Infer category, era, ruler, material, denomination from the listing text
+- If you cannot determine a field, use an empty string
+- Do not use emojis
+
+Output ONLY the JSON array wrapped in ```json and ``` markers."""
+
+NO_RESULTS_PROMPT = (
+    "You are an assistant in a coin collecting application. "
+    "The user searched for coins to buy but no listings were found. "
+    "Generate a brief, helpful response. Suggest broadening search criteria, "
+    "checking back later, or trying specific dealer sites like vcoins.com "
+    "or ma-shops.com. Keep it concise. Do not use emojis. "
+    "Do not invent coin listings."
+)
 
 
 class CoinSearchState(TypedDict):
-    """State for the coin search agent."""
+    """State for the coin search pipeline."""
 
     messages: Annotated[list, lambda a, b: a + b]
+    search_results: str
+    fetched_listings: str
     user_message: str
 
 
 def create_coin_search_team(llm_config: LLMConfig, search_prompt: str = ""):
-    """Create the coin search agent with tools.
+    """Create the coin search pipeline.
 
     Args:
         llm_config: LLM provider configuration
         search_prompt: Additional context from admin settings (prepended)
     """
     if search_prompt:
-        combined_prompt = f"{search_prompt}\n\n{SYSTEM_PROMPT}"
+        combined_search = f"{search_prompt}\n\n{SEARCH_PROMPT}"
     else:
-        combined_prompt = SYSTEM_PROMPT
-    logger.debug(
-        "Coin search prompt (%d chars): %.80s...",
-        len(combined_prompt), combined_prompt,
-    )
+        combined_search = SEARCH_PROMPT
 
     use_searxng = llm_config.provider == "ollama"
 
-    if use_searxng:
-        # Ollama mode: provide both tools explicitly
-        search_tool = create_searxng_search(llm_config.searxng_url)
-        tools = [search_tool, fetch_dealer_page]
-        model = get_chat_model(llm_config).bind_tools(tools)
-    else:
-        # Anthropic mode: Claude has built-in web_search + our fetch tool
-        model = get_chat_model(llm_config).bind_tools([fetch_dealer_page])
-
-    async def search_agent(state: CoinSearchState) -> dict:
-        """Single agent that searches, fetches dealer pages, and formats results."""
+    async def search_node(state: CoinSearchState) -> dict:
+        """Phase 1: Search the web for dealer pages."""
         user_msg = state.get("user_message", "")
+        # Plain model — no bind_tools — so Claude's built-in web_search works
+        model = get_chat_model(llm_config)
 
+        if use_searxng:
+            search_tool = create_searxng_search(llm_config.searxng_url)
+            query = f"{user_msg} ancient coins for sale buy now"
+            raw_results = await search_tool.ainvoke(query)
+            messages = [
+                SystemMessage(content=combined_search),
+                HumanMessage(
+                    content=f"The user is looking for: {user_msg}\n\n"
+                    f"Here are web search results:\n{raw_results}\n\n"
+                    "List the most promising URLs to check for individual listings."
+                ),
+            ]
+        else:
+            messages = [
+                SystemMessage(content=combined_search),
+                HumanMessage(
+                    content=f"Find coins for sale matching: {user_msg}\n\n"
+                    "Search multiple dealer sites and report all URLs you find."
+                ),
+            ]
+
+        response = await model.ainvoke(messages)
+        content = response.content if isinstance(response.content, str) else str(response.content)
+        return {"search_results": content, "messages": []}
+
+    async def fetch_node(state: CoinSearchState) -> dict:
+        """Phase 2: Fetch dealer pages and extract real listings."""
+        import asyncio
+
+        search_results = state.get("search_results", "")
+        urls = _extract_urls(search_results)
+
+        if not urls:
+            return {"fetched_listings": "", "messages": []}
+
+        # Fetch up to 5 URLs in parallel
+        tasks = [fetch_dealer_page.ainvoke({"url": u}) for u in urls[:5]]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        fetched = []
+        for url, result in zip(urls[:5], results):
+            if isinstance(result, Exception):
+                logger.warning("Failed to fetch %s: %s", url, result)
+                continue
+            text = str(result)
+            if not text.startswith("Error"):
+                fetched.append(f"--- Source: {url} ---\n{text}")
+
+        return {"fetched_listings": "\n\n".join(fetched), "messages": []}
+
+    async def format_node(state: CoinSearchState) -> dict:
+        """Phase 3: Format extracted listings into CoinSuggestion JSON."""
+        fetched = state.get("fetched_listings", "")
+        user_msg = state.get("user_message", "")
+        search_results = state.get("search_results", "")
+        model = get_chat_model(llm_config)
+
+        if not fetched.strip():
+            # No listings found — generate a helpful response via LLM (streams)
+            messages = [
+                SystemMessage(content=NO_RESULTS_PROMPT),
+                HumanMessage(
+                    content=f"The user asked: {user_msg}\n\n"
+                    f"Search results summary:\n{search_results[:1000]}\n\n"
+                    "No coin listings could be extracted. Generate a helpful response."
+                ),
+            ]
+            response = await model.ainvoke(messages)
+            content = response.content if isinstance(response.content, str) else str(response.content)
+            return {"messages": [AIMessage(content=content)]}
+
+        # Format real listings via LLM (this call streams to user)
         messages = [
-            SystemMessage(content=combined_prompt),
+            SystemMessage(content=FORMAT_PROMPT),
             HumanMessage(
-                content=f"Find coins for sale matching: {user_msg}\n\n"
-                "Remember: search first, then use fetch_dealer_page on any "
-                "dealer search result pages to get real individual listings."
+                content=f"User searched for: {user_msg}\n\n"
+                f"Extracted listing data:\n{fetched}"
             ),
         ]
+        response = await model.ainvoke(messages)
+        formatted = response.content if isinstance(response.content, str) else str(response.content)
 
-        # Let the agent run with tool calls — loop until it stops calling tools
-        max_iterations = 8
-        for _ in range(max_iterations):
-            response = await model.ainvoke(messages)
-            messages.append(response)
-
-            # If no tool calls, the agent is done
-            if not response.tool_calls:
-                break
-
-            # Execute tool calls
-            from langchain_core.messages import ToolMessage
-
-            for tc in response.tool_calls:
-                tool_name = tc["name"]
-                tool_args = tc["args"]
-
-                if tool_name == "fetch_dealer_page":
-                    result = await fetch_dealer_page.ainvoke(tool_args)
-                elif use_searxng and tool_name == "searxng_search":
-                    result = await search_tool.ainvoke(tool_args)
-                else:
-                    result = f"Unknown tool: {tool_name}"
-
-                messages.append(ToolMessage(
-                    content=str(result),
-                    tool_call_id=tc["id"],
-                ))
-
-        # Extract final response
-        final = response.content if isinstance(response.content, str) else str(response.content)
-
-        return {"messages": [AIMessage(content=final)]}
+        summary = (
+            "I found some coins matching your search. "
+            "Here are the listings I extracted from dealer sites."
+        )
+        return {"messages": [AIMessage(content=f"{summary}\n\n{formatted}")]}
 
     graph = StateGraph(CoinSearchState)
-    graph.add_node("search_agent", search_agent)
-    graph.set_entry_point("search_agent")
-    graph.add_edge("search_agent", END)
+    graph.add_node("search", search_node)
+    graph.add_node("fetch", fetch_node)
+    graph.add_node("format", format_node)
+
+    graph.set_entry_point("search")
+    graph.add_edge("search", "fetch")
+    graph.add_edge("fetch", "format")
+    graph.add_edge("format", END)
 
     return graph.compile()
+
+
+def _extract_urls(text: str) -> list[str]:
+    """Extract dealer URLs from search results text."""
+    urls = re.findall(r'https?://[^\s"\'<>\])+,]+', text)
+    # Deduplicate while preserving order
+    seen = set()
+    unique = []
+    for url in urls:
+        if url not in seen:
+            seen.add(url)
+            unique.append(url)
+    return unique
