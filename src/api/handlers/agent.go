@@ -1,8 +1,6 @@
 package handlers
 
 import (
-	"bufio"
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,23 +9,22 @@ import (
 	"strings"
 	"time"
 
-	"github.com/briandenicola/ancient-coins-api/models"
 	"github.com/briandenicola/ancient-coins-api/repository"
 	"github.com/briandenicola/ancient-coins-api/services"
 	"github.com/gin-gonic/gin"
 )
 
 type AgentHandler struct {
-	client   *http.Client
 	repo     *repository.AgentRepository
 	userRepo *repository.UserRepository
+	proxy    *services.AgentProxy
 }
 
-func NewAgentHandler(repo *repository.AgentRepository, userRepo *repository.UserRepository) *AgentHandler {
+func NewAgentHandler(repo *repository.AgentRepository, userRepo *repository.UserRepository, proxy *services.AgentProxy) *AgentHandler {
 	return &AgentHandler{
-		client:   &http.Client{Timeout: 300 * time.Second},
 		repo:     repo,
 		userRepo: userRepo,
+		proxy:    proxy,
 	}
 }
 
@@ -62,55 +59,7 @@ type AgentChatResponse struct {
 	Suggestions []CoinSuggestion `json:"suggestions"`
 }
 
-// Anthropic API types
 
-type anthropicRequest struct {
-	Model     string             `json:"model"`
-	MaxTokens int                `json:"max_tokens"`
-	Stream    bool               `json:"stream"`
-	System    string             `json:"system"`
-	Tools     []anthropicTool    `json:"tools"`
-	Messages  []anthropicMessage `json:"messages"`
-}
-
-type anthropicTool struct {
-	Type    string `json:"type"`
-	Name    string `json:"name"`
-	MaxUses int    `json:"max_uses,omitempty"`
-}
-
-type anthropicMessage struct {
-	Role    string      `json:"role"`
-	Content interface{} `json:"content"`
-}
-
-type anthropicResponse struct {
-	Content []anthropicContent `json:"content"`
-	Error   *anthropicError    `json:"error,omitempty"`
-}
-
-type anthropicContent struct {
-	Type string `json:"type"`
-	Text string `json:"text,omitempty"`
-}
-
-type anthropicError struct {
-	Type    string `json:"type"`
-	Message string `json:"message"`
-}
-
-// SSE stream event types
-type streamEvent struct {
-	Type         string          `json:"type"`
-	Index        int             `json:"index,omitempty"`
-	ContentBlock *anthropicContent `json:"content_block,omitempty"`
-	Delta        *streamDelta    `json:"delta,omitempty"`
-}
-
-type streamDelta struct {
-	Type string `json:"type"`
-	Text string `json:"text,omitempty"`
-}
 
 const DefaultAgentPrompt = `You are a knowledgeable numismatist with a focus on Greek and Roman coinage up through the Byzantine Era. You specialize in finding that rare gem of a coin for just the right price. You know how to spot a fake but also a great deal. You are enthusiastic but informative, helpful and friendly.
 
@@ -241,151 +190,64 @@ func (h *AgentHandler) ChatStream(c *gin.Context) {
 	logger := services.AppLogger
 	userID := c.GetUint("userId")
 
-	apiKey := services.GetSetting(services.SettingAnthropicAPIKey)
-	if apiKey == "" {
-		c.JSON(http.StatusServiceUnavailable, gin.H{
-			"error": "Anthropic API key not configured. Set it in Admin → Settings → AI Config.",
-		})
-		return
-	}
-
 	var req AgentChatRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Message is required"})
 		return
 	}
 
+	// Determine LLM provider based on available settings
+	provider := "anthropic"
+	apiKey := services.GetSetting(services.SettingAnthropicAPIKey)
 	model := services.GetSetting(services.SettingAnthropicModel)
+	ollamaURL := services.GetSetting(services.SettingOllamaURL)
+	ollamaModel := services.GetSetting(services.SettingOllamaModel)
+
+	if apiKey == "" && ollamaURL != "" {
+		provider = "ollama"
+		model = ollamaModel
+	}
+
 	if model == "" {
 		model = "claude-sonnet-4-20250514"
 	}
 
-	// Build messages array from history + new message
-	messages := make([]anthropicMessage, 0, len(req.History)+1)
+	// Build history for the proxy
+	history := make([]services.ChatMessageProxy, 0, len(req.History))
 	for _, msg := range req.History {
-		messages = append(messages, anthropicMessage{
+		history = append(history, services.ChatMessageProxy{
 			Role:    msg.Role,
 			Content: msg.Content,
 		})
 	}
-	messages = append(messages, anthropicMessage{
-		Role:    "user",
-		Content: req.Message,
-	})
 
-	anthropicReq := anthropicRequest{
-		Model:     model,
-		MaxTokens: 4096,
-		Stream:    true,
-		System:    h.getSystemPrompt(userID),
-		Tools: []anthropicTool{
-			{
-				Type:    "web_search_20250305",
-				Name:    "web_search",
-				MaxUses: 20,
-			},
+	// Look up user zip code for location context
+	var zipCode string
+	if user, err := h.userRepo.FindByID(userID); err == nil {
+		zipCode = user.ZipCode
+	}
+
+	proxyReq := services.AgentChatProxyRequest{
+		LLM: services.LLMConfig{
+			Provider:  provider,
+			APIKey:    apiKey,
+			Model:     model,
+			OllamaURL: ollamaURL,
 		},
-		Messages: messages,
+		User: services.UserContextProxy{
+			UserID:  userID,
+			ZipCode: zipCode,
+		},
+		Message:     req.Message,
+		History:     history,
+		AgentPrompt: h.getSystemPrompt(userID),
 	}
 
-	body, err := json.Marshal(anthropicReq)
-	if err != nil {
-		logger.Error("agent", "Failed to marshal request: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to build request"})
-		return
-	}
-
-	httpReq, err := http.NewRequest("POST", "https://api.anthropic.com/v1/messages", bytes.NewReader(body))
-	if err != nil {
-		logger.Error("agent", "Failed to create HTTP request: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create request"})
-		return
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("x-api-key", apiKey)
-	httpReq.Header.Set("anthropic-version", "2023-06-01")
-
-	resp, err := h.client.Do(httpReq)
-	if err != nil {
-		logger.Error("agent", "Anthropic API call failed: %v", err)
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Failed to reach Anthropic API"})
-		return
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
-		logger.Error("agent", "Anthropic API returned %d: %s", resp.StatusCode, string(respBody))
-		c.JSON(http.StatusServiceUnavailable, gin.H{
-			"error": fmt.Sprintf("Anthropic API error (HTTP %d)", resp.StatusCode),
-		})
-		return
-	}
-
-	// Set SSE headers
-	c.Header("Content-Type", "text/event-stream")
-	c.Header("Cache-Control", "no-cache")
-	c.Header("Connection", "keep-alive")
-	c.Header("X-Accel-Buffering", "no")
-
-	flusher, ok := c.Writer.(http.Flusher)
-	if !ok {
-		logger.Error("agent", "Response writer does not support flushing")
-		return
-	}
-
-	var fullText strings.Builder
-
-	scanner := bufio.NewScanner(resp.Body)
-	// Increase buffer for large SSE events
-	buf := make([]byte, 0, 64*1024)
-	scanner.Buffer(buf, 1024*1024)
-
-	for scanner.Scan() {
-		line := scanner.Text()
-
-		if !strings.HasPrefix(line, "data: ") {
-			continue
-		}
-
-		data := strings.TrimPrefix(line, "data: ")
-		if data == "[DONE]" {
-			break
-		}
-
-		var event streamEvent
-		if err := json.Unmarshal([]byte(data), &event); err != nil {
-			continue
-		}
-
-		switch event.Type {
-		case "content_block_delta":
-			if event.Delta != nil && event.Delta.Type == "text_delta" && event.Delta.Text != "" {
-				fullText.WriteString(event.Delta.Text)
-				// Send text chunk to client
-				chunk, _ := json.Marshal(map[string]string{
-					"type": "text",
-					"text": event.Delta.Text,
-				})
-				fmt.Fprintf(c.Writer, "data: %s\n\n", chunk)
-				flusher.Flush()
-			}
-
-		case "message_stop":
-			// Parse suggestions from full accumulated text
-			text := fullText.String()
-			suggestions := extractSuggestions(text)
-			cleanMessage := removeJSONBlock(text)
-
-			done, _ := json.Marshal(map[string]interface{}{
-				"type":        "done",
-				"message":     cleanMessage,
-				"suggestions": suggestions,
-			})
-			fmt.Fprintf(c.Writer, "data: %s\n\n", done)
-			flusher.Flush()
-
-			logger.Info("agent", "Stream complete: %d suggestions found", len(suggestions))
+	if err := h.proxy.StreamChat(c.Request.Context(), c.Writer, proxyReq); err != nil {
+		logger.Error("agent", "Chat stream proxy failed: %v", err)
+		// Only send JSON error if headers haven't been sent yet
+		if !c.Writer.Written() {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Agent service unavailable"})
 		}
 	}
 }
@@ -517,65 +379,6 @@ func (h *AgentHandler) PortfolioSummary(c *gin.Context) {
 	})
 }
 
-// extractSuggestions finds a JSON array inside ```json ... ``` markers
-func extractSuggestions(text string) []CoinSuggestion {
-	start := -1
-	end := -1
-
-	// Find ```json marker
-	jsonStart := "```json"
-	jsonEnd := "```"
-
-	startIdx := indexOf(text, jsonStart)
-	if startIdx == -1 {
-		return nil
-	}
-	start = startIdx + len(jsonStart)
-
-	// Find closing ``` after the opening
-	endIdx := indexOf(text[start:], jsonEnd)
-	if endIdx == -1 {
-		return nil
-	}
-	end = start + endIdx
-
-	jsonStr := text[start:end]
-
-	var suggestions []CoinSuggestion
-	if err := json.Unmarshal([]byte(jsonStr), &suggestions); err != nil {
-		return nil
-	}
-	return suggestions
-}
-
-// removeJSONBlock strips the ```json ... ``` block from the message
-func removeJSONBlock(text string) string {
-	jsonStart := "```json"
-	jsonEnd := "```"
-
-	startIdx := indexOf(text, jsonStart)
-	if startIdx == -1 {
-		return text
-	}
-
-	remaining := text[startIdx+len(jsonStart):]
-	endIdx := indexOf(remaining, jsonEnd)
-	if endIdx == -1 {
-		return text
-	}
-
-	return text[:startIdx] + text[startIdx+len(jsonStart)+endIdx+len(jsonEnd):]
-}
-
-func indexOf(s, substr string) int {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return i
-		}
-	}
-	return -1
-}
-
 // Value estimation types
 
 type ValueComparable struct {
@@ -629,17 +432,9 @@ func (h *AgentHandler) getValuationPrompt() string {
 	return prompt
 }
 
-// EstimateValue estimates the current market value of a coin using AI with web search.
+// EstimateValue estimates the current market value of a coin using the agent service.
 func (h *AgentHandler) EstimateValue(c *gin.Context) {
 	logger := services.AppLogger
-
-	apiKey := services.GetSetting(services.SettingAnthropicAPIKey)
-	if apiKey == "" {
-		c.JSON(http.StatusServiceUnavailable, gin.H{
-			"error": "Anthropic API key not configured. Set it in Admin → Settings → AI.",
-		})
-		return
-	}
 
 	coinID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -652,6 +447,25 @@ func (h *AgentHandler) EstimateValue(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Coin not found"})
 		return
+	}
+
+	// Determine LLM provider based on available settings
+	provider := "anthropic"
+	apiKey := services.GetSetting(services.SettingAnthropicAPIKey)
+	model := services.GetSetting(services.SettingAnthropicModel)
+	ollamaURL := services.GetSetting(services.SettingOllamaURL)
+
+	if apiKey == "" && ollamaURL != "" {
+		provider = "ollama"
+	}
+
+	if model == "" {
+		model = "claude-sonnet-4-20250514"
+	}
+
+	var zipCode string
+	if user, err := h.userRepo.FindByID(userID); err == nil {
+		zipCode = user.ZipCode
 	}
 
 	// Build description of the coin for the AI
@@ -695,120 +509,29 @@ func (h *AgentHandler) EstimateValue(c *gin.Context) {
 
 	userMessage := fmt.Sprintf("Please estimate the current market value of this coin:\n\n%s", strings.Join(parts, "\n"))
 
-	model := services.GetSetting(services.SettingAnthropicModel)
-	if model == "" {
-		model = "claude-sonnet-4-20250514"
-	}
-
-	anthropicReq := anthropicRequest{
-		Model:     model,
-		MaxTokens: 4096,
-		Stream:    false,
-		System:    h.getValuationPrompt(),
-		Tools: []anthropicTool{
-			{
-				Type:    "web_search_20250305",
-				Name:    "web_search",
-				MaxUses: 10,
-			},
+	proxyReq := services.PortfolioReviewProxyRequest{
+		LLM: services.LLMConfig{
+			Provider:  provider,
+			APIKey:    apiKey,
+			Model:     model,
+			OllamaURL: ollamaURL,
 		},
-		Messages: []anthropicMessage{
-			{Role: "user", Content: userMessage},
+		User: services.UserContextProxy{
+			UserID:  userID,
+			ZipCode: zipCode,
 		},
+		Message:         userMessage,
+		ValuationPrompt: h.getValuationPrompt(),
 	}
 
-	body, err := json.Marshal(anthropicReq)
-	if err != nil {
-		logger.Error("agent", "Failed to marshal estimate request: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to build request"})
-		return
-	}
-
-	httpReq, err := http.NewRequest("POST", "https://api.anthropic.com/v1/messages", bytes.NewReader(body))
-	if err != nil {
-		logger.Error("agent", "Failed to create estimate HTTP request: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create request"})
-		return
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("x-api-key", apiKey)
-	httpReq.Header.Set("anthropic-version", "2023-06-01")
-
-	resp, err := h.client.Do(httpReq)
-	if err != nil {
-		logger.Error("agent", "Anthropic estimate API call failed: %v", err)
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Failed to reach Anthropic API"})
-		return
-	}
-	defer resp.Body.Close()
-
-	respBody, _ := io.ReadAll(resp.Body)
-
-	if resp.StatusCode != http.StatusOK {
-		logger.Error("agent", "Anthropic estimate API returned %d: %s", resp.StatusCode, string(respBody))
-		c.JSON(http.StatusServiceUnavailable, gin.H{
-			"error": fmt.Sprintf("Anthropic API error (HTTP %d)", resp.StatusCode),
-		})
-		return
-	}
-
-	var apiResp anthropicResponse
-	if err := json.Unmarshal(respBody, &apiResp); err != nil {
-		logger.Error("agent", "Failed to parse estimate response: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse AI response"})
-		return
-	}
-
-	// Extract text content from response
-	var fullText string
-	for _, block := range apiResp.Content {
-		if block.Type == "text" {
-			fullText += block.Text
+	if err := h.proxy.StreamPortfolioReview(c.Request.Context(), c.Writer, proxyReq); err != nil {
+		logger.Error("agent", "EstimateValue proxy failed: %v", err)
+		if !c.Writer.Written() {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Agent service unavailable"})
 		}
+		return
 	}
 
-	// Parse the JSON estimate from the response
-	var estimate ValueEstimateResponse
-	parsed := false
-	jsonStart := indexOf(fullText, "```json")
-	if jsonStart != -1 {
-		start := jsonStart + len("```json")
-		remaining := fullText[start:]
-		jsonEnd := indexOf(remaining, "```")
-		if jsonEnd != -1 {
-			jsonStr := remaining[:jsonEnd]
-			if err := json.Unmarshal([]byte(jsonStr), &estimate); err != nil {
-				logger.Error("agent", "Failed to parse estimate JSON: %v — raw: %s", err, jsonStr)
-			} else {
-				parsed = true
-			}
-		}
-	}
-
-	// Fallback if JSON parsing failed — return raw text as reasoning
-	if !parsed {
-		estimate.Reasoning = fullText
-		estimate.Confidence = "low"
-	}
-
-	// Auto-record value history entry
-	if estimate.EstimatedValue > 0 {
-		h.repo.RecordValueHistory(&models.CoinValueHistory{
-			CoinID:     uint(coinID),
-			UserID:     userID,
-			Value:      estimate.EstimatedValue,
-			Confidence: estimate.Confidence,
-			RecordedAt: time.Now(),
-		})
-	}
-
-	// Auto-add journal entry
-	journalText := fmt.Sprintf("AI Value Estimate: $%.2f (%s confidence)", estimate.EstimatedValue, estimate.Confidence)
-	h.repo.CreateJournalEntry(&models.CoinJournal{
-		CoinID: uint(coinID),
-		UserID: userID,
-		Entry:  journalText,
-	})
-
-	c.JSON(http.StatusOK, estimate)
+	// Auto-record value history and journal entry are now handled
+	// by the Python agent service or by the frontend after parsing the SSE response.
 }

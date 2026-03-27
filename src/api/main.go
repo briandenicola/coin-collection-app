@@ -170,8 +170,10 @@ func main() {
 		protected.GET("/proxy-image", imageHandler.ProxyImage)
 		protected.GET("/scrape-image", imageHandler.ScrapeImage)
 
+		agentProxy := services.NewAgentProxy(cfg.AgentServiceURL)
+
 		analysisRepo := repository.NewAnalysisRepository(database.DB)
-		analysisHandler := handlers.NewAnalysisHandler(analysisRepo)
+		analysisHandler := handlers.NewAnalysisHandler(analysisRepo, agentProxy)
 		protected.POST("/coins/:id/analyze", analysisHandler.Analyze)
 		protected.DELETE("/coins/:id/analyze", analysisHandler.DeleteAnalysis)
 		protected.POST("/extract-text", analysisHandler.ExtractText)
@@ -182,7 +184,7 @@ func main() {
 
 		agentRepo := repository.NewAgentRepository(database.DB)
 		userRepo := repository.NewUserRepository(database.DB)
-		agentHandler := handlers.NewAgentHandler(agentRepo, userRepo)
+		agentHandler := handlers.NewAgentHandler(agentRepo, userRepo, agentProxy)
 		protected.POST("/agent/chat", agentHandler.ChatStream)
 		protected.POST("/coins/:id/estimate-value", agentHandler.EstimateValue)
 		protected.GET("/agent/models", agentHandler.ListModels)
