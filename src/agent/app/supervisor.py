@@ -176,9 +176,28 @@ def create_supervisor(
         return {"messages": [AIMessage(content="This capability is not yet available. Please try again later.")]}
 
     async def general_handler(state: MessagesState) -> dict:
-        """Handle general questions using the base LLM."""
-        model = get_chat_model(llm_config)
-        response = await model.ainvoke(state["messages"])
+        """Handle general questions with awareness of app capabilities."""
+        general_model = get_chat_model(llm_config)
+        general_system = (
+            "You are a knowledgeable numismatist assistant in a coin collecting "
+            "application. You are enthusiastic but informative, helpful and friendly.\n\n"
+            "You have specialized team capabilities available through this application:\n"
+            "- **Coin Search**: Find coins currently for sale from reputable dealers "
+            "(vcoins.com, ma-shops.com, etc.)\n"
+            "- **Coin Shows**: Find upcoming coin shows, conventions, and numismatic "
+            "events near the user\n"
+            "- **Coin Analysis**: Analyze coin images for identification, grading, "
+            "and authenticity\n"
+            "- **Portfolio Review**: Analyze the user's collection for strengths, "
+            "gaps, and recommendations\n\n"
+            "If the user's question relates to any of these, let them know they can "
+            "ask directly. For example: 'Would you like me to search for those coins?' "
+            "or 'I can look up shows near you.'\n\n"
+            "For general numismatic questions (history, grading standards, terminology, "
+            "collecting tips), answer from your knowledge. Do not use emojis."
+        )
+        messages = [SystemMessage(content=general_system)] + state["messages"]
+        response = await general_model.ainvoke(messages)
         return {"messages": [response]}
 
     router = create_router(llm_config)
