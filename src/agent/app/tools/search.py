@@ -18,6 +18,7 @@ TRUSTED_DOMAINS = [
     "catawiki.com",
     "ma-shops.com",
     "coinshows.com",
+    "coinshows-usa.com",
     "money.org",
     "pngdealers.org",
     "nyinc.info",

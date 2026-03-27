@@ -24,19 +24,28 @@ SEARCH_PROMPT = """You are a coin show search specialist. Your ONLY job is to se
 upcoming coin shows, numismatic conventions, and coin collecting events.
 
 CRITICAL RULES:
-- Use your search tool to find REAL, UPCOMING coin shows and events
-- Search on reputable sources: coinshows.com, ANA (money.org), PNG (pngdealers.org),
-  NYINC, Whitman Expo, local coin club sites, Eventbrite (coin shows)
+- Use your search tool to find REAL coin shows and events
+- Search multiple sources: coinshows.com, coinshows-usa.com, ANA (money.org),
+  PNG (pngdealers.org), NYINC, Whitman Expo, local coin club sites, Eventbrite
 - Focus on shows within the next 30 days unless the user specifies a different timeframe
 - For EACH result, provide the exact URL from the search results
-- NEVER invent, guess, or recall event details from memory
-- Return ONLY events you actually found in your search
+- NEVER invent event details from memory
+
+IMPORTANT — DO NOT SELF-FILTER:
+- Your job is to SEARCH and REPORT, not to verify or validate dates
+- A separate verification step handles date and location validation
+- INCLUDE recurring/regular shows (e.g. "first weekend of each month") with their
+  schedule pattern — the verifier will compute specific upcoming dates
+- If search results mention a show but lack an exact date, still include it with
+  whatever schedule information is available (e.g. "monthly", "every first Saturday")
+- When in doubt, INCLUDE the show — the verifier will remove anything invalid
 
 {location_context}
 
 For each show found, output a JSON object with these fields:
 - name: the show/event name
-- dates: the show dates as listed (e.g. "March 15-17, 2025")
+- dates: the show dates as listed, OR the recurring schedule (e.g. "First full weekend
+  of each month" or "March 15-17, 2025")
 - location: city/state/country
 - venue: venue name if available
 - url: the source URL from search results
@@ -45,28 +54,33 @@ For each show found, output a JSON object with these fields:
 - dealers: notable dealers or "bourse" info if listed
 
 Output your results as a JSON array wrapped in ```json and ``` markers.
-If you find nothing, return an empty array: ```json\n[]\n```"""
+If you find nothing at all, return an empty array: ```json\n[]\n```"""
 
 DATE_VERIFY_PROMPT = """You are a date and location verification specialist for coin show events.
-You will receive coin show data and the user's location context. Your job is to FILTER OUT invalid shows.
+You will receive coin show data and the user's location context. Your job is to verify shows.
 
-Today's date context will be provided. REMOVE any show where:
-- The dates are in the PAST (already happened)
-- The show is marked as CANCELLED or POSTPONED INDEFINITELY
-- The dates are ambiguous and cannot be confirmed as future
-- The URL returned an error or does not match a real event page
-- The user asked for shows "near me" or near a specific location, and the show
-  is clearly NOT within approximately 50 miles of that location (e.g. a show
-  in New York is not "near" someone in Texas)
+Be INCLUSIVE, not exclusive. If there is reasonable evidence a show is happening
+(listed on a coin show directory, has a venue, has a recurring schedule), KEEP it.
+Only remove shows with clear disqualifying evidence.
+
+Today's date context will be provided. REMOVE a show ONLY if:
+- The dates are clearly in the PAST (already happened)
+- The show is explicitly marked as CANCELLED or POSTPONED INDEFINITELY
+- The user asked for nearby shows and the show is clearly NOT within ~50 miles
 
 KEEP shows where:
 - Dates are clearly in the future
+- Show has a RECURRING schedule (e.g. "first weekend of each month", "monthly",
+  "every third Saturday"). For these, COMPUTE the next occurrence from today's date
+  and set the dates field to that computed date (e.g. "April 5-6, 2026")
 - Show appears to be actively scheduled (not cancelled)
-- Information comes from a real event page or listing
-- If user asked for nearby shows, the location is within a reasonable driving
-  distance (~50 miles) of their specified location or ZIP code
+- Information comes from a reputable source (coinshows.com, coinshows-usa.com,
+  money.org, coin club websites, etc.)
+- If user asked for nearby shows, the location is within reasonable driving
+  distance (~50 miles) of their location or ZIP code
 
 Output the VERIFIED shows as a JSON array with the same fields.
+For recurring shows, update the "dates" field with the computed next occurrence.
 Wrap in ```json and ``` markers. If none pass verification, return an empty array."""
 
 FORMAT_PROMPT = """You are a formatting specialist for a coin collecting application.
@@ -188,7 +202,7 @@ def create_coin_show_team(
         """Verification Agent: confirms dates are future, not cancelled, and location is nearby."""
         search_results = state.get("search_results", "")
 
-        if not search_results or "[]" in search_results:
+        if not search_results or _is_empty_json_result(search_results):
             return {
                 "verification_results": "No shows found to verify.",
                 "messages": [],
@@ -226,15 +240,32 @@ def create_coin_show_team(
         verified = state.get("verification_results", "")
         user_msg = state.get("user_message", "")
 
-        if "no shows found" in verified.lower() or "empty array" in verified.lower():
-            no_results_msg = (
-                "I searched for upcoming coin shows but could not find any "
-                "verified events matching your criteria. Try:\n\n"
-                "- Broadening your search area\n"
-                "- Searching for a different time period\n"
-                "- Checking coinshows.com or money.org directly"
+        has_no_results = (
+            "no shows found" in verified.lower()
+            or "empty array" in verified.lower()
+            or _is_empty_json_result(verified)
+        )
+
+        if has_no_results:
+            # Call the LLM so the response streams to the user via SSE
+            no_results_prompt = (
+                "You are an assistant in a coin collecting application. "
+                "The user searched for coin shows but no verified results were found. "
+                "Generate a brief, helpful response. Suggest specific resources: "
+                "coinshows.com, coinshows-usa.com, money.org (ANA), and their "
+                "state numismatic association. Keep it concise. Do not use emojis. "
+                "Do not invent show details."
             )
-            return {"formatted_results": "", "messages": [AIMessage(content=no_results_msg)]}
+            messages = [
+                SystemMessage(content=no_results_prompt),
+                HumanMessage(
+                    content=f"The user asked: {user_msg}\n\n"
+                    "No verified coin shows were found. Generate a helpful response."
+                ),
+            ]
+            response = await model.ainvoke(messages)
+            content = response.content if isinstance(response.content, str) else str(response.content)
+            return {"formatted_results": "", "messages": [AIMessage(content=content)]}
 
         messages = [
             SystemMessage(content=FORMAT_PROMPT),
@@ -294,3 +325,15 @@ def _extract_json_block(text: str) -> str | None:
     if end == -1:
         return None
     return text[start:end].strip()
+
+
+def _is_empty_json_result(text: str) -> bool:
+    """Check if text contains a JSON block with an empty array."""
+    json_block = _extract_json_block(text)
+    if json_block:
+        try:
+            data = json.loads(json_block)
+            return isinstance(data, list) and len(data) == 0
+        except json.JSONDecodeError:
+            pass
+    return False
