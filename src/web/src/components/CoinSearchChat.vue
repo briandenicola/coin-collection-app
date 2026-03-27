@@ -27,7 +27,7 @@
       <div class="chat-messages" ref="messagesEl">
         <div v-if="messages.length === 0" class="chat-intro">
           <Bot :size="32" />
-          <p>Describe the coins you're looking for and I'll search the web to find them.</p>
+          <p>Search for coins, find upcoming shows, or get a portfolio analysis -- ask me anything about collecting.</p>
           <div class="chat-examples">
             <button class="example-btn" @click="sendExample('Find me Roman silver denarii of Julius Caesar')">
               Roman denarii of Julius Caesar
