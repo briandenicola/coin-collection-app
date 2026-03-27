@@ -14,8 +14,9 @@ from langgraph.graph import END, MessagesState, StateGraph
 from langgraph.types import Command
 
 from app.llm.provider import get_chat_model
-from app.models.requests import LLMConfig
+from app.models.requests import LLMConfig, UserContext
 from app.teams.coin_search import create_coin_search_team
+from app.teams.coin_shows import create_coin_show_team
 
 ROUTER_PROMPT = """You are a routing agent for a numismatic (coin collecting) application.
 Your ONLY job is to classify the user's request into exactly one category.
@@ -57,14 +58,14 @@ def create_supervisor(
     llm_config: LLMConfig,
     user_message: str = "",
     agent_prompt: str = "",
-    coin_shows_node=None,
+    user_context: UserContext | None = None,
     analysis_node=None,
     portfolio_node=None,
 ):
     """Build the top-level supervisor graph.
 
-    Team 1 (coin_search) is always wired. Other teams are optional —
-    passthrough is used if not provided.
+    Team 1 (coin_search) and Team 2 (coin_shows) are always wired.
+    Other teams are optional — passthrough is used if not provided.
     """
 
     # Build Team 1 as a callable node
@@ -78,6 +79,23 @@ def create_supervisor(
             "verification_results": "",
             "formatted_results": "",
             "user_message": user_message,
+        })
+        return {"messages": result.get("messages", [])}
+
+    # Build Team 2 as a callable node
+    coin_show_graph = create_coin_show_team(
+        llm_config, user_context=user_context, agent_prompt=agent_prompt,
+    )
+
+    async def coin_shows_node(state: MessagesState) -> dict:
+        """Delegate to Team 2 coin show search pipeline."""
+        result = await coin_show_graph.ainvoke({
+            "messages": [],
+            "search_results": "",
+            "verification_results": "",
+            "formatted_results": "",
+            "user_message": user_message,
+            "location_context": "",
         })
         return {"messages": result.get("messages", [])}
 
@@ -99,7 +117,7 @@ def create_supervisor(
 
     graph.add_node("router", router)
     graph.add_node("coin_search", coin_search_node)
-    graph.add_node("coin_shows", coin_shows_node or passthrough)
+    graph.add_node("coin_shows", coin_shows_node)
     graph.add_node("analysis", analysis_node or passthrough)
     graph.add_node("portfolio", portfolio_node or passthrough)
     graph.add_node("general", general_handler)

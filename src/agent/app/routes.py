@@ -40,6 +40,7 @@ async def search_coins(request: CoinSearchRequest):
         request.llm,
         user_message=request.message,
         agent_prompt=request.agent_prompt,
+        user_context=request.user,
     )
 
     async def event_stream():
@@ -57,6 +58,7 @@ async def search_shows(request: CoinShowSearchRequest):
         request.llm,
         user_message=request.message,
         agent_prompt=request.agent_prompt,
+        user_context=request.user,
     )
 
     async def event_stream():
@@ -82,6 +84,7 @@ async def review_portfolio(request: PortfolioReviewRequest):
         request.llm,
         user_message=request.message or "Analyze my portfolio",
         agent_prompt=prompt,
+        user_context=request.user,
     )
 
     async def event_stream():
