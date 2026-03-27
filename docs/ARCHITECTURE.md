@@ -111,3 +111,65 @@ Use scopes instead of repeating `Where("user_id = ? AND ...")` queries.
 cd src/api
 go test -v -run "TestNoDirectDatabase|TestHandlersDoNotUseRawSQL" .
 ```
+
+## Multi-Agent Architecture (src/agent/)
+
+The AI agent logic runs as a separate Python service using **LangGraph** for multi-agent orchestration. The Go API acts as a thin proxy — it contains zero LLM inference logic.
+
+### Container Topology
+
+```
+Vue SPA ───> Go API (8080) ───> Python Agent (8081)
+              │ proxy only        │
+              │                   ├── Team 1: Coin Search
+              │                   ├── Team 2: Coin Shows
+              │                   ├── Team 3: Coin Analysis
+              │                   └── Team 4: Portfolio Review
+              │                   │
+              │              ┌────┴────┐
+              │              v         v
+              │           Claude    Ollama + SearXNG
+              │           API       (external)
+              v
+            SQLite
+```
+
+### Team Pipelines
+
+Each team follows a multi-agent pipeline with verification steps to prevent hallucinated results:
+
+| Team | Pipeline | Purpose |
+|------|----------|---------|
+| 1: Coin Search | Search → Verify URLs → Format | Find currently available coins |
+| 2: Coin Shows | Search → Verify Dates → Format | Find upcoming numismatic events |
+| 3: Coin Analysis | Analyze (vision) → Format | AI image analysis of coins |
+| 4: Portfolio Review | Read → Valuate → Analyze | Collection analysis and recommendations |
+
+### Search Strategy
+
+- **Anthropic/Claude**: Uses Claude's built-in `web_search` tool
+- **Ollama**: Uses SearXNG as an external web search provider
+
+### Data Flow
+
+1. Go API reads settings from DB (API keys, model names, prompts)
+2. Go enriches the request with settings + user context
+3. Go POSTs to Python agent service
+4. Python agent runs the multi-team LangGraph pipeline
+5. Python streams SSE events back to Go
+6. Go transparently proxies SSE to the Vue frontend
+
+The Python service is **stateless** — it has no database access. All configuration is passed per-request from Go.
+
+### Key Files
+
+| File | Purpose |
+|------|---------|
+| `src/agent/app/supervisor.py` | Top-level router + team wiring |
+| `src/agent/app/teams/coin_search.py` | Team 1: Search → Verify → Format |
+| `src/agent/app/teams/coin_shows.py` | Team 2: Shows → Date verify → Format |
+| `src/agent/app/teams/coin_analysis.py` | Team 3: Vision analysis → Format |
+| `src/agent/app/teams/portfolio_review.py` | Team 4: Read → Valuate → Analyze |
+| `src/agent/app/streaming.py` | SSE streaming from LangGraph events |
+| `src/agent/app/llm/provider.py` | LLM factory (Anthropic vs Ollama) |
+| `src/api/services/agent_proxy.go` | Go SSE proxy to Python service |

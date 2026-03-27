@@ -10,12 +10,13 @@ On first launch, the first user to register is automatically assigned as the adm
 
 ## Architecture
 
-| Layer    | Tech                                  | Path       |
-| -------- | ------------------------------------- | ---------- |
-| Backend  | Go (Gin), GORM, Pure-Go SQLite       | `src/api/` |
-| Frontend | Vue 3, TypeScript, Vite, Pinia (PWA)  | `src/web/` |
+| Layer    | Tech                                       | Path         |
+| -------- | ------------------------------------------ | ------------ |
+| Backend  | Go (Gin), GORM, Pure-Go SQLite             | `src/api/`   |
+| Frontend | Vue 3, TypeScript, Vite, Pinia (PWA)       | `src/web/`   |
+| Agent    | Python, FastAPI, LangGraph, LangChain      | `src/agent/` |
 
-The Vue SPA communicates with the Go API exclusively via REST (`/api/*`). In production the API serves the SPA as static files from a single container, so no separate web server is needed.
+The Vue SPA communicates with the Go API exclusively via REST (`/api/*`). The Go API proxies all AI agent requests to a Python LangGraph service. In production, docker-compose runs two containers (Go+Vue and Python agent).
 
 The frontend is a Progressive Web App (PWA) and can be installed on iOS (Safari → Share → Add to Home Screen), Android, and desktop browsers for a native app-like experience with offline caching.
 
@@ -155,8 +156,8 @@ AncientCoins/
 │   │   │   ├── auth.go               # Registration, login, token refresh
 │   │   │   ├── coins.go              # Coin CRUD, list/filter/sort, stats, sell, value history
 │   │   │   ├── images.go             # Image upload/delete, proxy, scrape
-│   │   │   ├── analysis.go           # Ollama AI coin analysis & OCR
-│   │   │   ├── agent.go              # Anthropic chat agent with SSE streaming
+│   │   │   ├── analysis.go           # AI coin analysis (proxied to agent service)
+│   │   │   ├── agent.go              # AI agent chat (proxied to agent service via SSE)
 │   │   │   ├── conversations.go      # Saved agent conversation CRUD
 │   │   │   ├── journal.go            # Per-coin activity log
 │   │   │   ├── numista.go            # Numista catalog search proxy
@@ -178,12 +179,31 @@ AncientCoins/
 │   │   │   ├── social_service.go     # Follow rules, access control, profiles
 │   │   │   ├── auth_service.go       # Registration, authentication, token lifecycle
 │   │   │   ├── image_service.go      # File upload/delete coordination
-│   │   │   ├── ollama_service.go     # Ollama vision model integration
+│   │   │   ├── agent_proxy.go        # SSE proxy to Python agent service
+│   │   │   ├── ollama_service.go     # Ollama vision model integration (OCR)
 │   │   │   ├── settings_service.go   # App settings with DB-backed defaults
 │   │   │   └── logger.go             # Structured logger with in-memory buffer
 │   │   ├── middleware/               # JWT & API key auth middleware
 │   │   ├── models/                   # GORM entities (Coin, User, Follow, etc.)
 │   │   └── architecture_test.go      # Enforces layering rules (no database.DB in handlers)
+│   ├── agent/                         # Python LangGraph agent service
+│   │   ├── app/
+│   │   │   ├── main.py               # FastAPI app entry point
+│   │   │   ├── config.py             # Service settings
+│   │   │   ├── routes.py             # API endpoints (search, analyze, portfolio)
+│   │   │   ├── supervisor.py         # Top-level router + team delegation
+│   │   │   ├── streaming.py          # SSE streaming from LangGraph events
+│   │   │   ├── llm/provider.py       # LLM factory (Anthropic vs Ollama)
+│   │   │   ├── tools/search.py       # SearXNG search + URL verification tools
+│   │   │   ├── models/               # Pydantic request/response schemas
+│   │   │   └── teams/                # Multi-agent team pipelines
+│   │   │       ├── coin_search.py    # Team 1: Search → Verify → Format
+│   │   │       ├── coin_shows.py     # Team 2: Shows → Date verify → Format
+│   │   │       ├── coin_analysis.py  # Team 3: Vision analysis → Format
+│   │   │       └── portfolio_review.py # Team 4: Read → Valuate → Analyze
+│   │   ├── tests/                    # Pytest tests
+│   │   ├── Dockerfile                # Python 3.12-slim multi-stage
+│   │   └── pyproject.toml            # Dependencies (FastAPI, LangGraph, LangChain)
 │   └── web/                          # Vue 3 SPA
 │       ├── src/
 │       │   ├── api/                  # Axios API client
