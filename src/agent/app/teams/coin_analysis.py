@@ -54,9 +54,6 @@ class CoinAnalysisState(TypedDict):
     messages: Annotated[list, lambda a, b: a + b]
     raw_analysis: str
     formatted_analysis: str
-    coin_context: str
-    analysis_prompt: str
-    image_contents: list[dict]
 
 
 def create_coin_analysis_team(
@@ -90,9 +87,9 @@ def create_coin_analysis_team(
 
     async def analysis_node(state: CoinAnalysisState) -> dict:
         """Analysis Agent: vision model analyzes coin images."""
-        prompt = state.get("analysis_prompt", analysis_prompt)
-        img_contents = state.get("image_contents", image_contents)
-        ctx = state.get("coin_context", coin_context)
+        # Use closure values — state fields may be empty/unset
+        img_contents = image_contents
+        ctx = coin_context
 
         if not img_contents:
             return {
@@ -103,7 +100,7 @@ def create_coin_analysis_team(
 
         # Build the message with text + images
         human_content: list[dict] = [
-            {"type": "text", "text": f"{prompt}\n\n{ctx}" if ctx else prompt},
+            {"type": "text", "text": f"{analysis_prompt}\n\n{ctx}" if ctx else analysis_prompt},
         ]
         human_content.extend(img_contents)
 

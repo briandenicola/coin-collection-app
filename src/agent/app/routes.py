@@ -81,13 +81,14 @@ async def analyze_coin(request: AnalyzeRequest):
         side=request.side,
         custom_prompt=request.prompt,
     )
+    # Don't pass image_contents, coin_context, or analysis_prompt in the
+    # initial state — the team constructor captures them via closure and
+    # the nodes use state.get(key, closure_default). Passing empty values
+    # here would override the closure defaults.
     result = await graph.ainvoke({
         "messages": [],
         "raw_analysis": "",
         "formatted_analysis": "",
-        "coin_context": "",
-        "analysis_prompt": "",
-        "image_contents": [],
     })
     analysis_text = result.get("formatted_analysis", "")
     if not analysis_text:
