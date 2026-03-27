@@ -81,6 +81,11 @@
             <span class="form-hint">Time limit for AI analysis calls. Default: 300 (5 minutes)</span>
           </div>
           <div class="form-group">
+            <label class="form-label">SearXNG URL</label>
+            <input v-model="settings.SearXNGURL" class="form-input" placeholder="http://localhost:8888" />
+            <span class="form-hint">Web search engine for Ollama mode. Only needed when using Ollama as the LLM provider.</span>
+          </div>
+          <div class="form-group">
             <label class="form-label">Anthropic API Key</label>
             <input v-model="settings.AnthropicAPIKey" class="form-input" type="password" placeholder="Enter your Anthropic API key" />
             <span class="form-hint">Required for the AI coin search agent. Get a key at <a href="https://console.anthropic.com/" target="_blank" rel="noopener">console.anthropic.com</a></span>
@@ -381,6 +386,7 @@ const settings = ref<AppSettings>({
   ReversePrompt: '',
   TextExtractionPrompt: '',
   OllamaTimeout: '300',
+  SearXNGURL: '',
   LogLevel: 'info',
 })
 const settingDefaults = ref<AppSettings>({
@@ -390,6 +396,7 @@ const settingDefaults = ref<AppSettings>({
   ReversePrompt: '',
   TextExtractionPrompt: '',
   OllamaTimeout: '',
+  SearXNGURL: '',
   LogLevel: '',
 })
 const settingsMsg = ref('')

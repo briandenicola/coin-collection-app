@@ -24,30 +24,40 @@ TRUSTED_DOMAINS = [
 ]
 
 
-@tool
-async def searxng_search(query: str) -> str:
-    """Search the web using SearXNG. Used when LLM provider is Ollama."""
-    async with httpx.AsyncClient(timeout=settings.verification_timeout) as client:
-        resp = await client.get(
-            f"{settings.searxng_url}/search",
-            params={
-                "q": query,
-                "format": "json",
-                "engines": "google,bing,duckduckgo",
-                "categories": "general",
-            },
-        )
-        resp.raise_for_status()
-        data = resp.json()
+def create_searxng_search(searxng_url: str = ""):
+    """Create a SearXNG search tool with a specific URL."""
+    url = searxng_url or settings.searxng_url
 
-    results = data.get("results", [])[:settings.max_search_results]
-    if not results:
-        return "No results found."
+    @tool
+    async def searxng_search(query: str) -> str:
+        """Search the web using SearXNG. Used when LLM provider is Ollama."""
+        async with httpx.AsyncClient(timeout=settings.verification_timeout) as client:
+            resp = await client.get(
+                f"{url}/search",
+                params={
+                    "q": query,
+                    "format": "json",
+                    "engines": "google,bing,duckduckgo",
+                    "categories": "general",
+                },
+            )
+            resp.raise_for_status()
+            data = resp.json()
 
-    formatted = []
-    for r in results:
-        formatted.append(f"Title: {r.get('title', '')}\nURL: {r.get('url', '')}\nSnippet: {r.get('content', '')}\n")
-    return "\n---\n".join(formatted)
+        results = data.get("results", [])[:settings.max_search_results]
+        if not results:
+            return "No results found."
+
+        formatted = []
+        for r in results:
+            formatted.append(f"Title: {r.get('title', '')}\nURL: {r.get('url', '')}\nSnippet: {r.get('content', '')}\n")
+        return "\n---\n".join(formatted)
+
+    return searxng_search
+
+
+# Default instance for backward compatibility
+searxng_search = create_searxng_search()
 
 
 @tool

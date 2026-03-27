@@ -202,6 +202,7 @@ func (h *AgentHandler) ChatStream(c *gin.Context) {
 	model := services.GetSetting(services.SettingAnthropicModel)
 	ollamaURL := services.GetSetting(services.SettingOllamaURL)
 	ollamaModel := services.GetSetting(services.SettingOllamaModel)
+	searxngURL := services.GetSetting(services.SettingSearXNGURL)
 
 	if apiKey == "" && ollamaURL != "" {
 		provider = "ollama"
@@ -229,10 +230,11 @@ func (h *AgentHandler) ChatStream(c *gin.Context) {
 
 	proxyReq := services.AgentChatProxyRequest{
 		LLM: services.LLMConfig{
-			Provider:  provider,
-			APIKey:    apiKey,
-			Model:     model,
-			OllamaURL: ollamaURL,
+			Provider:   provider,
+			APIKey:     apiKey,
+			Model:      model,
+			OllamaURL:  ollamaURL,
+			SearXNGURL: searxngURL,
 		},
 		User: services.UserContextProxy{
 			UserID:  userID,
@@ -511,10 +513,11 @@ func (h *AgentHandler) EstimateValue(c *gin.Context) {
 
 	proxyReq := services.PortfolioReviewProxyRequest{
 		LLM: services.LLMConfig{
-			Provider:  provider,
-			APIKey:    apiKey,
-			Model:     model,
-			OllamaURL: ollamaURL,
+			Provider:   provider,
+			APIKey:     apiKey,
+			Model:      model,
+			OllamaURL:  ollamaURL,
+			SearXNGURL: services.GetSetting(services.SettingSearXNGURL),
 		},
 		User: services.UserContextProxy{
 			UserID:  userID,

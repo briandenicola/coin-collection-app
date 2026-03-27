@@ -14,6 +14,7 @@ class LLMConfig(BaseModel):
     api_key: str = ""  # Anthropic API key (empty for Ollama)
     model: str = ""  # Model name
     ollama_url: str = ""  # Ollama base URL (empty for Anthropic)
+    searxng_url: str = ""  # SearXNG URL (for Ollama web search)
 
 
 class UserContext(BaseModel):

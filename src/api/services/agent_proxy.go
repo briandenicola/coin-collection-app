@@ -28,10 +28,11 @@ func NewAgentProxy(baseURL string) *AgentProxy {
 // --- Request / response types matching the Python agent service ---
 
 type LLMConfig struct {
-	Provider  string `json:"provider"`
-	APIKey    string `json:"api_key"`
-	Model     string `json:"model"`
-	OllamaURL string `json:"ollama_url"`
+	Provider   string `json:"provider"`
+	APIKey     string `json:"api_key"`
+	Model      string `json:"model"`
+	OllamaURL  string `json:"ollama_url"`
+	SearXNGURL string `json:"searxng_url"`
 }
 
 type UserContextProxy struct {

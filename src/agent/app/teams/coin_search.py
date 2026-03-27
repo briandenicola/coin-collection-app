@@ -17,7 +17,7 @@ from langgraph.graph import END, StateGraph
 from app.config import settings
 from app.llm.provider import get_chat_model
 from app.models.requests import LLMConfig
-from app.tools.search import searxng_search, verify_url
+from app.tools.search import create_searxng_search, verify_url
 
 logger = logging.getLogger(__name__)
 
@@ -109,15 +109,16 @@ def create_coin_search_team(llm_config: LLMConfig, user_prompt: str = ""):
     """
     model = get_chat_model(llm_config)
     use_searxng = llm_config.provider == "ollama"
+    search_tool = create_searxng_search(llm_config.searxng_url) if use_searxng else None
 
     async def search_node(state: CoinSearchState) -> dict:
         """Search Agent: finds coin listings via web search."""
         user_msg = state.get("user_message", "")
 
-        if use_searxng:
+        if use_searxng and search_tool:
             # Ollama mode: use SearXNG tool directly, then pass results to LLM
             search_query = f"{user_msg} ancient coins for sale buy now"
-            raw_results = await searxng_search.ainvoke(search_query)
+            raw_results = await search_tool.ainvoke(search_query)
 
             messages = [
                 SystemMessage(content=SEARCH_PROMPT),

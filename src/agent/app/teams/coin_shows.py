@@ -16,7 +16,7 @@ from langgraph.graph import END, StateGraph
 
 from app.llm.provider import get_chat_model
 from app.models.requests import LLMConfig, UserContext
-from app.tools.search import searxng_search
+from app.tools.search import create_searxng_search
 
 logger = logging.getLogger(__name__)
 
@@ -118,6 +118,7 @@ def create_coin_show_team(
     """
     model = get_chat_model(llm_config)
     use_searxng = llm_config.provider == "ollama"
+    search_tool = create_searxng_search(llm_config.searxng_url) if use_searxng else None
 
     # Build location context from user's zip code
     location_hint = ""
@@ -137,11 +138,11 @@ def create_coin_show_team(
             location_context=loc_ctx if loc_ctx else "No specific location preference."
         )
 
-        if use_searxng:
+        if use_searxng and search_tool:
             search_query = f"{user_msg} upcoming coin show numismatic convention"
             if user_context and user_context.zip_code:
                 search_query += f" near {user_context.zip_code}"
-            raw_results = await searxng_search.ainvoke(search_query)
+            raw_results = await search_tool.ainvoke(search_query)
 
             messages = [
                 SystemMessage(content=prompt),
