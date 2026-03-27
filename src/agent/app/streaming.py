@@ -60,18 +60,31 @@ async def stream_graph_events(graph, input_data: dict, config: dict | None = Non
         yield format_sse({"type": "error", "message": "An error occurred while processing your request."})
         return
 
-    # Use the last complete AI message as the authoritative final response.
-    # full_text may contain concatenated output from multiple LLM calls
-    # (e.g., search node + format node), so prefer last_ai_content.
-    final_text = last_ai_content or full_text
+    logger.debug(
+        "Stream complete — full_text=%d chars, last_ai_content=%d chars, "
+        "last_node_message=%d chars",
+        len(full_text), len(last_ai_content), len(last_node_message),
+    )
+
+    # Build the authoritative final response.
+    #
+    # Team workflows (coin_search, coin_shows, portfolio) run as sub-graphs
+    # via ainvoke(). Their internal LLM events (on_chat_model_stream/end) may
+    # NOT propagate to the supervisor's astream_events. The team's final
+    # AIMessage IS visible through on_chain_end events on the supervisor node,
+    # captured as last_node_message.
+    #
+    # For direct handler nodes (general_handler), last_ai_content has the
+    # correct LLM output AND last_node_message also captures it.
+    #
+    # Priority: last_node_message > last_ai_content > full_text
+    final_text = last_node_message or last_ai_content or full_text
     suggestions = extract_suggestions(final_text)
     clean_message = remove_json_block(final_text) if suggestions else final_text
 
-    # Safety net: if no LLM text was streamed (e.g. error/validation paths that
-    # return hardcoded AIMessages without calling a model), use the last node
-    # message so the user always gets a response.
-    if not clean_message.strip() and last_node_message:
-        clean_message = last_node_message
+    # If removing the JSON block left nothing meaningful, provide a fallback
+    if not clean_message.strip() and suggestions:
+        clean_message = "Here are the results I found."
 
     done_event: dict = {"type": "done", "message": clean_message.strip()}
     if suggestions:
