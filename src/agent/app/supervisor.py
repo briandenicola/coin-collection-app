@@ -9,7 +9,7 @@ The supervisor examines the user's message and delegates to:
 
 from typing import Literal
 
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import SystemMessage
 from langgraph.graph import END, MessagesState, StateGraph
 from langgraph.types import Command
 
@@ -22,9 +22,14 @@ from app.teams.portfolio_review import create_portfolio_review_team
 ROUTER_PROMPT = """You are a routing agent for a numismatic (coin collecting) application.
 Your ONLY job is to classify the user's request into exactly one category.
 
+You will receive the conversation history. Use it to understand context — for example,
+if the assistant just asked for the user's location to search for coin shows, and the
+user replies with a ZIP code or city, that should be routed to "coin_shows" not "general".
+
 Respond with ONLY one of these words:
 - "coin_search" — if the user wants to find, buy, or search for coins
-- "coin_shows" — if the user asks about coin shows, conventions, expos, or events
+- "coin_shows" — if the user asks about coin shows, conventions, expos, or events,
+  OR if the user is providing location info following a coin shows conversation
 - "analysis" — if the user wants to analyze coin images or get AI analysis of a coin
 - "portfolio" — if the user wants portfolio analysis, collection review, or valuation
 - "general" — if the request doesn't fit the above categories
@@ -39,10 +44,9 @@ def create_router(llm_config: LLMConfig):
     RouteTarget = Literal["coin_search", "coin_shows", "analysis", "portfolio", "general"]
 
     async def route_request(state: MessagesState) -> Command[RouteTarget]:
-        messages = [
-            SystemMessage(content=ROUTER_PROMPT),
-            HumanMessage(content=state["messages"][-1].content if state["messages"] else ""),
-        ]
+        # Include recent history for context (last 4 messages max to keep it light)
+        recent = state["messages"][-4:] if len(state["messages"]) > 4 else state["messages"]
+        messages = [SystemMessage(content=ROUTER_PROMPT)] + recent
         response = await model.ainvoke(messages)
         content = response.content if isinstance(response.content, str) else str(response.content)
         route = content.strip().lower().replace('"', "").replace("'", "")
@@ -96,17 +100,22 @@ def create_supervisor(
         If the user has no ZIP code and hasn't provided a location in their
         message, ask them where they'd like to search before running the team.
         """
+        import re
+
         from langchain_core.messages import AIMessage
 
         has_zip = user_context and user_context.zip_code
         if not has_zip:
-            # Check if the user's message already contains a location hint
             msg_lower = user_message.lower()
             location_keywords = [
                 "near ", "in ", "around ", "close to ",
                 "zip ", "zipcode", "zip code",
             ]
             has_location_in_msg = any(kw in msg_lower for kw in location_keywords)
+
+            # Also detect bare ZIP codes (5 digits) or city/state patterns
+            has_zip_pattern = bool(re.search(r'\b\d{5}\b', user_message))
+            has_location_in_msg = has_location_in_msg or has_zip_pattern
 
             if not has_location_in_msg:
                 return {
@@ -126,6 +135,13 @@ def create_supervisor(
         location_ctx = ""
         if has_zip:
             location_ctx = f"User is near ZIP code {user_context.zip_code}."
+        else:
+            # Extract location hint from the user's message
+            zip_match = re.search(r'\b(\d{5})\b', user_message)
+            if zip_match:
+                location_ctx = f"User is near ZIP code {zip_match.group(1)}."
+            else:
+                location_ctx = f"User indicated their location as: {user_message}"
 
         result = await coin_show_graph.ainvoke({
             "messages": [],
