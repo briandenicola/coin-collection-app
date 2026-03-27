@@ -114,18 +114,11 @@ func (h *AnalysisHandler) Analyze(c *gin.Context) {
 		return
 	}
 
-	// Determine LLM provider
-	provider := "ollama"
-	apiKey := services.GetSetting(services.SettingAnthropicAPIKey)
-	model := services.GetSetting(services.SettingOllamaModel)
-	ollamaURL := services.GetSetting(services.SettingOllamaURL)
-
-	if apiKey != "" {
-		provider = "anthropic"
-		model = services.GetSetting(services.SettingAnthropicModel)
-		if model == "" {
-			model = "claude-sonnet-4-20250514"
-		}
+	// Resolve LLM provider from explicit setting
+	llmCfg, errMsg := resolveLLMConfig()
+	if errMsg != "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": errMsg})
+		return
 	}
 
 	var purchasePrice, currentValue float64
@@ -137,12 +130,7 @@ func (h *AnalysisHandler) Analyze(c *gin.Context) {
 	}
 
 	proxyReq := services.AnalyzeProxyRequest{
-		LLM: services.LLMConfig{
-			Provider:  provider,
-			APIKey:    apiKey,
-			Model:     model,
-			OllamaURL: ollamaURL,
-		},
+		LLM: llmCfg,
 		Coin: services.CoinDataProxy{
 			ID:            int(coin.ID),
 			Name:          coin.Name,

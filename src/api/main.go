@@ -191,6 +191,7 @@ func main() {
 		protected.GET("/agent/prompt", agentHandler.GetPrompt)
 		protected.GET("/agent/valuation-prompt", agentHandler.GetValuationPrompt)
 		protected.GET("/agent/portfolio-summary", agentHandler.PortfolioSummary)
+		protected.GET("/agent/status", agentHandler.AgentStatus)
 
 		conversationRepo := repository.NewConversationRepository(database.DB)
 		convHandler := handlers.NewConversationHandler(conversationRepo)
@@ -259,6 +260,8 @@ func main() {
 		admin.GET("/settings/defaults", adminHandler.GetSettingDefaults)
 		admin.PUT("/settings", adminHandler.UpdateSettings)
 		admin.GET("/logs", adminHandler.GetLogs)
+		admin.GET("/test-anthropic", adminHandler.TestAnthropicConnection)
+		admin.GET("/test-searxng", adminHandler.TestSearXNGConnection)
 	}
 
 	log.Printf("Starting server on :%s", cfg.Port)

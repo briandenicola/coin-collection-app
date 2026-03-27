@@ -157,6 +157,7 @@ export interface UserInfo {
 }
 
 export interface AppSettings {
+  AIProvider: string
   OllamaURL: string
   OllamaModel: string
   ObversePrompt: string
