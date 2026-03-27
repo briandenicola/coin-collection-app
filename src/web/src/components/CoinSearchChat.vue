@@ -52,8 +52,30 @@
             <div class="bubble-content" v-html="formatMessage(msg.content)"></div>
           </div>
 
-          <!-- Suggestions after assistant message -->
-          <div v-if="msg.role === 'assistant' && msg.suggestions?.length" class="suggestions-grid">
+          <!-- Coin Show results -->
+          <div v-if="msg.role === 'assistant' && msg.suggestions?.length && isCoinShowResults(msg.suggestions)" class="suggestions-grid">
+            <div v-for="(show, j) in msg.suggestions" :key="j" class="show-card">
+              <div class="show-body">
+                <a v-if="show.url" :href="show.url" target="_blank" rel="noopener" class="show-name-link">
+                  <h4>{{ show.name }} <ExternalLink :size="12" /></h4>
+                </a>
+                <h4 v-else>{{ show.name }}</h4>
+                <div class="show-details">
+                  <span v-if="show.dates" class="show-detail"><Calendar :size="13" /> {{ show.dates }}</span>
+                  <span v-if="show.venue" class="show-detail"><MapPin :size="13" /> {{ show.venue }}</span>
+                  <span v-if="show.location" class="show-detail-sub">{{ show.location }}</span>
+                  <span v-if="show.entryFee" class="show-detail"><Ticket :size="13" /> {{ show.entryFee }}</span>
+                </div>
+                <p v-if="show.description" class="show-desc">{{ show.description }}</p>
+                <div v-if="show.notableDealers?.length" class="show-dealers">
+                  <span v-for="(dealer, k) in show.notableDealers" :key="k" class="meta-tag">{{ dealer }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Coin suggestions after assistant message -->
+          <div v-if="msg.role === 'assistant' && msg.suggestions?.length && !isCoinShowResults(msg.suggestions)" class="suggestions-grid">
             <div v-for="(coin, j) in msg.suggestions" :key="j" class="suggestion-card">
               <div class="suggestion-img" v-if="getSuggestionImageUrl(coin)">
                 <img :src="getSuggestionImageUrl(coin)" :alt="coin.name" @error="handleImgError" />
@@ -114,7 +136,7 @@
 import { ref, nextTick, onMounted, onBeforeUnmount, computed } from 'vue'
 import { agentChatStream, createCoin, proxyImage, scrapeImage, uploadImage, saveConversation, getPortfolioSummary, getAgentStatus } from '@/api/client'
 import type { CoinSuggestion, AgentChatMessage, Category, Material } from '@/types'
-import { Bot, X, SendHorizontal, CirclePlus, ExternalLink, Save, AlertTriangle } from 'lucide-vue-next'
+import { Bot, X, SendHorizontal, CirclePlus, ExternalLink, Save, AlertTriangle, Calendar, MapPin, Ticket } from 'lucide-vue-next'
 import DOMPurify from 'dompurify'
 
 interface ChatMsg {
@@ -351,6 +373,12 @@ function formatMessage(text: string): string {
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/\n/g, '<br>')
   return DOMPurify.sanitize(formatted, { ALLOWED_TAGS: ['strong', 'br'] })
+}
+
+function isCoinShowResults(suggestions: Record<string, unknown>[]): boolean {
+  if (!suggestions?.length) return false
+  const first = suggestions[0]
+  return !!(first?.dates || first?.venue) && !first?.era && !first?.material
 }
 
 function proxyImageUrl(url: string): string {
@@ -744,6 +772,84 @@ function handleViewportResize() {
 
 .source-link:hover {
   color: var(--accent-gold);
+}
+
+/* Coin Show cards */
+.show-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  transition: border-color var(--transition-fast);
+}
+
+.show-card:hover {
+  border-color: var(--accent-gold);
+}
+
+.show-body {
+  padding: 0.7rem 0.85rem;
+}
+
+.show-body h4 {
+  font-size: 0.88rem;
+  margin: 0 0 0.4rem;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.show-name-link {
+  text-decoration: none;
+  color: inherit;
+}
+
+.show-name-link h4 {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--accent-gold);
+  transition: color var(--transition-fast);
+}
+
+.show-name-link:hover h4 {
+  color: var(--accent-bronze);
+}
+
+.show-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.4rem;
+}
+
+.show-detail {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.show-detail-sub {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  padding-left: 1.5rem;
+}
+
+.show-desc {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin: 0 0 0.4rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.show-dealers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
 }
 
 .add-btn {
