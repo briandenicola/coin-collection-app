@@ -17,6 +17,7 @@ services:
     restart: unless-stopped
 
   agent:
+    image: ${DOCKERHUB_USERNAME:-ancient-coins}/ancient-coins-agent:latest
     build:
       context: src/agent
       dockerfile: Dockerfile
