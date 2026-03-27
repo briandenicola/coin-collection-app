@@ -1,4 +1,8 @@
-"""Basic tests for the agent service."""
+"""Basic tests for the agent service.
+
+These tests verify endpoint contracts and request validation.
+Integration tests requiring a live LLM belong in a separate suite.
+"""
 
 from fastapi.testclient import TestClient
 
@@ -15,30 +19,25 @@ def test_health():
     assert data["service"] == "agent"
 
 
-def test_search_coins_stub():
+def test_search_coins_rejects_invalid_body():
+    resp = client.post("/api/search/coins", json={})
+    assert resp.status_code == 422
+
+
+def test_search_coins_rejects_missing_message():
     resp = client.post(
         "/api/search/coins",
         json={
-            "llm": {"provider": "anthropic", "api_key": "test", "model": "test"},
+            "llm": {"provider": "anthropic", "api_key": "k", "model": "m"},
             "user": {"user_id": 1},
-            "message": "Find Roman denarii",
         },
     )
-    assert resp.status_code == 200
-    data = resp.json()
-    assert "message" in data
+    assert resp.status_code == 422
 
 
-def test_search_shows_stub():
-    resp = client.post(
-        "/api/search/shows",
-        json={
-            "llm": {"provider": "anthropic", "api_key": "test", "model": "test"},
-            "user": {"user_id": 1},
-            "message": "Upcoming coin shows",
-        },
-    )
-    assert resp.status_code == 200
+def test_search_shows_rejects_invalid_body():
+    resp = client.post("/api/search/shows", json={})
+    assert resp.status_code == 422
 
 
 def test_analyze_stub():
@@ -50,15 +49,10 @@ def test_analyze_stub():
         },
     )
     assert resp.status_code == 200
+    data = resp.json()
+    assert "message" in data
 
 
-def test_portfolio_review_stub():
-    resp = client.post(
-        "/api/portfolio/review",
-        json={
-            "llm": {"provider": "anthropic", "api_key": "test", "model": "test"},
-            "user": {"user_id": 1},
-            "portfolio": {"total_coins": 10, "total_value": 5000},
-        },
-    )
-    assert resp.status_code == 200
+def test_portfolio_review_rejects_invalid_body():
+    resp = client.post("/api/portfolio/review", json={})
+    assert resp.status_code == 422
