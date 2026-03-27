@@ -97,7 +97,8 @@ def create_coin_analysis_team(
         if not img_contents:
             return {
                 "raw_analysis": "",
-                "messages": [AIMessage(content="No images were provided for analysis.")],
+                "messages": [AIMessage(content="No images were provided for analysis. "
+                                               "Please upload one or more coin images to get started.")],
             }
 
         # Build the message with text + images
@@ -125,7 +126,8 @@ def create_coin_analysis_team(
         if not raw:
             return {
                 "formatted_analysis": "",
-                "messages": [AIMessage(content="Unable to complete analysis — no results from vision model.")],
+                "messages": [AIMessage(content="Unable to complete the analysis. "
+                                               "Please try again with clearer, well-lit images of the coin.")],
             }
 
         messages = [

@@ -24,6 +24,7 @@ async def stream_graph_events(graph, input_data: dict, config: dict | None = Non
     """
     full_text = ""
     last_ai_content = ""
+    last_node_message = ""
 
     try:
         async for event in graph.astream_events(input_data, config=config or {}, version="v2"):
@@ -44,6 +45,16 @@ async def stream_graph_events(graph, input_data: dict, config: dict | None = Non
                     if content:
                         last_ai_content = content
 
+            elif kind == "on_chain_end":
+                # Capture AIMessages from node outputs (for paths that skip LLM calls)
+                output = event.get("data", {}).get("output", {})
+                if isinstance(output, dict):
+                    for msg in output.get("messages", []):
+                        if isinstance(msg, AIMessage) and msg.content:
+                            content = msg.content if isinstance(msg.content, str) else ""
+                            if content:
+                                last_node_message = content
+
     except Exception:
         logger.exception("Error during graph streaming")
         yield format_sse({"type": "error", "message": "An error occurred while processing your request."})
@@ -55,6 +66,12 @@ async def stream_graph_events(graph, input_data: dict, config: dict | None = Non
     suggestion_source = last_ai_content or full_text
     suggestions = extract_suggestions(suggestion_source)
     clean_message = remove_json_block(full_text) if suggestions else full_text
+
+    # Safety net: if no LLM text was streamed (e.g. error/validation paths that
+    # return hardcoded AIMessages without calling a model), use the last node
+    # message so the user always gets a response.
+    if not clean_message.strip() and last_node_message:
+        clean_message = last_node_message
 
     done_event: dict = {"type": "done", "message": clean_message.strip()}
     if suggestions:

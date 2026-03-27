@@ -195,15 +195,26 @@ def create_coin_search_team(llm_config: LLMConfig, search_prompt: str = ""):
         verified = state.get("verification_results", "")
         user_msg = state.get("user_message", "")
 
-        if "no urls found" in verified.lower() or "empty array" in verified.lower():
-            no_results_msg = (
-                "I searched for coins matching your request but could not find any "
-                "currently available, verified listings. This could mean:\n\n"
-                "- The specific coins you're looking for are rare and not currently listed\n"
-                "- Try broadening your search criteria\n"
-                "- Check back later as dealer inventory changes frequently"
+        if "no urls found" in verified.lower() or "empty array" in verified.lower() or _is_empty_json_result(verified):
+            # Call the LLM so the response streams to the user via SSE
+            no_results_prompt = (
+                "You are an assistant in a coin collecting application. "
+                "The user searched for coins to buy but no verified listings were found. "
+                "Generate a brief, helpful response. Suggest broadening search criteria, "
+                "checking back later, or trying specific dealer sites like vcoins.com "
+                "or ma-shops.com. Keep it concise. Do not use emojis. "
+                "Do not invent coin listings."
             )
-            return {"formatted_results": "", "messages": [AIMessage(content=no_results_msg)]}
+            messages = [
+                SystemMessage(content=no_results_prompt),
+                HumanMessage(
+                    content=f"The user asked: {user_msg}\n\n"
+                    "No verified coin listings were found. Generate a helpful response."
+                ),
+            ]
+            response = await model.ainvoke(messages)
+            content = response.content if isinstance(response.content, str) else str(response.content)
+            return {"formatted_results": "", "messages": [AIMessage(content=content)]}
 
         messages = [
             SystemMessage(content=FORMAT_PROMPT),
@@ -268,3 +279,15 @@ def _extract_json_block(text: str) -> str | None:
     if end == -1:
         return None
     return text[start:end].strip()
+
+
+def _is_empty_json_result(text: str) -> bool:
+    """Check if text contains a JSON block with an empty array."""
+    json_block = _extract_json_block(text)
+    if json_block:
+        try:
+            data = json.loads(json_block)
+            return isinstance(data, list) and len(data) == 0
+        except json.JSONDecodeError:
+            pass
+    return False
