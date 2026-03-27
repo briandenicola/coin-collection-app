@@ -4,7 +4,7 @@ The Go API enriches each request with settings, user context, and data
 so this service remains stateless with no direct DB access.
 """
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 
 class LLMConfig(BaseModel):
@@ -103,6 +103,18 @@ class PortfolioSummary(BaseModel):
     rulers: list[dict] = []
     top_coins: list[PortfolioCoin] = []
 
+    @field_validator("categories", "materials", mode="before")
+    @classmethod
+    def none_to_dict(cls, v: dict | None) -> dict:
+        """Go serializes nil maps as null — convert to empty dict."""
+        return v if v is not None else {}
+
+    @field_validator("eras", "rulers", "top_coins", mode="before")
+    @classmethod
+    def none_to_list(cls, v: list | None) -> list:
+        """Go serializes nil slices as null — convert to empty list."""
+        return v if v is not None else []
+
 
 class PortfolioReviewRequest(BaseModel):
     """Request to review a portfolio."""
@@ -113,3 +125,9 @@ class PortfolioReviewRequest(BaseModel):
     message: str = ""
     history: list[ChatMessage] = []
     valuation_prompt: str = ""
+
+    @field_validator("history", mode="before")
+    @classmethod
+    def none_to_list(cls, v: list | None) -> list:
+        """Go serializes nil slices as null — convert to empty list."""
+        return v if v is not None else []
