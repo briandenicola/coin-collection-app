@@ -379,8 +379,8 @@ function formatMessage(text: string): string {
 
 function isCoinShowResults(suggestions: ChatSuggestion[]): boolean {
   if (!suggestions?.length) return false
-  const first = suggestions[0] as Record<string, unknown>
-  return !!(first?.dates || first?.venue) && !first?.era && !first?.material
+  const first = suggestions[0]!
+  return 'dates' in first || 'venue' in first
 }
 
 function proxyImageUrl(url: string): string {
