@@ -93,3 +93,12 @@ def setup_logging(log_level: str = "INFO") -> None:
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
     logging.getLogger("langchain_core").setLevel(logging.WARNING)
     logging.getLogger("langsmith").setLevel(logging.WARNING)
+
+
+def set_log_level(log_level: str) -> str:
+    """Dynamically change the root logger level. Returns the applied level."""
+    level = getattr(logging, log_level.upper(), None)
+    if level is None:
+        return logging.getLogger().level  # unchanged
+    logging.getLogger().setLevel(level)
+    return logging.getLevelName(level)

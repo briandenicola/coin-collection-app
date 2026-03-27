@@ -214,6 +214,12 @@ func (h *AdminHandler) UpdateSettings(c *gin.Context) {
 	// Sync log level if it was updated
 	services.SyncLogLevel()
 
+	// Push log level to Python agent service
+	if h.agentProxy != nil {
+		logLevel := services.GetSetting(services.SettingLogLevel)
+		h.agentProxy.SetLogLevel(c.Request.Context(), logLevel)
+	}
+
 	c.JSON(http.StatusOK, gin.H{"message": "Settings updated"})
 }
 
