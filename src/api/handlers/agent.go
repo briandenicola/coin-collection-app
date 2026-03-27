@@ -400,27 +400,25 @@ type ValueEstimateResponse struct {
 	Comparables    []ValueComparable `json:"comparables"`
 }
 
-const DefaultValuationPrompt = `You are an expert numismatist and coin appraiser. Your task is to estimate the current fair market value of a specific coin based on its attributes.
+const DefaultValuationPrompt = `You are an expert numismatist and coin appraiser. Estimate the current fair market value of a coin.
 
 Instructions:
-1. Use web_search to find CURRENT listings and RECENT sales of comparable coins from reputable dealers and auction houses.
-2. Focus on coins with similar: denomination, ruler, era, material, and grade/condition.
-3. Check multiple sources: VCoins, MA-Shops, CNG, Heritage Auctions, Biddr, ForumAncientCoins.
-4. Consider the grade/condition when comparing — a VF coin is worth less than an EF example.
-5. If the coin has a purchase price, note whether it appears to have appreciated or depreciated.
+1. Search for CURRENT listings and RECENT sales of comparable coins.
+2. Focus on coins with similar denomination, ruler, era, material, and grade.
+3. Check sources: VCoins, MA-Shops, CNG, Heritage Auctions, Biddr, ForumAncientCoins.
+4. Consider grade/condition when comparing.
 
-Return your response as a JSON object (wrapped in ` + "```json" + ` and ` + "```" + ` markers) with these fields:
-- estimatedValue: number (your best estimate in USD, as a single number — not a range)
-- confidence: "high" (3+ comparable listings found), "medium" (1-2 comparables), or "low" (estimate based on general knowledge)
-- reasoning: string (2-3 sentences explaining your valuation methodology and what you found)
-- comparables: array of objects with { "source": "dealer/site name", "price": "$X" or "$X-Y", "url": "listing URL" }
+CRITICAL: Return your response as ONLY a JSON object (wrapped in ` + "```json" + ` and ` + "```" + ` markers) with NO other text before or after:
+- estimatedValue: number (USD, single number not a range)
+- confidence: "high" (3+ comparables), "medium" (1-2), or "low" (general knowledge)
+- reasoning: string (2-3 SHORT sentences only — what you found and how you arrived at the estimate)
+- comparables: array of { "source": "dealer name", "price": "$X", "url": "listing URL" }
 
-Example:
 ` + "```json" + `
 {
   "estimatedValue": 275,
   "confidence": "high",
-  "reasoning": "Based on 4 current listings of Augustus denarii in similar VF condition, the market range is $250-300. Your coin's grade and strike quality place it at the mid-range.",
+  "reasoning": "Found 4 comparable Augustus denarii in VF condition listed at $250-300. Grade and strike quality place this coin at mid-range.",
   "comparables": [
     { "source": "VCoins - Example Dealer", "price": "$285", "url": "https://www.vcoins.com/..." },
     { "source": "MA-Shops", "price": "$250", "url": "https://www.ma-shops.com/..." }
@@ -428,7 +426,7 @@ Example:
 }
 ` + "```" + `
 
-Only include real listings from your search. Do not fabricate URLs or prices.`
+Only include real listings from your search. Do not fabricate URLs or prices. Do not write any text outside the JSON block.`
 
 func (h *AgentHandler) getValuationPrompt() string {
 	prompt := services.GetSetting(services.SettingValuationPrompt)
@@ -506,9 +504,8 @@ func (h *AgentHandler) EstimateValue(c *gin.Context) {
 		parts = append(parts, fmt.Sprintf("Purchase Price: $%.2f", *coin.PurchasePrice))
 	}
 
-	userMessage := fmt.Sprintf("Please estimate the current market value of this coin:\n\n%s\n\n"+
-		"IMPORTANT: Include in your response a specific dollar estimate (e.g. $150-200) and "+
-		"a confidence level (high, medium, or low). Explain your reasoning.", strings.Join(parts, "\n"))
+	userMessage := fmt.Sprintf("Estimate the current market value of this coin:\n\n%s\n\n"+
+		"Return ONLY the JSON block as specified in your instructions. No preamble or extra text.", strings.Join(parts, "\n"))
 
 	proxyReq := services.PortfolioReviewProxyRequest{
 		LLM: llmCfg,
@@ -538,23 +535,29 @@ func (h *AgentHandler) EstimateValue(c *gin.Context) {
 	c.JSON(http.StatusOK, estimate)
 }
 
-// parseValueEstimate extracts structured fields from free-text AI response.
+// parseValueEstimate extracts structured fields from the AI response.
+// First tries to parse a JSON block (the prompt requests one), then
+// falls back to regex extraction from free text.
 func parseValueEstimate(text string) gin.H {
+	// Try parsing a ```json block first
+	if jsonResult := tryParseJSONEstimate(text); jsonResult != nil {
+		return jsonResult
+	}
+
+	// Fallback: extract from free text
 	result := gin.H{
 		"estimatedValue": 0.0,
 		"confidence":     "medium",
-		"reasoning":      text,
+		"reasoning":      summarizeReasoning(text),
 		"comparables":    []gin.H{},
 	}
 
-	// Extract dollar amount: look for patterns like $150, $150-200, $1,500
+	// Extract dollar amount: patterns like $150, $150-200, $1,500
 	priceRe := regexp.MustCompile(`\$[\d,]+(?:\.\d{2})?(?:\s*[-–]\s*\$?[\d,]+(?:\.\d{2})?)?`)
 	if match := priceRe.FindString(text); match != "" {
-		// Parse the first number from the match
 		numRe := regexp.MustCompile(`[\d,]+(?:\.\d{2})?`)
 		nums := numRe.FindAllString(match, -1)
 		if len(nums) > 0 {
-			// If it's a range, use the midpoint
 			first := parsePrice(nums[0])
 			if len(nums) > 1 {
 				second := parsePrice(nums[len(nums)-1])
@@ -573,6 +576,112 @@ func parseValueEstimate(text string) gin.H {
 		result["confidence"] = "low"
 	}
 
+	return result
+}
+
+// tryParseJSONEstimate attempts to extract a ValueEstimate JSON block.
+func tryParseJSONEstimate(text string) gin.H {
+	start := strings.Index(text, "```json")
+	if start == -1 {
+		return nil
+	}
+	start += len("```json")
+	end := strings.Index(text[start:], "```")
+	if end == -1 {
+		return nil
+	}
+	jsonStr := strings.TrimSpace(text[start : start+end])
+
+	var parsed struct {
+		EstimatedValue float64 `json:"estimatedValue"`
+		Confidence     string  `json:"confidence"`
+		Reasoning      string  `json:"reasoning"`
+		Comparables    []struct {
+			Source string `json:"source"`
+			Price  string `json:"price"`
+			URL    string `json:"url"`
+		} `json:"comparables"`
+	}
+	if err := json.Unmarshal([]byte(jsonStr), &parsed); err != nil {
+		return nil
+	}
+
+	comps := []gin.H{}
+	for _, c := range parsed.Comparables {
+		comps = append(comps, gin.H{"source": c.Source, "price": c.Price, "url": c.URL})
+	}
+
+	confidence := parsed.Confidence
+	if confidence == "" {
+		confidence = "medium"
+	}
+
+	return gin.H{
+		"estimatedValue": parsed.EstimatedValue,
+		"confidence":     confidence,
+		"reasoning":      parsed.Reasoning,
+		"comparables":    comps,
+	}
+}
+
+// summarizeReasoning trims verbose AI output to a clean summary.
+// Looks for key sentences containing valuation info and limits to ~3 sentences.
+func summarizeReasoning(text string) string {
+	// Remove markdown headers and formatting
+	text = strings.ReplaceAll(text, "**", "")
+	text = strings.ReplaceAll(text, "##", "")
+	text = strings.ReplaceAll(text, "# ", "")
+
+	// Split into sentences
+	sentences := splitSentences(text)
+	if len(sentences) == 0 {
+		return text
+	}
+
+	// Pick the most relevant sentences (containing value/price/estimate keywords)
+	keywords := []string{"estimat", "value", "price", "worth", "$", "market", "condition", "grade", "comparable", "range", "auction"}
+	var relevant []string
+	for _, s := range sentences {
+		s = strings.TrimSpace(s)
+		if len(s) < 15 {
+			continue
+		}
+		lower := strings.ToLower(s)
+		for _, kw := range keywords {
+			if strings.Contains(lower, kw) {
+				relevant = append(relevant, s)
+				break
+			}
+		}
+	}
+
+	if len(relevant) == 0 {
+		// Just take first 3 sentences
+		limit := 3
+		if len(sentences) < limit {
+			limit = len(sentences)
+		}
+		return strings.Join(sentences[:limit], " ")
+	}
+
+	limit := 3
+	if len(relevant) < limit {
+		limit = len(relevant)
+	}
+	return strings.Join(relevant[:limit], " ")
+}
+
+func splitSentences(text string) []string {
+	// Split on sentence-ending punctuation followed by space or newline
+	re := regexp.MustCompile(`[.!?]\s+`)
+	parts := re.Split(text, -1)
+	var result []string
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			result = append(result, p+".")
+		}
+	}
 	return result
 }
 
