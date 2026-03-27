@@ -23,29 +23,48 @@ from app.tools.search import create_searxng_search, verify_url
 
 logger = logging.getLogger(__name__)
 
-SEARCH_PROMPT = """You are a numismatic search specialist. Your ONLY job is to search the web
-for coins that are CURRENTLY FOR SALE.
+SEARCH_PROMPT = """You are a numismatic search specialist. Your job is to find SPECIFIC coins
+that are currently for sale — not search result pages or category pages.
 
-CRITICAL RULES:
-- Use your search tool to find real, currently available coin listings
-- ONLY search on reputable dealer sites: vcoins.com, ma-shops.com, forumancientcoins.com,
-  biddr.com, catawiki.com, hjbltd.com
-- Add "for sale" or "buy now" to your search queries
-- NEVER invent, guess, or recall details from memory
-- Return ONLY results you actually found in your search
+SEARCH STRATEGY (follow these steps):
+1. Run targeted searches using site-specific queries. For each dealer site, search like:
+   - site:vcoins.com "Domitian" "denarius" — to find individual listing pages
+   - site:ma-shops.com "Hadrian" "sestertius" — narrow by ruler + denomination
+   - Include price terms and the user's budget if mentioned
+2. If your initial searches return SEARCH RESULT PAGES (URLs containing "Search", "search",
+   "results", "category", or "browse"), use web_search to VISIT those pages and extract
+   individual coin listings from the page content.
+3. For each individual coin, you need: a title, a price, and a URL to that specific listing.
+   A "search results page URL" is NOT a valid coin listing.
+4. Run at LEAST 3-5 separate searches across different dealer sites to find good results.
 
-URL RULES (CRITICAL):
-- For EACH result, use ONLY URLs that appeared verbatim in your web search results
-- NEVER construct, guess, or modify a URL path — copy it exactly as returned
-- If you are unsure of the exact URL, use the search results page URL instead
-- A real URL from a search result is ALWAYS better than a fabricated "correct-looking" one
+DEALER SITES TO SEARCH:
+- vcoins.com — individual listings look like vcoins.com/en/stores/DEALER/ID/...
+- ma-shops.com — individual listings look like ma-shops.com/DEALER/item/NUMBER
+- forumancientcoins.com — individual listings look like forumancientcoins.com/catalog/...
+- biddr.com, catawiki.com, hjbltd.com
+
+WHAT COUNTS AS A VALID RESULT:
+- A specific coin with a title, price, and individual listing URL
+- The URL must point to ONE coin, not a search page or category page
+
+WHAT DOES NOT COUNT:
+- Search result page URLs (e.g. vcoins.com/en/Search.aspx?search=domitian)
+- Category or browse pages
+- Generic dealer homepage links
+- Coins you remember from training data — ONLY list coins found in this search session
+
+URL RULES:
+- Use ONLY URLs that appeared verbatim in your web search results
+- NEVER construct, guess, or modify a URL path
+- A real URL from a search result is ALWAYS better than a fabricated one
 
 For each coin found, output a JSON object with these fields:
-- url: the EXACT listing URL from your search results (copy verbatim — do not construct)
-- title: the coin title/name as listed
-- price: the listed price
+- url: the EXACT individual listing URL (not a search page)
+- title: the coin title/name as listed by the dealer
+- price: the listed price (e.g. "$275.00", "EUR 180.00")
 - dealer: the dealer or site name
-- snippet: a brief description from the listing
+- snippet: condition, notes, or description from the listing
 
 Output your results as a JSON array wrapped in ```json and ``` markers.
 If you find nothing, return an empty array: ```json\n[]\n```"""
@@ -54,10 +73,14 @@ VERIFY_PROMPT = """You are a verification specialist. You will receive coin list
 and URL verification results. Your job is to FILTER OUT bad listings.
 
 REMOVE any listing where:
+- The URL points to a SEARCH RESULTS page, category page, or browse page — NOT an
+  individual coin listing. Search page indicators: "Search.aspx", "/search?", "/browse",
+  "/category/", "results" in URL path, or page title says "Search Results"
 - The page clearly indicates the item is SOLD or UNAVAILABLE
 - The URL is from an unknown or untrustworthy source
 
 KEEP listings where:
+- The URL points to an individual coin listing page (a single coin with its own page)
 - Status is 200 and item appears available
 - Status is 403 or 503 BUT the URL is from a known reputable dealer site
   (vcoins.com, ma-shops.com, forumancientcoins.com, biddr.com, catawiki.com,
@@ -146,15 +169,25 @@ def create_coin_search_team(llm_config: LLMConfig, search_prompt: str = ""):
                 HumanMessage(
                     content=f"The user is looking for: {user_msg}\n\n"
                     f"Here are web search results:\n{raw_results}\n\n"
-                    "Extract coin listings from these results and format as instructed."
+                    "Extract INDIVIDUAL coin listings with prices from these results."
                 ),
             ]
             response = await model.ainvoke(messages)
         else:
-            # Claude mode: let Claude use its built-in web_search tool natively
+            # Claude mode: use built-in web_search with tactical instructions
             messages = [
                 SystemMessage(content=combined_prompt),
-                HumanMessage(content=f"Search for: {user_msg}"),
+                HumanMessage(
+                    content=f"Find specific coins for sale matching: {user_msg}\n\n"
+                    "Search strategy:\n"
+                    "1. Use site-specific searches (e.g. site:vcoins.com) to find "
+                    "individual coin listings with prices\n"
+                    "2. If you find search result pages, visit them to extract individual "
+                    "coin listings with titles, prices, and direct URLs\n"
+                    "3. Search across multiple dealer sites (vcoins.com, ma-shops.com, etc.)\n"
+                    "4. I need SPECIFIC coins with individual listing URLs and prices — "
+                    "NOT search page links or general recommendations"
+                ),
             ]
             response = await model.ainvoke(messages)
 

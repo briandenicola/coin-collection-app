@@ -82,8 +82,17 @@ async def verify_url(url: str) -> str:
     """
     from urllib.parse import urlparse
 
-    domain = urlparse(url).netloc.lower().lstrip("www.")
+    parsed = urlparse(url)
+    domain = parsed.netloc.lower().lstrip("www.")
     is_trusted = any(d in domain for d in TRUSTED_DOMAINS)
+
+    # Detect search/category page URLs (not individual listings)
+    path_lower = parsed.path.lower() + "?" + (parsed.query or "").lower()
+    search_indicators = [
+        "search.aspx", "/search?", "/search/", "/browse", "/category/",
+        "/results", "viewmode=", "searchterm=", "/en/search",
+    ]
+    is_search_page = any(ind in path_lower for ind in search_indicators)
 
     try:
         async with httpx.AsyncClient(timeout=settings.verification_timeout, follow_redirects=True) as client:
@@ -98,12 +107,23 @@ async def verify_url(url: str) -> str:
         buy_indicators = ["add to cart", "buy now", "add to basket", "purchase", "bid now", "place bid"]
         has_buy = any(indicator in text for indicator in buy_indicators)
 
+        # Also detect search pages from page content
+        if not is_search_page:
+            search_content_hints = ["showing results for", "items found", "search results", "refine your search"]
+            is_search_page = any(hint in text for hint in search_content_hints)
+
         return (
             f"Status: {status}\n"
             f"Trusted Dealer Site: {is_trusted}\n"
+            f"Search/Category Page (NOT individual listing): {is_search_page}\n"
             f"Sold/Unavailable: {is_sold}\n"
             f"Has Buy/Bid Option: {has_buy}\n"
             f"URL: {url}"
         )
     except Exception as e:
-        return f"Error fetching URL: {e}\nTrusted Dealer Site: {is_trusted}\nURL: {url}"
+        return (
+            f"Error fetching URL: {e}\n"
+            f"Trusted Dealer Site: {is_trusted}\n"
+            f"Search/Category Page: {is_search_page}\n"
+            f"URL: {url}"
+        )
