@@ -23,6 +23,7 @@ async def stream_graph_events(graph, input_data: dict, config: dict | None = Non
     - data: {"type": "error", "message": "..."} on failure
     """
     full_text = ""
+    last_ai_content = ""
 
     try:
         async for event in graph.astream_events(input_data, config=config or {}, version="v2"):
@@ -40,16 +41,19 @@ async def stream_graph_events(graph, input_data: dict, config: dict | None = Non
                 output = event.get("data", {}).get("output")
                 if isinstance(output, AIMessage) and output.content:
                     content = output.content if isinstance(output.content, str) else ""
-                    if content and not full_text:
-                        full_text = content
+                    if content:
+                        last_ai_content = content
 
     except Exception:
         logger.exception("Error during graph streaming")
         yield format_sse({"type": "error", "message": "An error occurred while processing your request."})
         return
 
-    # Extract suggestions JSON from the final text and strip it from the display message
-    suggestions = extract_suggestions(full_text)
+    # Prefer the last complete AI message for suggestion extraction — it's the
+    # formatter output. The streamed full_text may contain intermediate LLM calls
+    # (search, verify) concatenated together.
+    suggestion_source = last_ai_content or full_text
+    suggestions = extract_suggestions(suggestion_source)
     clean_message = remove_json_block(full_text) if suggestions else full_text
 
     done_event: dict = {"type": "done", "message": clean_message.strip()}

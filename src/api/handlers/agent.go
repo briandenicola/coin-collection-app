@@ -127,6 +127,7 @@ Key organizations and websites to search:
 CRITICAL RULES:
 - ONLY return shows with FUTURE dates — never list past events
 - Focus on shows within the next 30 days unless the user specifies a different timeframe
+- When the user says "near me" or asks for nearby shows, only include shows within approximately 50 miles of their location
 - For each show, find: name, dates, location, venue, website URL
 - If the user mentions a location, prioritize shows near that area
 - Note any special exhibits, notable dealers, or auction events at the show`

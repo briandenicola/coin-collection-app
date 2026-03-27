@@ -47,19 +47,24 @@ For each show found, output a JSON object with these fields:
 Output your results as a JSON array wrapped in ```json and ``` markers.
 If you find nothing, return an empty array: ```json\n[]\n```"""
 
-DATE_VERIFY_PROMPT = """You are a date verification specialist for coin show events.
-You will receive coin show data. Your job is to FILTER OUT invalid shows.
+DATE_VERIFY_PROMPT = """You are a date and location verification specialist for coin show events.
+You will receive coin show data and the user's location context. Your job is to FILTER OUT invalid shows.
 
 Today's date context will be provided. REMOVE any show where:
 - The dates are in the PAST (already happened)
 - The show is marked as CANCELLED or POSTPONED INDEFINITELY
 - The dates are ambiguous and cannot be confirmed as future
 - The URL returned an error or does not match a real event page
+- The user asked for shows "near me" or near a specific location, and the show
+  is clearly NOT within approximately 50 miles of that location (e.g. a show
+  in New York is not "near" someone in Texas)
 
 KEEP shows where:
 - Dates are clearly in the future
 - Show appears to be actively scheduled (not cancelled)
 - Information comes from a real event page or listing
+- If user asked for nearby shows, the location is within a reasonable driving
+  distance (~50 miles) of their specified location or ZIP code
 
 Output the VERIFIED shows as a JSON array with the same fields.
 Wrap in ```json and ``` markers. If none pass verification, return an empty array."""
@@ -178,7 +183,7 @@ def create_coin_show_team(
         }
 
     async def verify_node(state: CoinShowSearchState) -> dict:
-        """Date Verification Agent: confirms show dates are future and not cancelled."""
+        """Verification Agent: confirms dates are future, not cancelled, and location is nearby."""
         search_results = state.get("search_results", "")
 
         if not search_results or "[]" in search_results:
@@ -190,13 +195,21 @@ def create_coin_show_team(
         from datetime import datetime, timezone
 
         today = datetime.now(tz=timezone.utc).strftime("%B %d, %Y")
+        loc_ctx = state.get("location_context", "") or location_hint
+
+        location_note = ""
+        if loc_ctx:
+            location_note = (
+                f"\n\nUser location context: {loc_ctx}\n"
+                "Filter out shows that are NOT within ~50 miles of this location."
+            )
 
         messages = [
             SystemMessage(content=DATE_VERIFY_PROMPT),
             HumanMessage(
-                content=f"Today's date is: {today}\n\n"
+                content=f"Today's date is: {today}{location_note}\n\n"
                 f"Coin show search results:\n{search_results}\n\n"
-                "Verify that each show's dates are in the future and the show is not cancelled."
+                "Verify dates are future, show is not cancelled, and location is reasonable."
             ),
         ]
         response = await model.ainvoke(messages)
