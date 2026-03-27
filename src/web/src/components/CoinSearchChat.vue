@@ -54,7 +54,7 @@
 
           <!-- Coin Show results -->
           <div v-if="msg.role === 'assistant' && msg.suggestions?.length && isCoinShowResults(msg.suggestions)" class="suggestions-grid">
-            <div v-for="(show, j) in msg.suggestions" :key="j" class="show-card">
+            <div v-for="(show, j) in (msg.suggestions as CoinShow[])" :key="j" class="show-card">
               <div class="show-body">
                 <a v-if="show.url" :href="show.url" target="_blank" rel="noopener" class="show-name-link">
                   <h4>{{ show.name }} <ExternalLink :size="12" /></h4>
@@ -76,7 +76,7 @@
 
           <!-- Coin suggestions after assistant message -->
           <div v-if="msg.role === 'assistant' && msg.suggestions?.length && !isCoinShowResults(msg.suggestions)" class="suggestions-grid">
-            <div v-for="(coin, j) in msg.suggestions" :key="j" class="suggestion-card">
+            <div v-for="(coin, j) in (msg.suggestions as CoinSuggestion[])" :key="j" class="suggestion-card">
               <div class="suggestion-img" v-if="getSuggestionImageUrl(coin)">
                 <img :src="getSuggestionImageUrl(coin)" :alt="coin.name" @error="handleImgError" />
               </div>
@@ -135,14 +135,16 @@
 <script setup lang="ts">
 import { ref, nextTick, onMounted, onBeforeUnmount, computed } from 'vue'
 import { agentChatStream, createCoin, proxyImage, scrapeImage, uploadImage, saveConversation, getPortfolioSummary, getAgentStatus } from '@/api/client'
-import type { CoinSuggestion, AgentChatMessage, Category, Material } from '@/types'
+import type { CoinSuggestion, CoinShow, AgentChatMessage, Category, Material } from '@/types'
 import { Bot, X, SendHorizontal, CirclePlus, ExternalLink, Save, AlertTriangle, Calendar, MapPin, Ticket } from 'lucide-vue-next'
 import DOMPurify from 'dompurify'
+
+type ChatSuggestion = CoinSuggestion | CoinShow
 
 interface ChatMsg {
   role: 'user' | 'assistant'
   content: string
-  suggestions?: CoinSuggestion[]
+  suggestions?: ChatSuggestion[]
   streaming?: boolean
 }
 
@@ -375,9 +377,9 @@ function formatMessage(text: string): string {
   return DOMPurify.sanitize(formatted, { ALLOWED_TAGS: ['strong', 'br'] })
 }
 
-function isCoinShowResults(suggestions: Record<string, unknown>[]): boolean {
+function isCoinShowResults(suggestions: ChatSuggestion[]): boolean {
   if (!suggestions?.length) return false
-  const first = suggestions[0]
+  const first = suggestions[0] as Record<string, unknown>
   return !!(first?.dates || first?.venue) && !first?.era && !first?.material
 }
 
