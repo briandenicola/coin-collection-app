@@ -12,6 +12,7 @@ from app.models.requests import (
 from app.models.responses import AgentResponse
 from app.streaming import stream_graph_events
 from app.supervisor import create_supervisor
+from app.teams.coin_analysis import create_coin_analysis_team
 
 router = APIRouter(prefix="/api")
 
@@ -70,9 +71,30 @@ async def search_shows(request: CoinShowSearchRequest):
 
 @router.post("/analyze", response_model=AgentResponse)
 async def analyze_coin(request: AnalyzeRequest):
-    """Analyze coin images using vision model."""
-    # TODO: Phase 5 — wire to Team 3 (non-streaming, returns structured response)
-    return AgentResponse(message="Analysis not yet implemented")
+    """Analyze coin images using vision model. Returns structured response."""
+    graph = create_coin_analysis_team(
+        llm_config=request.llm,
+        coin=request.coin,
+        images=request.images,
+        side=request.side,
+        custom_prompt=request.prompt,
+    )
+    result = await graph.ainvoke({
+        "messages": [],
+        "raw_analysis": "",
+        "formatted_analysis": "",
+        "coin_context": "",
+        "analysis_prompt": "",
+        "image_contents": [],
+    })
+    analysis_text = result.get("formatted_analysis", "")
+    if not analysis_text:
+        # Fall back to messages
+        msgs = result.get("messages", [])
+        if msgs:
+            analysis_text = msgs[-1].content if hasattr(msgs[-1], "content") else str(msgs[-1])
+
+    return AgentResponse(analysis=analysis_text)
 
 
 @router.post("/portfolio/review")
