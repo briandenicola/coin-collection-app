@@ -21,6 +21,13 @@ func NewCoinHandler(repo *repository.CoinRepository, svc *services.CoinService) 
 	return &CoinHandler{repo: repo, svc: svc}
 }
 
+// PurchaseRequest holds optional details when purchasing a wishlist coin.
+type PurchaseRequest struct {
+	PurchasePrice    *float64 `json:"purchasePrice"`
+	PurchaseDate     string   `json:"purchaseDate"`
+	PurchaseLocation string   `json:"purchaseLocation"`
+}
+
 // List returns a paginated list of coins for the authenticated user.
 //
 //	@Summary		List coins
@@ -208,15 +215,17 @@ func (h *CoinHandler) Update(c *gin.Context) {
 // Purchase marks a wishlist coin as purchased (moves it to the collection).
 //
 //	@Summary		Mark coin as purchased
-//	@Description	Sets isWishlist to false, moving the coin from wishlist to collection. Only the coin owner can do this.
+//	@Description	Sets isWishlist to false, moving the coin from wishlist to collection. Optionally accepts purchase details.
 //	@Tags			Coins
+//	@Accept			json
 //	@Produce		json
-//	@Param			id	path		int	true	"Coin ID"
-//	@Success		200	{object}	models.Coin
-//	@Failure		400	{object}	ErrorResponse
-//	@Failure		401	{object}	ErrorResponse
-//	@Failure		404	{object}	ErrorResponse
-//	@Failure		500	{object}	ErrorResponse
+//	@Param			id		path		int						true	"Coin ID"
+//	@Param			body	body		PurchaseRequest			false	"Optional purchase details"
+//	@Success		200		{object}	models.Coin
+//	@Failure		400		{object}	ErrorResponse
+//	@Failure		401		{object}	ErrorResponse
+//	@Failure		404		{object}	ErrorResponse
+//	@Failure		500		{object}	ErrorResponse
 //	@Security		BearerAuth
 //	@Router			/coins/{id}/purchase [post]
 func (h *CoinHandler) Purchase(c *gin.Context) {
@@ -231,6 +240,23 @@ func (h *CoinHandler) Purchase(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Coin not found"})
 		return
+	}
+
+	// Apply optional purchase details from request body
+	var req PurchaseRequest
+	if c.Request.ContentLength > 0 {
+		_ = c.ShouldBindJSON(&req)
+	}
+	if req.PurchasePrice != nil {
+		coin.PurchasePrice = req.PurchasePrice
+	}
+	if req.PurchaseDate != "" {
+		if t, err := time.Parse("2006-01-02", req.PurchaseDate); err == nil {
+			coin.PurchaseDate = &t
+		}
+	}
+	if req.PurchaseLocation != "" {
+		coin.PurchaseLocation = req.PurchaseLocation
 	}
 
 	if err := h.svc.PurchaseCoin(coin, userID); err != nil {

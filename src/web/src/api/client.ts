@@ -123,7 +123,8 @@ export const getCoin = (id: number) => api.get<Coin>(`/coins/${id}`)
 export const createCoin = (coin: Partial<Coin>) => api.post<Coin>('/coins', sanitizeCoin(coin))
 export const updateCoin = (id: number, coin: Partial<Coin>, params?: Record<string, string>) =>
   api.put<Coin>(`/coins/${id}`, sanitizeCoin(coin), { params })
-export const purchaseCoin = (id: number) => api.post<Coin>(`/coins/${id}/purchase`)
+export const purchaseCoin = (id: number, data?: { purchasePrice?: number; purchaseDate?: string; purchaseLocation?: string }) =>
+  api.post<Coin>(`/coins/${id}/purchase`, data || {})
 export const sellCoin = (id: number, soldPrice: number | null, soldTo: string) =>
   api.post<Coin>(`/coins/${id}/sell`, { soldPrice, soldTo })
 export const deleteCoin = (id: number) => api.delete(`/coins/${id}`)

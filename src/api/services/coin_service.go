@@ -77,8 +77,16 @@ func (s *CoinService) DeleteCoin(id, userID uint) (int64, error) {
 }
 
 // PurchaseCoin marks a wishlist coin as purchased and records a value snapshot.
+// The coin's purchase fields (price, date, location) should be set on the model
+// before calling this method.
 func (s *CoinService) PurchaseCoin(coin *models.Coin, userID uint) error {
-	if err := s.repo.UpdateField(coin, "is_wishlist", false); err != nil {
+	updates := map[string]interface{}{
+		"is_wishlist":       false,
+		"purchase_price":    coin.PurchasePrice,
+		"purchase_date":     coin.PurchaseDate,
+		"purchase_location": coin.PurchaseLocation,
+	}
+	if err := s.repo.UpdateFields(coin, updates); err != nil {
 		return err
 	}
 	s.repo.RecordValueSnapshot(userID)

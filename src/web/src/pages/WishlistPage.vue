@@ -13,7 +13,7 @@
     </div>
 
     <div v-else-if="store.coins.length" class="coins-grid">
-      <CoinCard v-for="coin in store.coins" :key="coin.id" :coin="coin" wishlist @purchase="handlePurchase" />
+      <CoinCard v-for="coin in store.coins" :key="coin.id" :coin="coin" wishlist @purchase="openPurchaseModal" />
     </div>
 
     <div v-else class="empty-state">
@@ -24,6 +24,13 @@
       </button>
     </div>
 
+    <PurchaseModal
+      v-if="purchaseTarget"
+      :coin="purchaseTarget"
+      @close="purchaseTarget = null"
+      @confirm="handlePurchaseConfirm"
+    />
+
     <CoinSearchChat v-if="showChat" @close="showChat = false" @added="loadCoins" />
   </div>
 </template>
@@ -33,24 +40,31 @@ import { ref } from 'vue'
 import { useCoinsStore } from '@/stores/coins'
 import CoinCard from '@/components/CoinCard.vue'
 import CoinSearchChat from '@/components/CoinSearchChat.vue'
+import PurchaseModal from '@/components/PurchaseModal.vue'
 import { purchaseCoin } from '@/api/client'
 import type { Coin } from '@/types'
 import { CirclePlus, Bot } from 'lucide-vue-next'
 
 const store = useCoinsStore()
 const showChat = ref(false)
+const purchaseTarget = ref<Coin | null>(null)
 
 function loadCoins() {
   store.fetchCoins({ wishlist: 'true', sort: 'updated_at', order: 'desc' })
 }
 
-async function handlePurchase(coin: Coin) {
-  if (!confirm(`Move "${coin.name}" to your collection?`)) return
+function openPurchaseModal(coin: Coin) {
+  purchaseTarget.value = coin
+}
+
+async function handlePurchaseConfirm(data: { purchasePrice?: number; purchaseDate?: string; purchaseLocation?: string }) {
+  if (!purchaseTarget.value) return
   try {
-    await purchaseCoin(coin.id)
+    await purchaseCoin(purchaseTarget.value.id, data)
+    purchaseTarget.value = null
     loadCoins()
   } catch {
-    alert('Failed to mark as purchased')
+    purchaseTarget.value = null
   }
 }
 
