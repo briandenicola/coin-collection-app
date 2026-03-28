@@ -140,6 +140,7 @@ import { agentChatStream, createCoin, proxyImage, scrapeImage, uploadImage, save
 import type { CoinSuggestion, CoinShow, AgentChatMessage, Category, Material } from '@/types'
 import { Bot, X, SendHorizontal, CirclePlus, ExternalLink, Save, AlertTriangle, Calendar, MapPin, Ticket } from 'lucide-vue-next'
 import DOMPurify from 'dompurify'
+import MarkdownIt from 'markdown-it'
 
 type ChatSuggestion = CoinSuggestion | CoinShow
 
@@ -383,11 +384,15 @@ function parsePrice(price: string): number | null {
   return parseFloat(match[0].replace(/,/g, ''))
 }
 
+const md = new MarkdownIt({ html: false, linkify: true, breaks: true })
+
 function formatMessage(text: string): string {
-  const formatted = text
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\n/g, '<br>')
-  return DOMPurify.sanitize(formatted, { ALLOWED_TAGS: ['strong', 'br'] })
+  if (!text) return ''
+  const html = md.render(text)
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: ['strong', 'em', 'br', 'p', 'ul', 'ol', 'li', 'a', 'h1', 'h2', 'h3', 'h4', 'code', 'pre', 'blockquote', 'hr'],
+    ALLOWED_ATTR: ['href', 'target', 'rel'],
+  })
 }
 
 function isCoinShowResults(suggestions: ChatSuggestion[]): boolean {
@@ -682,6 +687,53 @@ function handleViewportResize() {
   content: '▊';
   animation: blink 1s step-end infinite;
   color: var(--accent-gold);
+}
+
+/* Markdown inside chat bubbles */
+.bubble-content :deep(p) {
+  margin: 0 0 0.5em;
+}
+.bubble-content :deep(p:last-child) {
+  margin-bottom: 0;
+}
+.bubble-content :deep(ul),
+.bubble-content :deep(ol) {
+  margin: 0.25em 0 0.5em 1.25em;
+  padding: 0;
+}
+.bubble-content :deep(li) {
+  margin-bottom: 0.2em;
+}
+.bubble-content :deep(a) {
+  color: var(--accent-gold);
+  text-decoration: underline;
+}
+.bubble-content :deep(code) {
+  background: var(--bg-elevated, rgba(255,255,255,0.06));
+  padding: 0.1em 0.35em;
+  border-radius: 3px;
+  font-size: 0.88em;
+}
+.bubble-content :deep(pre) {
+  background: var(--bg-elevated, rgba(255,255,255,0.06));
+  padding: 0.6em 0.8em;
+  border-radius: var(--radius-sm);
+  overflow-x: auto;
+  margin: 0.5em 0;
+}
+.bubble-content :deep(blockquote) {
+  border-left: 3px solid var(--accent-gold);
+  margin: 0.5em 0;
+  padding: 0.25em 0.75em;
+  color: var(--text-secondary);
+}
+.bubble-content :deep(h1),
+.bubble-content :deep(h2),
+.bubble-content :deep(h3),
+.bubble-content :deep(h4) {
+  margin: 0.5em 0 0.25em;
+  font-size: 1em;
+  font-weight: 600;
 }
 
 .status-text {
