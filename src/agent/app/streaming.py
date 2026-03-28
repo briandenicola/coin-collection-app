@@ -58,11 +58,15 @@ async def stream_graph_events(graph, input_data: dict, config: dict | None = Non
 
             elif kind == "on_tool_start":
                 tool_name = event.get("name", "")
+                logger.debug("[stream] Tool started: %s", tool_name)
                 if "search" in tool_name.lower():
                     yield format_sse({"type": "status", "message": "Searching the web..."})
 
             elif kind == "on_tool_end":
                 tool_name = event.get("name", "")
+                tool_output = event.get("data", {}).get("output", "")
+                output_len = len(str(tool_output)) if tool_output else 0
+                logger.debug("[stream] Tool ended: %s (output=%d chars)", tool_name, output_len)
                 if "search" in tool_name.lower():
                     yield format_sse({"type": "status", "message": "Processing search results..."})
 

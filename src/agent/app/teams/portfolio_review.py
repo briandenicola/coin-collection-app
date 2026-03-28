@@ -95,6 +95,7 @@ def create_portfolio_review_team(
 
     async def reader_node(state: PortfolioReviewState) -> dict:
         """Portfolio Reader Agent: summarizes holdings data."""
+        logger.debug("[portfolio] reader_node start — portfolio_data=%d chars", len(portfolio_data))
         messages = [
             SystemMessage(content=READER_PROMPT),
             HumanMessage(content=f"Here is the portfolio data:\n\n{portfolio_data}"),
@@ -110,6 +111,7 @@ def create_portfolio_review_team(
     async def valuation_node(state: PortfolioReviewState) -> dict:
         """Valuation Agent: assesses market conditions for the portfolio."""
         summary = state.get("portfolio_summary", "")
+        logger.debug("[portfolio] valuation_node start — summary=%d chars", len(summary))
 
         messages = [
             SystemMessage(content=VALUATION_PROMPT),
@@ -131,6 +133,10 @@ def create_portfolio_review_team(
         summary = state.get("portfolio_summary", "")
         valuation = state.get("valuation_commentary", "")
         user_msg = state.get("user_message", user_message)
+        logger.debug(
+            "[portfolio] analysis_node start — summary=%d chars, valuation=%d chars",
+            len(summary), len(valuation),
+        )
 
         user_context = ""
         if user_msg:

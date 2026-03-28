@@ -44,6 +44,7 @@ def create_searxng_search(searxng_url: str = ""):
         a live web search.  Pass a descriptive search query and receive
         titles, URLs, and text snippets from multiple search engines.
         """
+        logger.debug("[searxng] Searching: %.120s (url=%s)", query, url)
         try:
             async with httpx.AsyncClient(timeout=settings.verification_timeout) as client:
                 resp = await client.get(
@@ -64,7 +65,10 @@ def create_searxng_search(searxng_url: str = ""):
 
         results = data.get("results", [])[:settings.max_search_results]
         if not results:
+            logger.debug("[searxng] No results for query: %.80s", query)
             return "No results found."
+
+        logger.debug("[searxng] Got %d results for query: %.80s", len(results), query)
 
         formatted = []
         for r in results:
