@@ -31,9 +31,9 @@ Browser → localhost:8080 (Go/Gin API, serves REST endpoints)
 
 In development, the Vite dev server runs on `:5173` with hot-reload and proxies any `/api/*` or `/uploads/*` request to the Go API on `:8080`. The browser only talks to the Vite server.
 
-### Production (single container, single port)
+### Production (two containers)
 
-The Dockerfile uses a multi-stage build to combine both into one image:
+The app Dockerfile uses a multi-stage build to combine the Go API and Vue SPA into one image. A separate Python agent container runs the LangGraph AI service. Both are orchestrated via `docker-compose.yaml`:
 
 ```
 Stage 1: node:24-alpine     → npm run build  → produces dist/ (static HTML/JS/CSS)
@@ -43,16 +43,19 @@ Stage 3: alpine:3.21        → copies both:
            /app/wwwroot/             (Vue dist/ output)
 ```
 
-The Go binary serves the Vue SPA as static files **and** handles API routes — one process does both jobs:
+The Go binary serves the Vue SPA as static files **and** handles API routes — one process does both jobs. AI agent requests are proxied to the Python agent container:
 
 ```
-Browser → localhost:8080 → Go binary inside container
+Browser → localhost:8080 → Go binary (app container)
               ├─ /api/*      → Gin REST handlers
               ├─ /uploads/*  → serves uploaded images from volume
               └─ /*          → serves Vue SPA from /app/wwwroot/
+
+Go API → localhost:8081 → Python agent (agent container)
+              └─ AI agent requests (search, analysis, portfolio)
 ```
 
-No nginx or reverse proxy needed. Docker volumes persist the SQLite database and uploaded images across container restarts.
+No nginx or reverse proxy needed. Docker volumes persist the SQLite database and uploaded images across container restarts. The agent container has a healthcheck and the app container depends on it being healthy.
 
 ## Prerequisites
 
@@ -96,10 +99,15 @@ For a detailed walkthrough of first-time setup, adding coins, import/export, and
 | `task test`        | Run Go architecture and unit tests       |
 | `task docker-build`| Build the Docker container image         |
 | `task docker-run`  | Run the Docker container locally         |
+| `task build-agent` | Build the Python agent service            |
+| `task run-agent`   | Run the Python agent dev server           |
+| `task test-agent`  | Run Python agent tests                    |
+| `task lint-agent`  | Lint Python agent code                    |
+| `task up-all`      | Run API, web, and agent servers in parallel |
 
 ## CI/CD
 
-A GitHub Actions workflow builds and pushes the Docker image to Docker Hub on push to `main`. See the [Deployment Guide](docs/deployment.md) for required secrets and full configuration.
+A GitHub Actions workflow builds and pushes the Docker images to Docker Hub on push to `main`. See the [Deployment Guide](docs/deployment.md) for required secrets and full configuration.
 
 ## Contributing
 
@@ -125,7 +133,7 @@ For detailed descriptions of every feature, see the [Features Guide](docs/featur
 
 ## Deployment
 
-The application ships as a single Docker container serving both the API and SPA. See the [Deployment Guide](docs/deployment.md) for full instructions.
+The application ships as two Docker containers — one for the Go API + Vue SPA, and one for the Python LangGraph agent. See the [Deployment Guide](docs/deployment.md) for full instructions.
 
 ```sh
 docker compose up        # quickest way to run
@@ -197,7 +205,7 @@ AncientCoins/
 │   │   │   ├── tools/search.py       # SearXNG search + URL verification tools
 │   │   │   ├── models/               # Pydantic request/response schemas
 │   │   │   └── teams/                # Multi-agent team pipelines
-│   │   │       ├── coin_search.py    # Team 1: Search → Verify → Format
+│   │   │       ├── coin_search.py    # Team 1: Search → Fetch → Format
 │   │   │       ├── coin_shows.py     # Team 2: Shows → Date verify → Format
 │   │   │       ├── coin_analysis.py  # Team 3: Vision analysis → Format
 │   │   │       └── portfolio_review.py # Team 4: Read → Valuate → Analyze

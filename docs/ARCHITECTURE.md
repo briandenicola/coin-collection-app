@@ -140,7 +140,7 @@ Each team follows a multi-agent pipeline with verification steps to prevent hall
 
 | Team | Pipeline | Purpose |
 |------|----------|---------|
-| 1: Coin Search | Search → Verify URLs → Format | Find currently available coins |
+| 1: Coin Search | Search → Fetch → Format | Find currently available coins |
 | 2: Coin Shows | Search → Verify Dates → Format | Find upcoming numismatic events |
 | 3: Coin Analysis | Analyze (vision) → Format | AI image analysis of coins |
 | 4: Portfolio Review | Read → Valuate → Analyze | Collection analysis and recommendations |
@@ -166,7 +166,7 @@ The Python service is **stateless** — it has no database access. All configura
 | File | Purpose |
 |------|---------|
 | `src/agent/app/supervisor.py` | Top-level router + team wiring |
-| `src/agent/app/teams/coin_search.py` | Team 1: Search → Verify → Format |
+| `src/agent/app/teams/coin_search.py` | Team 1: Search → Fetch → Format |
 | `src/agent/app/teams/coin_shows.py` | Team 2: Shows → Date verify → Format |
 | `src/agent/app/teams/coin_analysis.py` | Team 3: Vision analysis → Format |
 | `src/agent/app/teams/portfolio_review.py` | Team 4: Read → Valuate → Analyze |

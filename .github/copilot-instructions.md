@@ -46,7 +46,7 @@ The Python agent is a **stateless** FastAPI service — it has no database acces
 
 | Team | Purpose | Pipeline |
 |---|---|---|
-| Team 1: Coin Search | Find coins for sale | Search → Verify URLs live/unsold → Format |
+| Team 1: Coin Search | Find coins for sale | Search → Fetch dealer pages → Format |
 | Team 2: Coin Shows | Find upcoming events | Search → Verify dates future → Format |
 | Team 3: Coin Analysis | Analyze coin images | Vision model analysis → Format |
 | Team 4: Portfolio Review | Assess collection | Read holdings → Valuate (via Team 1) → Analyze |
@@ -179,7 +179,8 @@ CI builds and pushes both images via GitHub Actions. `docker-compose` only refer
 | `OllamaTimeout` | Request timeout in seconds |
 | `SearXNGURL` | SearXNG search engine URL (required for Ollama web search) |
 | `NumistaAPIKey` | Numista catalog API key |
-| `AgentPrompt` | System prompt for coin search agent |
+| `CoinSearchPrompt` | System prompt for coin search agent |
+| `CoinShowsPrompt` | System prompt for coin shows agent |
 | `ValuationPrompt` | System prompt for value estimator |
 | `ObversePrompt` | Prompt for obverse image analysis |
 | `ReversePrompt` | Prompt for reverse image analysis |
