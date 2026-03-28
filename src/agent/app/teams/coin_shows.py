@@ -172,6 +172,7 @@ def create_coin_show_team(
         """Search Agent: finds upcoming coin shows via web search."""
         user_msg = state.get("user_message", "")
         loc_ctx = state.get("location_context", "") or location_hint
+        logger.debug("[coin_shows] search_node start — query: %.100s, location: %.60s", user_msg, loc_ctx)
 
         # Inject location context if the prompt has a placeholder, otherwise append
         if "{location_context}" in base_search_prompt:
@@ -192,6 +193,10 @@ def create_coin_show_team(
             result = await search_agent.ainvoke({"messages": messages})
             last_msg = result["messages"][-1]
             response_content = last_msg.content if isinstance(last_msg.content, str) else str(last_msg.content)
+            logger.debug(
+                "[coin_shows] ReAct agent returned %d messages, content=%d chars",
+                len(result["messages"]), len(response_content),
+            )
         else:
             # Anthropic: web_search enabled via get_search_model
             messages = [
@@ -200,6 +205,7 @@ def create_coin_show_team(
             ]
             response = await search_model.ainvoke(messages)
             response_content = response.content if isinstance(response.content, str) else str(response.content)
+            logger.debug("[coin_shows] Anthropic search response=%d chars", len(response_content))
 
         return {
             "search_results": response_content,
@@ -209,6 +215,7 @@ def create_coin_show_team(
     async def verify_node(state: CoinShowSearchState) -> dict:
         """Verification Agent: confirms dates are future, not cancelled, and location is nearby."""
         search_results = state.get("search_results", "")
+        logger.debug("[coin_shows] verify_node start — search_results=%d chars", len(search_results))
 
         if not search_results or _is_empty_json_result(search_results):
             return {
@@ -247,6 +254,7 @@ def create_coin_show_team(
         """Formatter Agent: structures verified shows into CoinShow schema."""
         verified = state.get("verification_results", "")
         user_msg = state.get("user_message", "")
+        logger.debug("[coin_shows] format_node start — verified=%d chars", len(verified))
 
         has_no_results = (
             "no shows found" in verified.lower()

@@ -105,6 +105,7 @@ def create_coin_search_team(llm_config: LLMConfig, search_prompt: str = ""):
     async def search_node(state: CoinSearchState) -> dict:
         """Phase 1: Search the web for dealer pages."""
         user_msg = state.get("user_message", "")
+        logger.debug("[coin_search] search_node start — query: %.100s", user_msg)
 
         messages = [
             SystemMessage(content=combined_search),
@@ -119,11 +120,16 @@ def create_coin_search_team(llm_config: LLMConfig, search_prompt: str = ""):
             result = await search_agent.ainvoke({"messages": messages})
             last_msg = result["messages"][-1]
             content = last_msg.content if isinstance(last_msg.content, str) else str(last_msg.content)
+            logger.debug(
+                "[coin_search] ReAct agent returned %d messages, content=%d chars",
+                len(result["messages"]), len(content),
+            )
         else:
             # Anthropic: built-in web_search handled server-side
             model = get_search_model(llm_config)
             response = await model.ainvoke(messages)
             content = response.content if isinstance(response.content, str) else str(response.content)
+            logger.debug("[coin_search] Anthropic search response=%d chars", len(content))
 
         return {"search_results": content, "messages": []}
 
@@ -133,6 +139,7 @@ def create_coin_search_team(llm_config: LLMConfig, search_prompt: str = ""):
 
         search_results = state.get("search_results", "")
         urls = _extract_urls(search_results)
+        logger.debug("[coin_search] fetch_node — found %d URLs to fetch", len(urls))
 
         if not urls:
             return {"fetched_listings": "", "messages": []}
@@ -158,6 +165,7 @@ def create_coin_search_team(llm_config: LLMConfig, search_prompt: str = ""):
         user_msg = state.get("user_message", "")
         search_results = state.get("search_results", "")
         model = get_chat_model(llm_config)
+        logger.debug("[coin_search] format_node — fetched_listings=%d chars", len(fetched))
 
         if not fetched.strip():
             # No listings found — generate a helpful response via LLM (streams)

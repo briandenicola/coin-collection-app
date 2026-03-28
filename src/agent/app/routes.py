@@ -40,6 +40,10 @@ def _build_messages(message: str, history: list | None = None, system_prompt: st
 @router.post("/search/coins")
 async def search_coins(request: CoinSearchRequest):
     """Search for coins using multi-agent pipeline with verification. Streams SSE."""
+    logger.info(
+        "POST /search/coins — provider=%s, model=%s, message=%.80s",
+        request.llm.provider, request.llm.model, request.message,
+    )
     messages = _build_messages(request.message, request.history)
     graph = create_supervisor(
         request.llm,
@@ -60,6 +64,10 @@ async def search_coins(request: CoinSearchRequest):
 @router.post("/search/shows")
 async def search_shows(request: CoinShowSearchRequest):
     """Search for upcoming coin shows with date verification. Streams SSE."""
+    logger.info(
+        "POST /search/shows — provider=%s, model=%s, message=%.80s",
+        request.llm.provider, request.llm.model, request.message,
+    )
     messages = _build_messages(request.message, request.history)
     graph = create_supervisor(
         request.llm,
@@ -79,6 +87,11 @@ async def search_shows(request: CoinShowSearchRequest):
 @router.post("/analyze", response_model=AgentResponse)
 async def analyze_coin(request: AnalyzeRequest):
     """Analyze coin images using vision model. Returns structured response."""
+    logger.info(
+        "POST /analyze — provider=%s, model=%s, images=%d, side=%s",
+        request.llm.provider, request.llm.model,
+        len(request.images or []), request.side or "general",
+    )
     graph = create_coin_analysis_team(
         llm_config=request.llm,
         coin=request.coin,
@@ -114,6 +127,11 @@ async def analyze_coin(request: AnalyzeRequest):
 @router.post("/portfolio/review")
 async def review_portfolio(request: PortfolioReviewRequest):
     """Review portfolio with live valuation. Streams SSE."""
+    logger.info(
+        "POST /portfolio/review — provider=%s, model=%s, message=%.80s",
+        request.llm.provider, request.llm.model,
+        request.message or "Analyze my portfolio",
+    )
     prompt = request.valuation_prompt or "You are a numismatic portfolio analyst."
     messages = _build_messages(request.message or "Analyze my portfolio", request.history, prompt)
     graph = create_supervisor(
