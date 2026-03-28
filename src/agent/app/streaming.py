@@ -13,28 +13,55 @@ from langchain_core.messages import AIMessage, AIMessageChunk
 
 logger = logging.getLogger(__name__)
 
+# Maps LangGraph node names to user-facing status messages.
+_STATUS_MESSAGES: dict[str, str] = {
+    "router": "Routing your request...",
+    "coin_search": "Searching for coins...",
+    "coin_shows": "Finding upcoming coin shows...",
+    "portfolio": "Analyzing your portfolio...",
+    "general": "Thinking...",
+    "analysis": "Analyzing coin images...",
+    # Sub-graph node names (may propagate through astream_events)
+    "search": "Searching the web...",
+    "fetch": "Fetching dealer pages...",
+    "verify": "Verifying results...",
+    "format": "Formatting results...",
+    "summarize": "Summarizing portfolio...",
+    "analyze": "Analyzing collection...",
+}
+
 
 async def stream_graph_events(graph, input_data: dict, config: dict | None = None) -> AsyncGenerator[str, None]:
     """Stream LangGraph events as SSE-formatted strings.
 
     Yields SSE data lines compatible with the Go API's existing SSE proxy format:
     - data: {"type": "text", "text": "..."} for incremental text
+    - data: {"type": "status", "message": "..."} for progress indicators
     - data: {"type": "done", "message": "...", "suggestions": [...]} for completion
     - data: {"type": "error", "message": "..."} on failure
     """
     full_text = ""
     last_ai_content = ""
     last_node_message = ""
+    has_streamed_text = False
 
     try:
         async for event in graph.astream_events(input_data, config=config or {}, version="v2"):
             kind = event.get("event", "")
 
-            if kind == "on_chat_model_stream":
+            if kind == "on_chain_start":
+                name = event.get("name", "")
+                status = _STATUS_MESSAGES.get(name)
+                if status:
+                    yield format_sse({"type": "status", "message": status})
+
+            elif kind == "on_chat_model_stream":
                 chunk = event.get("data", {}).get("chunk")
                 if isinstance(chunk, AIMessageChunk) and chunk.content:
                     text = chunk.content if isinstance(chunk.content, str) else ""
                     if text:
+                        if not has_streamed_text:
+                            has_streamed_text = True
                         full_text += text
                         yield format_sse({"type": "text", "text": text})
 

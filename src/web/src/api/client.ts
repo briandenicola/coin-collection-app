@@ -159,6 +159,7 @@ export async function agentChatStream(
   onText: (text: string) => void,
   onDone: (message: string, suggestions: CoinSuggestion[]) => void,
   onError: (error: string) => void,
+  onStatus?: (status: string) => void,
 ) {
   const token = localStorage.getItem('token')
   const baseURL = import.meta.env.VITE_API_BASE_URL || ''
@@ -202,6 +203,8 @@ export async function agentChatStream(
           const event = JSON.parse(data)
           if (event.type === 'text') {
             onText(event.text)
+          } else if (event.type === 'status') {
+            onStatus?.(event.message)
           } else if (event.type === 'done') {
             onDone(event.message, event.suggestions || [])
           }

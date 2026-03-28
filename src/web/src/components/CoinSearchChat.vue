@@ -49,7 +49,10 @@
 
         <template v-for="(msg, i) in messages" :key="i">
           <div class="chat-bubble" :class="[msg.role, { streaming: msg.streaming }]">
-            <div class="bubble-content" v-html="formatMessage(msg.content)"></div>
+            <div v-if="msg.streaming && msg.statusText && !msg.content" class="bubble-content status-text">
+              <span class="status-indicator"></span>{{ msg.statusText }}
+            </div>
+            <div v-else class="bubble-content" v-html="formatMessage(msg.content)"></div>
           </div>
 
           <!-- Coin Show results -->
@@ -111,7 +114,6 @@
         <div v-if="loading && !messages[messages.length-1]?.streaming" class="chat-bubble assistant">
           <div class="bubble-content thinking">
             <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-            Searching the web for coins...
           </div>
         </div>
       </div>
@@ -146,6 +148,7 @@ interface ChatMsg {
   content: string
   suggestions?: ChatSuggestion[]
   streaming?: boolean
+  statusText?: string
 }
 
 const props = defineProps<{
@@ -207,6 +210,7 @@ async function sendMessage() {
     history,
     (chunk: string) => {
       const msg = messages.value[assistantIdx]!
+      if (msg.statusText) msg.statusText = ''
       msg.content += chunk
       scrollToBottom()
     },
@@ -215,6 +219,7 @@ async function sendMessage() {
       msg.content = message
       msg.suggestions = suggestions
       msg.streaming = false
+      msg.statusText = ''
       loading.value = false
       scrollToBottom()
     },
@@ -222,8 +227,16 @@ async function sendMessage() {
       const msg = messages.value[assistantIdx]!
       msg.content = error || 'Failed to get a response. Please try again.'
       msg.streaming = false
+      msg.statusText = ''
       loading.value = false
       scrollToBottom()
+    },
+    (status: string) => {
+      const msg = messages.value[assistantIdx]!
+      if (!msg.content) {
+        msg.statusText = status
+        scrollToBottom()
+      }
     },
   )
 }
@@ -669,6 +682,27 @@ function handleViewportResize() {
   content: '▊';
   animation: blink 1s step-end infinite;
   color: var(--accent-gold);
+}
+
+.status-text {
+  color: var(--text-secondary, #999);
+  font-style: italic;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.status-text .status-indicator {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-gold);
+  animation: pulse-dot 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 0.3; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.2); }
 }
 
 @keyframes blink {
