@@ -32,8 +32,8 @@
             <button class="example-btn" @click="sendExample('Find me Roman silver denarii of Julius Caesar')">
               Roman denarii of Julius Caesar
             </button>
-            <button class="example-btn" @click="sendExample('I\'m looking for Byzantine gold solidi under $500')">
-              Byzantine gold solidi under $500
+            <button class="example-btn" @click="sendExample('I\'m looking for Byzantine gold solidi under $1000')">
+              Byzantine gold solidi under $1000
             </button>
             <button class="example-btn" @click="sendExample('Show me ancient Greek tetradrachms from Athens')">
               Greek tetradrachms from Athens
