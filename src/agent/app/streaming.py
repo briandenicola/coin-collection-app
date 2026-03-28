@@ -44,6 +44,7 @@ async def stream_graph_events(graph, input_data: dict, config: dict | None = Non
     last_ai_content = ""
     last_node_message = ""
     has_streamed_text = False
+    tool_use_reported = False
 
     try:
         async for event in graph.astream_events(input_data, config=config or {}, version="v2"):
@@ -58,17 +59,50 @@ async def stream_graph_events(graph, input_data: dict, config: dict | None = Non
             elif kind == "on_chat_model_stream":
                 chunk = event.get("data", {}).get("chunk")
                 if isinstance(chunk, AIMessageChunk) and chunk.content:
-                    text = chunk.content if isinstance(chunk.content, str) else ""
-                    if text:
-                        if not has_streamed_text:
-                            has_streamed_text = True
-                        full_text += text
-                        yield format_sse({"type": "text", "text": text})
+                    # String content = normal text tokens
+                    if isinstance(chunk.content, str):
+                        if chunk.content:
+                            if not has_streamed_text:
+                                has_streamed_text = True
+                            full_text += chunk.content
+                            yield format_sse({"type": "text", "text": chunk.content})
+                    elif isinstance(chunk.content, list):
+                        # List content = Anthropic content blocks (tool use, search results, etc.)
+                        for block in chunk.content:
+                            if not isinstance(block, dict):
+                                continue
+                            block_type = block.get("type", "")
+
+                            if block_type == "server_tool_use" and not tool_use_reported:
+                                tool_name = block.get("name", "")
+                                if "search" in tool_name:
+                                    yield format_sse({"type": "status", "message": "Searching the web..."})
+                                    tool_use_reported = True
+
+                            elif block_type == "web_search_tool_result":
+                                yield format_sse({"type": "status", "message": "Processing search results..."})
+                                tool_use_reported = False
+
+                            elif block_type == "text" and block.get("text"):
+                                text = block["text"]
+                                if not has_streamed_text:
+                                    has_streamed_text = True
+                                full_text += text
+                                yield format_sse({"type": "text", "text": text})
 
             elif kind == "on_chat_model_end":
                 output = event.get("data", {}).get("output")
                 if isinstance(output, AIMessage) and output.content:
-                    content = output.content if isinstance(output.content, str) else ""
+                    if isinstance(output.content, str):
+                        content = output.content
+                    elif isinstance(output.content, list):
+                        # Extract text from Anthropic content blocks
+                        content = "".join(
+                            b.get("text", "") for b in output.content
+                            if isinstance(b, dict) and b.get("type") == "text"
+                        )
+                    else:
+                        content = ""
                     if content:
                         last_ai_content = content
 
@@ -78,7 +112,15 @@ async def stream_graph_events(graph, input_data: dict, config: dict | None = Non
                 if isinstance(output, dict):
                     for msg in output.get("messages", []):
                         if isinstance(msg, AIMessage) and msg.content:
-                            content = msg.content if isinstance(msg.content, str) else ""
+                            if isinstance(msg.content, str):
+                                content = msg.content
+                            elif isinstance(msg.content, list):
+                                content = "".join(
+                                    b.get("text", "") for b in msg.content
+                                    if isinstance(b, dict) and b.get("type") == "text"
+                                )
+                            else:
+                                content = ""
                             if content:
                                 last_node_message = content
 
