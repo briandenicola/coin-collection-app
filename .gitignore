@@ -42,3 +42,4 @@ data/
 
 # Copilot CLI session state
 .copilot/
+temp_test.go

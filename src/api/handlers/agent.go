@@ -1,12 +1,11 @@
 package handlers
 
 import (
-	"bufio"
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -18,17 +17,56 @@ import (
 )
 
 type AgentHandler struct {
-	client   *http.Client
-	repo     *repository.AgentRepository
-	userRepo *repository.UserRepository
+	repo        *repository.AgentRepository
+	userRepo    *repository.UserRepository
+	journalRepo *repository.JournalRepository
+	proxy       *services.AgentProxy
 }
 
-func NewAgentHandler(repo *repository.AgentRepository, userRepo *repository.UserRepository) *AgentHandler {
+func NewAgentHandler(repo *repository.AgentRepository, userRepo *repository.UserRepository, journalRepo *repository.JournalRepository, proxy *services.AgentProxy) *AgentHandler {
 	return &AgentHandler{
-		client:   &http.Client{Timeout: 300 * time.Second},
-		repo:     repo,
-		userRepo: userRepo,
+		repo:        repo,
+		userRepo:    userRepo,
+		journalRepo: journalRepo,
+		proxy:       proxy,
 	}
+}
+
+// resolveLLMConfig reads the explicit AIProvider setting and builds LLMConfig.
+// Returns an error message if the provider is not configured.
+func resolveLLMConfig() (services.LLMConfig, string) {
+	provider := services.GetSetting(services.SettingAIProvider)
+	if provider == "" {
+		return services.LLMConfig{}, "AI provider not configured. Please select Anthropic or Ollama in Admin Settings."
+	}
+
+	cfg := services.LLMConfig{
+		Provider:   provider,
+		OllamaURL:  services.GetSetting(services.SettingOllamaURL),
+		SearXNGURL: services.GetSetting(services.SettingSearXNGURL),
+	}
+
+	switch provider {
+	case "anthropic":
+		cfg.APIKey = services.GetSetting(services.SettingAnthropicAPIKey)
+		cfg.Model = services.GetSetting(services.SettingAnthropicModel)
+		if cfg.APIKey == "" {
+			return services.LLMConfig{}, "Anthropic API key is required. Configure it in Admin Settings."
+		}
+	case "ollama":
+		cfg.Model = services.GetSetting(services.SettingOllamaModel)
+		if cfg.OllamaURL == "" {
+			return services.LLMConfig{}, "Ollama URL is required. Configure it in Admin Settings."
+		}
+	default:
+		return services.LLMConfig{}, "Invalid AI provider. Please select Anthropic or Ollama in Admin Settings."
+	}
+
+	if cfg.Model == "" {
+		cfg.Model = "claude-sonnet-4-20250514"
+	}
+
+	return cfg, ""
 }
 
 // Chat request/response types
@@ -62,165 +100,68 @@ type AgentChatResponse struct {
 	Suggestions []CoinSuggestion `json:"suggestions"`
 }
 
-// Anthropic API types
 
-type anthropicRequest struct {
-	Model     string             `json:"model"`
-	MaxTokens int                `json:"max_tokens"`
-	Stream    bool               `json:"stream"`
-	System    string             `json:"system"`
-	Tools     []anthropicTool    `json:"tools"`
-	Messages  []anthropicMessage `json:"messages"`
-}
 
-type anthropicTool struct {
-	Type    string `json:"type"`
-	Name    string `json:"name"`
-	MaxUses int    `json:"max_uses,omitempty"`
-}
+const DefaultCoinSearchPrompt = `You are a numismatic search specialist focused on Greek and Roman coinage up through the Byzantine Era. You specialize in finding that rare gem of a coin for just the right price.
 
-type anthropicMessage struct {
-	Role    string      `json:"role"`
-	Content interface{} `json:"content"`
-}
+CRITICAL RULES:
+- Search for coins that are CURRENTLY FOR SALE — never return sold items or past auction results
+- ONLY search reputable dealer sites: vcoins.com, ma-shops.com, forumancientcoins.com, biddr.com, catawiki.com, hjbltd.com
+- Add "for sale" or "buy now" to your search queries
+- For EACH result, you MUST provide the exact URL to the listing page
+- NEVER invent, guess, or recall URLs from memory — only use URLs from search results
+- Return ONLY results you actually found in your search
+- If a listing says "SOLD", "Auction ended", or "Realized price" — SKIP IT
+- ACSSearch.info is a PAST auction archive — do NOT use it
+- Quality over quantity — 2 verified, available results beat 5 questionable ones
+- Flag any concerns about authenticity or condition
+- Mention dealer/auction house reputation if known`
 
-type anthropicResponse struct {
-	Content []anthropicContent `json:"content"`
-	Error   *anthropicError    `json:"error,omitempty"`
-}
+const DefaultCoinShowsPrompt = `You are a coin show search specialist focused on numismatic conventions and collecting events.
 
-type anthropicContent struct {
-	Type string `json:"type"`
-	Text string `json:"text,omitempty"`
-}
+Search for upcoming coin shows, expos, and conventions, especially those featuring ancient, Greek, Roman, or Byzantine coinage. Also include major general numismatic shows.
 
-type anthropicError struct {
-	Type    string `json:"type"`
-	Message string `json:"message"`
-}
+Key organizations and websites to search:
+- coinshows.com (comprehensive coin show directory)
+- money.org (ANA — American Numismatic Association events)
+- pngdealers.org (PNG show schedule)
+- nyinc.info (New York International Numismatic Convention)
+- biddr.com (live auctions tied to shows)
 
-// SSE stream event types
-type streamEvent struct {
-	Type         string          `json:"type"`
-	Index        int             `json:"index,omitempty"`
-	ContentBlock *anthropicContent `json:"content_block,omitempty"`
-	Delta        *streamDelta    `json:"delta,omitempty"`
-}
+CRITICAL RULES:
+- ONLY return shows with FUTURE dates — never list past events
+- Focus on shows within the next 30 days unless the user specifies a different timeframe
+- When the user says "near me" or asks for nearby shows, only include shows within approximately 50 miles of their location
+- For each show, find: name, dates, location, venue, website URL
+- If the user mentions a location, prioritize shows near that area
+- Note any special exhibits, notable dealers, or auction events at the show`
 
-type streamDelta struct {
-	Type string `json:"type"`
-	Text string `json:"text,omitempty"`
-}
-
-const DefaultAgentPrompt = `You are a knowledgeable numismatist with a focus on Greek and Roman coinage up through the Byzantine Era. You specialize in finding that rare gem of a coin for just the right price. You know how to spot a fake but also a great deal. You are enthusiastic but informative, helpful and friendly.
-
-Core Capabilities:
-- Discover coins that are CURRENTLY FOR SALE from reputable dealers and active auction listings
-- Identify coins that match the user's requirements and pricing guidelines
-- Verify that the seller has a great reputation
-- Verify every link is real and currently accessible — never hallucinate or fabricate URLs
-- Filter out unwanted or potentially fake coins
-
-CRITICAL — Availability Rules:
-- ONLY return coins that are CURRENTLY AVAILABLE FOR PURCHASE or in an UPCOMING/ACTIVE auction
-- NEVER return sold items, past auction results, or price archives
-- If a listing says "SOLD", "Auction ended", "Realized price", or similar — SKIP IT
-- ACSSearch.info is an archive of PAST auction results — do NOT use it for current listings
-- When searching, add keywords like "buy now", "for sale", "in stock", or "available" to your queries
-- Verify each result page shows an active "Buy" or "Add to Cart" button, or an auction with a future end date
-
-Website Hints (search these but also search beyond them):
-- https://www.vcoins.com/ (dealer marketplace — items listed are for sale)
-- https://www.forumancientcoins.com/ (dealer with direct sales)
-- https://www.hjbltd.com/ (auction house)
-- https://www.biddr.com/ (live auction aggregator — check auction dates)
-- https://www.catawiki.com/ (online auctions — check if auction is active)
-- https://www.ma-shops.com/ (dealer marketplace)
-
-Important Rules:
-1. ALWAYS use the web_search tool to find real, currently available coins. Never invent listings.
-2. Every sourceUrl you return MUST be a real URL you found during your web search. If you cannot find a direct link, omit the suggestion entirely.
-3. Verify each result came from your search results. Do not guess or construct URLs.
-4. Include the actual listed price, not an estimate or a past realized price.
-5. Mention the dealer/auction house reputation if known.
-6. Flag any concerns about authenticity or condition.
-7. For imageUrl: if you can see a direct image URL (ending in .jpg, .png, etc.) in your search results, include it. If you cannot find a direct image URL — for example because the page uses dynamic/lazy image loading — set imageUrl to an empty string "". The system will automatically extract the image from the listing page. Do NOT skip a coin suggestion just because you cannot find its image URL.
-8. The sourceUrl is the most important link — always provide the direct URL to the listing page. The system uses it to extract images automatically when imageUrl is unavailable.
-
-After searching, provide an enthusiastic but informative response about what you found. Include a JSON block with structured coin suggestions. The JSON block MUST be wrapped in ` + "```json" + ` and ` + "```" + ` markers.
-
-The JSON should be an array of objects with these fields:
-- name: Full coin name/title as listed by the seller
-- description: Brief description including notable features, condition notes, and any authenticity observations
-- category: One of "Roman", "Greek", "Byzantine", "Modern", or "Other"
-- era: Time period (e.g., "27 BC - 14 AD")
-- ruler: Ruler or authority (if applicable)
-- material: One of "Gold", "Silver", "Bronze", "Copper", "Electrum", or "Other"
-- denomination: Coin denomination (e.g., "Denarius", "Tetradrachm")
-- estPrice: Actual listed price from the listing (e.g., "$150", "$200-300") — NOT a past realized price
-- imageUrl: Direct URL to the coin image file if available, or empty string "" if not found (the system will auto-extract from the listing page)
-- sourceUrl: Direct URL to the actual listing page (required — must be a real link from your search)
-- sourceName: Name of the dealer, auction house, or website
-
-Example format:
-` + "```json" + `
-[
-  {
-    "name": "Augustus AR Denarius - Lugdunum mint",
-    "description": "Silver denarius of Augustus, laureate head right. Rev: Gaius and Lucius Caesars. Good VF, nice cabinet tone. Reputable dealer with 20+ years experience.",
-    "category": "Roman",
-    "era": "27 BC - 14 AD",
-    "ruler": "Augustus",
-    "material": "Silver",
-    "denomination": "Denarius",
-    "estPrice": "$275",
-    "imageUrl": "https://www.vcoins.com/images/coin12345.jpg",
-    "sourceUrl": "https://www.vcoins.com/en/stores/example/1234",
-    "sourceName": "VCoins - Example Numismatics"
-  }
-]
-` + "```" + `
-
-Only include coins you actually found in your search results. Quality over quantity — 2 verified, currently available results are better than 5 sold or fabricated ones.
-
-Portfolio Analysis:
-When the user asks you to analyze their portfolio or collection, they will provide a portfolio summary with their collection composition (categories, materials, eras, rulers, top coins, total value). Use this data to:
-1. Assess the collection's strengths and identify well-represented areas
-2. Identify gaps — missing eras, under-represented categories, or rulers that would complement existing holdings
-3. Suggest specific acquisitions that would diversify or strengthen the collection
-4. Provide market context using web_search — are certain areas appreciating? Are there opportunities?
-5. Consider budget based on average coin value in their collection
-
-When doing portfolio analysis, DO NOT include a JSON suggestion block. Instead, provide a detailed written analysis with clear sections and actionable recommendations.
-
-Coin Shows & Events:
-When the user asks about upcoming coin shows, conventions, or numismatic events:
-1. Use web_search to find upcoming coin shows, expos, and numismatic conventions
-2. Focus on shows that feature ancient, Greek, Roman, or Byzantine coinage — but include major general numismatic shows as well
-3. Search for events from organizations like ANA (American Numismatic Association), PNG, NYINC (New York International Numismatic Convention), and regional coin clubs
-4. Website hints for coin show listings:
-   - https://www.coinshows.com/ (comprehensive coin show directory)
-   - https://www.money.org/ (ANA events and conventions)
-   - https://www.pngdealers.org/ (PNG show schedule)
-   - https://www.nyinc.info/ (NYINC annual convention)
-   - https://www.biddr.com/ (live auctions tied to shows)
-5. For each show found, provide: name, dates, location (city/venue), website link, and a brief note on relevance to ancient coin collectors
-6. Only include shows with future dates — do not list past events
-7. If the user mentions a location or region, prioritize shows near that area
-8. Mention any notable dealers, auction events, or special exhibits associated with the show`
-
-func (h *AgentHandler) getSystemPrompt(userID uint) string {
-	prompt := services.GetSetting(services.SettingAgentPrompt)
+func (h *AgentHandler) getCoinSearchPrompt() string {
+	prompt := services.GetSetting(services.SettingCoinSearchPrompt)
 	if prompt == "" {
-		prompt = DefaultAgentPrompt
+		prompt = DefaultCoinSearchPrompt
 	}
+	return prompt
+}
+
+func (h *AgentHandler) getCoinShowsPrompt(userID uint) string {
+	prompt := services.GetSetting(services.SettingCoinShowsPrompt)
+	if prompt == "" {
+		prompt = DefaultCoinShowsPrompt
+	}
+
+	// Inject current date so the agent knows what "upcoming" means
+	now := time.Now()
+	deadline := now.AddDate(0, 0, 30)
+	datePreamble := fmt.Sprintf("Today's date is %s. Unless the user specifies a different timeframe, only return shows between now and %s (next 30 days).\n\n",
+		now.Format("January 2, 2006"), deadline.Format("January 2, 2006"))
+	prompt = datePreamble + prompt
 
 	if user, err := h.userRepo.FindByID(userID); err == nil && user.ZipCode != "" {
 		prompt = fmt.Sprintf("The user's location ZIP code is %s. Use this to prioritize nearby coin shows, dealers, and events when relevant.\n\n%s", user.ZipCode, prompt)
 	} else {
 		prompt = fmt.Sprintf("The user has not set a ZIP code. If they ask about nearby coin shows or local events, ask them where they are located before searching.\n\n%s", prompt)
 	}
-
 	return prompt
 }
 
@@ -241,153 +182,71 @@ func (h *AgentHandler) ChatStream(c *gin.Context) {
 	logger := services.AppLogger
 	userID := c.GetUint("userId")
 
-	apiKey := services.GetSetting(services.SettingAnthropicAPIKey)
-	if apiKey == "" {
-		c.JSON(http.StatusServiceUnavailable, gin.H{
-			"error": "Anthropic API key not configured. Set it in Admin → Settings → AI Config.",
-		})
-		return
-	}
-
 	var req AgentChatRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Message is required"})
 		return
 	}
 
-	model := services.GetSetting(services.SettingAnthropicModel)
-	if model == "" {
-		model = "claude-sonnet-4-20250514"
+	// Resolve LLM provider from explicit setting
+	llmCfg, errMsg := resolveLLMConfig()
+	if errMsg != "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": errMsg})
+		return
 	}
 
-	// Build messages array from history + new message
-	messages := make([]anthropicMessage, 0, len(req.History)+1)
+	// Build history for the proxy
+	history := make([]services.ChatMessageProxy, 0, len(req.History))
 	for _, msg := range req.History {
-		messages = append(messages, anthropicMessage{
+		history = append(history, services.ChatMessageProxy{
 			Role:    msg.Role,
 			Content: msg.Content,
 		})
 	}
-	messages = append(messages, anthropicMessage{
-		Role:    "user",
-		Content: req.Message,
-	})
 
-	anthropicReq := anthropicRequest{
-		Model:     model,
-		MaxTokens: 4096,
-		Stream:    true,
-		System:    h.getSystemPrompt(userID),
-		Tools: []anthropicTool{
-			{
-				Type:    "web_search_20250305",
-				Name:    "web_search",
-				MaxUses: 20,
-			},
+	// Look up user zip code for location context
+	var zipCode string
+	if user, err := h.userRepo.FindByID(userID); err == nil {
+		zipCode = user.ZipCode
+	}
+
+	// Fetch portfolio summary so the agent has it if the router sends to portfolio team
+	var portfolio *services.PortfolioData
+	if summary, err := h.repo.GetPortfolioSummary(userID); err == nil && summary.TotalCoins > 0 {
+		portfolio = buildPortfolioData(summary)
+	}
+
+	proxyReq := services.AgentChatProxyRequest{
+		LLM: llmCfg,
+		User: services.UserContextProxy{
+			UserID:  userID,
+			ZipCode: zipCode,
 		},
-		Messages: messages,
+		Message:          req.Message,
+		History:          history,
+		CoinSearchPrompt: h.getCoinSearchPrompt(),
+		CoinShowsPrompt:  h.getCoinShowsPrompt(userID),
+		Portfolio:        portfolio,
 	}
 
-	body, err := json.Marshal(anthropicReq)
-	if err != nil {
-		logger.Error("agent", "Failed to marshal request: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to build request"})
-		return
-	}
-
-	httpReq, err := http.NewRequest("POST", "https://api.anthropic.com/v1/messages", bytes.NewReader(body))
-	if err != nil {
-		logger.Error("agent", "Failed to create HTTP request: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create request"})
-		return
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("x-api-key", apiKey)
-	httpReq.Header.Set("anthropic-version", "2023-06-01")
-
-	resp, err := h.client.Do(httpReq)
-	if err != nil {
-		logger.Error("agent", "Anthropic API call failed: %v", err)
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Failed to reach Anthropic API"})
-		return
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
-		logger.Error("agent", "Anthropic API returned %d: %s", resp.StatusCode, string(respBody))
-		c.JSON(http.StatusServiceUnavailable, gin.H{
-			"error": fmt.Sprintf("Anthropic API error (HTTP %d)", resp.StatusCode),
-		})
-		return
-	}
-
-	// Set SSE headers
-	c.Header("Content-Type", "text/event-stream")
-	c.Header("Cache-Control", "no-cache")
-	c.Header("Connection", "keep-alive")
-	c.Header("X-Accel-Buffering", "no")
-
-	flusher, ok := c.Writer.(http.Flusher)
-	if !ok {
-		logger.Error("agent", "Response writer does not support flushing")
-		return
-	}
-
-	var fullText strings.Builder
-
-	scanner := bufio.NewScanner(resp.Body)
-	// Increase buffer for large SSE events
-	buf := make([]byte, 0, 64*1024)
-	scanner.Buffer(buf, 1024*1024)
-
-	for scanner.Scan() {
-		line := scanner.Text()
-
-		if !strings.HasPrefix(line, "data: ") {
-			continue
-		}
-
-		data := strings.TrimPrefix(line, "data: ")
-		if data == "[DONE]" {
-			break
-		}
-
-		var event streamEvent
-		if err := json.Unmarshal([]byte(data), &event); err != nil {
-			continue
-		}
-
-		switch event.Type {
-		case "content_block_delta":
-			if event.Delta != nil && event.Delta.Type == "text_delta" && event.Delta.Text != "" {
-				fullText.WriteString(event.Delta.Text)
-				// Send text chunk to client
-				chunk, _ := json.Marshal(map[string]string{
-					"type": "text",
-					"text": event.Delta.Text,
-				})
-				fmt.Fprintf(c.Writer, "data: %s\n\n", chunk)
-				flusher.Flush()
-			}
-
-		case "message_stop":
-			// Parse suggestions from full accumulated text
-			text := fullText.String()
-			suggestions := extractSuggestions(text)
-			cleanMessage := removeJSONBlock(text)
-
-			done, _ := json.Marshal(map[string]interface{}{
-				"type":        "done",
-				"message":     cleanMessage,
-				"suggestions": suggestions,
-			})
-			fmt.Fprintf(c.Writer, "data: %s\n\n", done)
-			flusher.Flush()
-
-			logger.Info("agent", "Stream complete: %d suggestions found", len(suggestions))
+	if err := h.proxy.StreamChat(c.Request.Context(), c.Writer, proxyReq); err != nil {
+		logger.Error("agent", "Chat stream proxy failed: %v", err)
+		// Only send JSON error if headers haven't been sent yet
+		if !c.Writer.Written() {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Agent service unavailable"})
 		}
 	}
+}
+
+// AgentStatus returns the current AI provider configuration status.
+func (h *AgentHandler) AgentStatus(c *gin.Context) {
+	provider := services.GetSetting(services.SettingAIProvider)
+	configured := provider == "anthropic" || provider == "ollama"
+
+	c.JSON(http.StatusOK, gin.H{
+		"provider":   provider,
+		"configured": configured,
+	})
 }
 
 // ListModels returns the list of available Anthropic models.
@@ -454,22 +313,41 @@ func getDefaultModels() []map[string]string {
 	}
 }
 
-// GetPrompt returns the current agent prompt.
+// GetCoinSearchPrompt returns the current coin search prompt.
 //
-//	@Summary		Get agent prompt
+//	@Summary		Get coin search prompt
 //	@Tags			Agent
 //	@Produce		json
 //	@Success		200	{object}	object
 //	@Security		BearerAuth
-//	@Router			/agent/prompt [get]
-func (h *AgentHandler) GetPrompt(c *gin.Context) {
-	prompt := services.GetSetting(services.SettingAgentPrompt)
+//	@Router			/agent/coin-search-prompt [get]
+func (h *AgentHandler) GetCoinSearchPrompt(c *gin.Context) {
+	prompt := services.GetSetting(services.SettingCoinSearchPrompt)
 	if prompt == "" {
-		prompt = DefaultAgentPrompt
+		prompt = DefaultCoinSearchPrompt
 	}
 	c.JSON(http.StatusOK, gin.H{
 		"prompt":  prompt,
-		"default": DefaultAgentPrompt,
+		"default": DefaultCoinSearchPrompt,
+	})
+}
+
+// GetCoinShowsPrompt returns the current coin shows prompt.
+//
+//	@Summary		Get coin shows prompt
+//	@Tags			Agent
+//	@Produce		json
+//	@Success		200	{object}	object
+//	@Security		BearerAuth
+//	@Router			/agent/coin-shows-prompt [get]
+func (h *AgentHandler) GetCoinShowsPrompt(c *gin.Context) {
+	prompt := services.GetSetting(services.SettingCoinShowsPrompt)
+	if prompt == "" {
+		prompt = DefaultCoinShowsPrompt
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"prompt":  prompt,
+		"default": DefaultCoinShowsPrompt,
 	})
 }
 
@@ -517,65 +395,6 @@ func (h *AgentHandler) PortfolioSummary(c *gin.Context) {
 	})
 }
 
-// extractSuggestions finds a JSON array inside ```json ... ``` markers
-func extractSuggestions(text string) []CoinSuggestion {
-	start := -1
-	end := -1
-
-	// Find ```json marker
-	jsonStart := "```json"
-	jsonEnd := "```"
-
-	startIdx := indexOf(text, jsonStart)
-	if startIdx == -1 {
-		return nil
-	}
-	start = startIdx + len(jsonStart)
-
-	// Find closing ``` after the opening
-	endIdx := indexOf(text[start:], jsonEnd)
-	if endIdx == -1 {
-		return nil
-	}
-	end = start + endIdx
-
-	jsonStr := text[start:end]
-
-	var suggestions []CoinSuggestion
-	if err := json.Unmarshal([]byte(jsonStr), &suggestions); err != nil {
-		return nil
-	}
-	return suggestions
-}
-
-// removeJSONBlock strips the ```json ... ``` block from the message
-func removeJSONBlock(text string) string {
-	jsonStart := "```json"
-	jsonEnd := "```"
-
-	startIdx := indexOf(text, jsonStart)
-	if startIdx == -1 {
-		return text
-	}
-
-	remaining := text[startIdx+len(jsonStart):]
-	endIdx := indexOf(remaining, jsonEnd)
-	if endIdx == -1 {
-		return text
-	}
-
-	return text[:startIdx] + text[startIdx+len(jsonStart)+endIdx+len(jsonEnd):]
-}
-
-func indexOf(s, substr string) int {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return i
-		}
-	}
-	return -1
-}
-
 // Value estimation types
 
 type ValueComparable struct {
@@ -591,27 +410,25 @@ type ValueEstimateResponse struct {
 	Comparables    []ValueComparable `json:"comparables"`
 }
 
-const DefaultValuationPrompt = `You are an expert numismatist and coin appraiser. Your task is to estimate the current fair market value of a specific coin based on its attributes.
+const DefaultValuationPrompt = `You are an expert numismatist and coin appraiser. Estimate the current fair market value of a coin.
 
 Instructions:
-1. Use web_search to find CURRENT listings and RECENT sales of comparable coins from reputable dealers and auction houses.
-2. Focus on coins with similar: denomination, ruler, era, material, and grade/condition.
-3. Check multiple sources: VCoins, MA-Shops, CNG, Heritage Auctions, Biddr, ForumAncientCoins.
-4. Consider the grade/condition when comparing — a VF coin is worth less than an EF example.
-5. If the coin has a purchase price, note whether it appears to have appreciated or depreciated.
+1. Search for CURRENT listings and RECENT sales of comparable coins.
+2. Focus on coins with similar denomination, ruler, era, material, and grade.
+3. Check sources: VCoins, MA-Shops, CNG, Heritage Auctions, Biddr, ForumAncientCoins.
+4. Consider grade/condition when comparing.
 
-Return your response as a JSON object (wrapped in ` + "```json" + ` and ` + "```" + ` markers) with these fields:
-- estimatedValue: number (your best estimate in USD, as a single number — not a range)
-- confidence: "high" (3+ comparable listings found), "medium" (1-2 comparables), or "low" (estimate based on general knowledge)
-- reasoning: string (2-3 sentences explaining your valuation methodology and what you found)
-- comparables: array of objects with { "source": "dealer/site name", "price": "$X" or "$X-Y", "url": "listing URL" }
+CRITICAL: Return your response as ONLY a JSON object (wrapped in ` + "```json" + ` and ` + "```" + ` markers) with NO other text before or after:
+- estimatedValue: number (USD, single number not a range)
+- confidence: "high" (3+ comparables), "medium" (1-2), or "low" (general knowledge)
+- reasoning: string (2-3 SHORT sentences only — what you found and how you arrived at the estimate)
+- comparables: array of { "source": "dealer name", "price": "$X", "url": "listing URL" }
 
-Example:
 ` + "```json" + `
 {
   "estimatedValue": 275,
   "confidence": "high",
-  "reasoning": "Based on 4 current listings of Augustus denarii in similar VF condition, the market range is $250-300. Your coin's grade and strike quality place it at the mid-range.",
+  "reasoning": "Found 4 comparable Augustus denarii in VF condition listed at $250-300. Grade and strike quality place this coin at mid-range.",
   "comparables": [
     { "source": "VCoins - Example Dealer", "price": "$285", "url": "https://www.vcoins.com/..." },
     { "source": "MA-Shops", "price": "$250", "url": "https://www.ma-shops.com/..." }
@@ -619,7 +436,7 @@ Example:
 }
 ` + "```" + `
 
-Only include real listings from your search. Do not fabricate URLs or prices.`
+Only include real listings from your search. Do not fabricate URLs or prices. Do not write any text outside the JSON block.`
 
 func (h *AgentHandler) getValuationPrompt() string {
 	prompt := services.GetSetting(services.SettingValuationPrompt)
@@ -629,17 +446,9 @@ func (h *AgentHandler) getValuationPrompt() string {
 	return prompt
 }
 
-// EstimateValue estimates the current market value of a coin using AI with web search.
+// EstimateValue estimates the current market value of a coin using the agent service.
 func (h *AgentHandler) EstimateValue(c *gin.Context) {
 	logger := services.AppLogger
-
-	apiKey := services.GetSetting(services.SettingAnthropicAPIKey)
-	if apiKey == "" {
-		c.JSON(http.StatusServiceUnavailable, gin.H{
-			"error": "Anthropic API key not configured. Set it in Admin → Settings → AI.",
-		})
-		return
-	}
 
 	coinID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -652,6 +461,18 @@ func (h *AgentHandler) EstimateValue(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Coin not found"})
 		return
+	}
+
+	// Resolve LLM provider from explicit setting
+	llmCfg, errMsg := resolveLLMConfig()
+	if errMsg != "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": errMsg})
+		return
+	}
+
+	var zipCode string
+	if user, err := h.userRepo.FindByID(userID); err == nil {
+		zipCode = user.ZipCode
 	}
 
 	// Build description of the coin for the AI
@@ -693,122 +514,251 @@ func (h *AgentHandler) EstimateValue(c *gin.Context) {
 		parts = append(parts, fmt.Sprintf("Purchase Price: $%.2f", *coin.PurchasePrice))
 	}
 
-	userMessage := fmt.Sprintf("Please estimate the current market value of this coin:\n\n%s", strings.Join(parts, "\n"))
+	userMessage := fmt.Sprintf("Estimate the current market value of this coin:\n\n%s\n\n"+
+		"Return ONLY the JSON block as specified in your instructions. No preamble or extra text.", strings.Join(parts, "\n"))
 
-	model := services.GetSetting(services.SettingAnthropicModel)
-	if model == "" {
-		model = "claude-sonnet-4-20250514"
-	}
-
-	anthropicReq := anthropicRequest{
-		Model:     model,
-		MaxTokens: 4096,
-		Stream:    false,
-		System:    h.getValuationPrompt(),
-		Tools: []anthropicTool{
-			{
-				Type:    "web_search_20250305",
-				Name:    "web_search",
-				MaxUses: 10,
-			},
+	proxyReq := services.PortfolioReviewProxyRequest{
+		LLM: llmCfg,
+		User: services.UserContextProxy{
+			UserID:  userID,
+			ZipCode: zipCode,
 		},
-		Messages: []anthropicMessage{
-			{Role: "user", Content: userMessage},
-		},
+		Message:         userMessage,
+		ValuationPrompt: h.getValuationPrompt(),
 	}
 
-	body, err := json.Marshal(anthropicReq)
+	// Collect the full AI response (not streaming — the frontend expects JSON)
+	aiText, err := h.proxy.CollectPortfolioReview(c.Request.Context(), proxyReq)
 	if err != nil {
-		logger.Error("agent", "Failed to marshal estimate request: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to build request"})
+		logger.Error("agent", "EstimateValue proxy failed: %v", err)
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Agent service unavailable"})
 		return
 	}
 
-	httpReq, err := http.NewRequest("POST", "https://api.anthropic.com/v1/messages", bytes.NewReader(body))
-	if err != nil {
-		logger.Error("agent", "Failed to create estimate HTTP request: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create request"})
-		return
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("x-api-key", apiKey)
-	httpReq.Header.Set("anthropic-version", "2023-06-01")
-
-	resp, err := h.client.Do(httpReq)
-	if err != nil {
-		logger.Error("agent", "Anthropic estimate API call failed: %v", err)
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Failed to reach Anthropic API"})
-		return
-	}
-	defer resp.Body.Close()
-
-	respBody, _ := io.ReadAll(resp.Body)
-
-	if resp.StatusCode != http.StatusOK {
-		logger.Error("agent", "Anthropic estimate API returned %d: %s", resp.StatusCode, string(respBody))
-		c.JSON(http.StatusServiceUnavailable, gin.H{
-			"error": fmt.Sprintf("Anthropic API error (HTTP %d)", resp.StatusCode),
-		})
+	if aiText == "" {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "No response from AI"})
 		return
 	}
 
-	var apiResp anthropicResponse
-	if err := json.Unmarshal(respBody, &apiResp); err != nil {
-		logger.Error("agent", "Failed to parse estimate response: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse AI response"})
-		return
-	}
+	// Parse structured fields from the AI's free-text response
+	estimate := parseValueEstimate(aiText)
 
-	// Extract text content from response
-	var fullText string
-	for _, block := range apiResp.Content {
-		if block.Type == "text" {
-			fullText += block.Text
+	// Save estimate to the coin's journal
+	if estVal, ok := estimate["estimatedValue"].(float64); ok && estVal > 0 {
+		confidence, _ := estimate["confidence"].(string)
+		if confidence == "" {
+			confidence = "medium"
+		}
+		journalText := fmt.Sprintf("AI Value Estimate: $%.2f (%s confidence)", estVal, confidence)
+		entry := models.CoinJournal{
+			CoinID: uint(coinID),
+			UserID: userID,
+			Entry:  journalText,
+		}
+		if err := h.journalRepo.CreateEntry(&entry); err != nil {
+			logger.Warn("agent", "Failed to save estimate to journal: %v", err)
 		}
 	}
 
-	// Parse the JSON estimate from the response
-	var estimate ValueEstimateResponse
-	parsed := false
-	jsonStart := indexOf(fullText, "```json")
-	if jsonStart != -1 {
-		start := jsonStart + len("```json")
-		remaining := fullText[start:]
-		jsonEnd := indexOf(remaining, "```")
-		if jsonEnd != -1 {
-			jsonStr := remaining[:jsonEnd]
-			if err := json.Unmarshal([]byte(jsonStr), &estimate); err != nil {
-				logger.Error("agent", "Failed to parse estimate JSON: %v — raw: %s", err, jsonStr)
+	c.JSON(http.StatusOK, estimate)
+}
+
+// parseValueEstimate extracts structured fields from the AI response.
+// First tries to parse a JSON block (the prompt requests one), then
+// falls back to regex extraction from free text.
+func parseValueEstimate(text string) gin.H {
+	// Try parsing a ```json block first
+	if jsonResult := tryParseJSONEstimate(text); jsonResult != nil {
+		return jsonResult
+	}
+
+	// Fallback: extract from free text
+	result := gin.H{
+		"estimatedValue": 0.0,
+		"confidence":     "medium",
+		"reasoning":      summarizeReasoning(text),
+		"comparables":    []gin.H{},
+	}
+
+	// Extract dollar amount: patterns like $150, $150-200, $1,500
+	priceRe := regexp.MustCompile(`\$[\d,]+(?:\.\d{2})?(?:\s*[-–]\s*\$?[\d,]+(?:\.\d{2})?)?`)
+	if match := priceRe.FindString(text); match != "" {
+		numRe := regexp.MustCompile(`[\d,]+(?:\.\d{2})?`)
+		nums := numRe.FindAllString(match, -1)
+		if len(nums) > 0 {
+			first := parsePrice(nums[0])
+			if len(nums) > 1 {
+				second := parsePrice(nums[len(nums)-1])
+				result["estimatedValue"] = (first + second) / 2
 			} else {
-				parsed = true
+				result["estimatedValue"] = first
 			}
 		}
 	}
 
-	// Fallback if JSON parsing failed — return raw text as reasoning
-	if !parsed {
-		estimate.Reasoning = fullText
-		estimate.Confidence = "low"
+	// Extract confidence
+	lower := strings.ToLower(text)
+	if strings.Contains(lower, "high confidence") || strings.Contains(lower, "confidence: high") || strings.Contains(lower, "confidence level: high") {
+		result["confidence"] = "high"
+	} else if strings.Contains(lower, "low confidence") || strings.Contains(lower, "confidence: low") || strings.Contains(lower, "confidence level: low") {
+		result["confidence"] = "low"
 	}
 
-	// Auto-record value history entry
-	if estimate.EstimatedValue > 0 {
-		h.repo.RecordValueHistory(&models.CoinValueHistory{
-			CoinID:     uint(coinID),
-			UserID:     userID,
-			Value:      estimate.EstimatedValue,
-			Confidence: estimate.Confidence,
-			RecordedAt: time.Now(),
+	return result
+}
+
+// tryParseJSONEstimate attempts to extract a ValueEstimate JSON block.
+func tryParseJSONEstimate(text string) gin.H {
+	start := strings.Index(text, "```json")
+	if start == -1 {
+		return nil
+	}
+	start += len("```json")
+	end := strings.Index(text[start:], "```")
+	if end == -1 {
+		return nil
+	}
+	jsonStr := strings.TrimSpace(text[start : start+end])
+
+	var parsed struct {
+		EstimatedValue float64 `json:"estimatedValue"`
+		Confidence     string  `json:"confidence"`
+		Reasoning      string  `json:"reasoning"`
+		Comparables    []struct {
+			Source string `json:"source"`
+			Price  string `json:"price"`
+			URL    string `json:"url"`
+		} `json:"comparables"`
+	}
+	if err := json.Unmarshal([]byte(jsonStr), &parsed); err != nil {
+		return nil
+	}
+
+	comps := []gin.H{}
+	for _, c := range parsed.Comparables {
+		comps = append(comps, gin.H{"source": c.Source, "price": c.Price, "url": c.URL})
+	}
+
+	confidence := parsed.Confidence
+	if confidence == "" {
+		confidence = "medium"
+	}
+
+	return gin.H{
+		"estimatedValue": parsed.EstimatedValue,
+		"confidence":     confidence,
+		"reasoning":      parsed.Reasoning,
+		"comparables":    comps,
+	}
+}
+
+// summarizeReasoning trims verbose AI output to a clean summary.
+// Looks for key sentences containing valuation info and limits to ~3 sentences.
+func summarizeReasoning(text string) string {
+	// Remove markdown headers and formatting
+	text = strings.ReplaceAll(text, "**", "")
+	text = strings.ReplaceAll(text, "##", "")
+	text = strings.ReplaceAll(text, "# ", "")
+
+	// Split into sentences
+	sentences := splitSentences(text)
+	if len(sentences) == 0 {
+		return text
+	}
+
+	// Pick the most relevant sentences (containing value/price/estimate keywords)
+	keywords := []string{"estimat", "value", "price", "worth", "$", "market", "condition", "grade", "comparable", "range", "auction"}
+	var relevant []string
+	for _, s := range sentences {
+		s = strings.TrimSpace(s)
+		if len(s) < 15 {
+			continue
+		}
+		lower := strings.ToLower(s)
+		for _, kw := range keywords {
+			if strings.Contains(lower, kw) {
+				relevant = append(relevant, s)
+				break
+			}
+		}
+	}
+
+	if len(relevant) == 0 {
+		// Just take first 3 sentences
+		limit := 3
+		if len(sentences) < limit {
+			limit = len(sentences)
+		}
+		return strings.Join(sentences[:limit], " ")
+	}
+
+	limit := 3
+	if len(relevant) < limit {
+		limit = len(relevant)
+	}
+	return strings.Join(relevant[:limit], " ")
+}
+
+func splitSentences(text string) []string {
+	// Split on sentence-ending punctuation followed by space or newline
+	re := regexp.MustCompile(`[.!?]\s+`)
+	parts := re.Split(text, -1)
+	var result []string
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			result = append(result, p+".")
+		}
+	}
+	return result
+}
+
+func parsePrice(s string) float64 {
+	s = strings.ReplaceAll(s, ",", "")
+	val, _ := strconv.ParseFloat(s, 64)
+	return val
+}
+
+// buildPortfolioData converts the repository PortfolioSummary into the proxy PortfolioData.
+func buildPortfolioData(s *repository.PortfolioSummary) *services.PortfolioData {
+	cats := make(map[string]int, len(s.Categories))
+	for _, c := range s.Categories {
+		cats[c.Category] = c.Count
+	}
+	mats := make(map[string]int, len(s.Materials))
+	for _, m := range s.Materials {
+		mats[m.Material] = m.Count
+	}
+	eras := make([]map[string]any, 0, len(s.Eras))
+	for _, e := range s.Eras {
+		eras = append(eras, map[string]any{"name": e.Era, "count": e.Count})
+	}
+	rulers := make([]map[string]any, 0, len(s.Rulers))
+	for _, r := range s.Rulers {
+		rulers = append(rulers, map[string]any{"name": r.Ruler, "count": r.Count})
+	}
+	coins := make([]services.PortfolioCoinProxy, 0, len(s.TopCoins))
+	for _, tc := range s.TopCoins {
+		var cv float64
+		if tc.CurrentValue != nil {
+			cv = *tc.CurrentValue
+		}
+		coins = append(coins, services.PortfolioCoinProxy{
+			Name:         tc.Name,
+			Category:     tc.Category,
+			Era:          tc.Era,
+			Ruler:        tc.Ruler,
+			CurrentValue: cv,
 		})
 	}
-
-	// Auto-add journal entry
-	journalText := fmt.Sprintf("AI Value Estimate: $%.2f (%s confidence)", estimate.EstimatedValue, estimate.Confidence)
-	h.repo.CreateJournalEntry(&models.CoinJournal{
-		CoinID: uint(coinID),
-		UserID: userID,
-		Entry:  journalText,
-	})
-
-	c.JSON(http.StatusOK, estimate)
+	return &services.PortfolioData{
+		TotalCoins:    int(s.TotalCoins),
+		TotalValue:    s.TotalValue,
+		TotalInvested: s.TotalInvested,
+		Categories:    cats,
+		Materials:     mats,
+		Eras:          eras,
+		Rulers:        rulers,
+		TopCoins:      coins,
+	}
 }

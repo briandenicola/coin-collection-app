@@ -136,6 +136,8 @@ func main() {
 	}
 
 	// Protected routes
+	agentProxy := services.NewAgentProxy(cfg.AgentServiceURL)
+
 	protected := api.Group("")
 	protected.Use(middleware.AuthRequired(cfg.JWTSecret, database.DB))
 	{
@@ -171,7 +173,7 @@ func main() {
 		protected.GET("/scrape-image", imageHandler.ScrapeImage)
 
 		analysisRepo := repository.NewAnalysisRepository(database.DB)
-		analysisHandler := handlers.NewAnalysisHandler(analysisRepo)
+		analysisHandler := handlers.NewAnalysisHandler(analysisRepo, agentProxy)
 		protected.POST("/coins/:id/analyze", analysisHandler.Analyze)
 		protected.DELETE("/coins/:id/analyze", analysisHandler.DeleteAnalysis)
 		protected.POST("/extract-text", analysisHandler.ExtractText)
@@ -182,13 +184,15 @@ func main() {
 
 		agentRepo := repository.NewAgentRepository(database.DB)
 		userRepo := repository.NewUserRepository(database.DB)
-		agentHandler := handlers.NewAgentHandler(agentRepo, userRepo)
+		agentHandler := handlers.NewAgentHandler(agentRepo, userRepo, journalRepo, agentProxy)
 		protected.POST("/agent/chat", agentHandler.ChatStream)
 		protected.POST("/coins/:id/estimate-value", agentHandler.EstimateValue)
 		protected.GET("/agent/models", agentHandler.ListModels)
-		protected.GET("/agent/prompt", agentHandler.GetPrompt)
+		protected.GET("/agent/coin-search-prompt", agentHandler.GetCoinSearchPrompt)
+		protected.GET("/agent/coin-shows-prompt", agentHandler.GetCoinShowsPrompt)
 		protected.GET("/agent/valuation-prompt", agentHandler.GetValuationPrompt)
 		protected.GET("/agent/portfolio-summary", agentHandler.PortfolioSummary)
+		protected.GET("/agent/status", agentHandler.AgentStatus)
 
 		conversationRepo := repository.NewConversationRepository(database.DB)
 		convHandler := handlers.NewConversationHandler(conversationRepo)
@@ -249,7 +253,7 @@ func main() {
 	admin.Use(handlers.AdminRequired())
 	{
 		adminRepo := repository.NewAdminRepository(database.DB)
-		adminHandler := handlers.NewAdminHandler(cfg.UploadDir, adminRepo)
+		adminHandler := handlers.NewAdminHandler(cfg.UploadDir, adminRepo, agentProxy)
 		admin.GET("/users", adminHandler.ListUsers)
 		admin.DELETE("/users/:id", adminHandler.DeleteUser)
 		admin.POST("/users/:id/reset-password", adminHandler.ResetPassword)
@@ -257,6 +261,8 @@ func main() {
 		admin.GET("/settings/defaults", adminHandler.GetSettingDefaults)
 		admin.PUT("/settings", adminHandler.UpdateSettings)
 		admin.GET("/logs", adminHandler.GetLogs)
+		admin.GET("/test-anthropic", adminHandler.TestAnthropicConnection)
+		admin.GET("/test-searxng", adminHandler.TestSearXNGConnection)
 	}
 
 	log.Printf("Starting server on :%s", cfg.Port)

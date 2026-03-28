@@ -1,8 +1,10 @@
 package handlers
 
 import (
+	"encoding/base64"
 	"io"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strconv"
 
@@ -13,11 +15,12 @@ import (
 )
 
 type AnalysisHandler struct {
-	repo *repository.AnalysisRepository
+	repo  *repository.AnalysisRepository
+	proxy *services.AgentProxy
 }
 
-func NewAnalysisHandler(repo *repository.AnalysisRepository) *AnalysisHandler {
-	return &AnalysisHandler{repo: repo}
+func NewAnalysisHandler(repo *repository.AnalysisRepository, proxy *services.AgentProxy) *AnalysisHandler {
+	return &AnalysisHandler{repo: repo, proxy: proxy}
 }
 
 // Analyze runs AI analysis on a coin's images using Ollama.
@@ -82,11 +85,6 @@ func (h *AnalysisHandler) Analyze(c *gin.Context) {
 		analyzeImages = coin.Images
 	}
 
-	// Read Ollama settings from DB (with fallback to env/defaults)
-	ollamaURL := services.GetSetting(services.SettingOllamaURL)
-	ollamaModel := services.GetSetting(services.SettingOllamaModel)
-	ollamaTimeout, _ := strconv.Atoi(services.GetSetting(services.SettingOllamaTimeout))
-
 	// Pick the prompt based on which side is being analyzed
 	var customPrompt string
 	switch side {
@@ -98,23 +96,64 @@ func (h *AnalysisHandler) Analyze(c *gin.Context) {
 		customPrompt = services.GetSetting(services.SettingObversePrompt)
 	}
 
-	logger.Debug("analysis", "Ollama URL: %s, Model: %s, Timeout: %ds", ollamaURL, ollamaModel, ollamaTimeout)
-	logger.Debug("analysis", "Side: %s, Custom prompt: [%s]", side, customPrompt)
-
-	ollamaSvc := services.NewOllamaService(ollamaURL, ollamaTimeout)
-
-	var imagePaths []string
+	// Read base64 images from files
+	var base64Images []string
 	for _, img := range analyzeImages {
 		p := filepath.Join("uploads", img.FilePath)
-		imagePaths = append(imagePaths, p)
-		logger.Trace("analysis", "Image path: %s", p)
+		data, err := os.ReadFile(p)
+		if err != nil {
+			logger.Warn("analysis", "Failed to read image %s: %v", p, err)
+			continue
+		}
+		base64Images = append(base64Images, base64.StdEncoding.EncodeToString(data))
 	}
 
-	logger.Info("analysis", "Sending %d image(s) to Ollama for coin %d", len(imagePaths), coinID)
-	analysis, err := ollamaSvc.AnalyzeCoinImages(imagePaths, *coin, ollamaModel, customPrompt)
+	if len(base64Images) == 0 {
+		logger.Warn("analysis", "No valid images could be read for coin %d", coinID)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No valid images found"})
+		return
+	}
+
+	// Resolve LLM provider from explicit setting
+	llmCfg, errMsg := resolveLLMConfig()
+	if errMsg != "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": errMsg})
+		return
+	}
+
+	var purchasePrice, currentValue float64
+	if coin.PurchasePrice != nil {
+		purchasePrice = *coin.PurchasePrice
+	}
+	if coin.CurrentValue != nil {
+		currentValue = *coin.CurrentValue
+	}
+
+	proxyReq := services.AnalyzeProxyRequest{
+		LLM: llmCfg,
+		Coin: services.CoinDataProxy{
+			ID:            int(coin.ID),
+			Name:          coin.Name,
+			Ruler:         coin.Ruler,
+			Era:           coin.Era,
+			Denomination:  coin.Denomination,
+			Material:      string(coin.Material),
+			Category:      string(coin.Category),
+			Grade:         coin.Grade,
+			PurchasePrice: purchasePrice,
+			CurrentValue:  currentValue,
+			Notes:         coin.Notes,
+		},
+		Images: base64Images,
+		Side:   side,
+		Prompt: customPrompt,
+	}
+
+	logger.Info("analysis", "Sending %d image(s) to agent service for coin %d", len(base64Images), coinID)
+	analysis, err := h.proxy.AnalyzeCoin(c.Request.Context(), proxyReq)
 	if err != nil {
 		logger.Error("analysis", "AI analysis failed for coin %d: %v", coinID, err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "AI analysis failed. Check Ollama configuration."})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "AI analysis failed. Check agent service configuration."})
 		return
 	}
 

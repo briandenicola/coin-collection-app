@@ -85,6 +85,11 @@ cd src/web
 npm run build                     # production build
 npx vue-tsc --noEmit              # type check
 
+# Python agent
+cd src/agent
+ruff check app/ tests/            # lint
+pytest tests/ -q                  # tests
+
 # Docker
 task docker-build                 # full container image
 ```

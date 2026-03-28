@@ -4,13 +4,22 @@ This guide covers deploying the Ancient Coins application to a production enviro
 
 ## Architecture Overview
 
-Ancient Coins runs as a **single Docker container** that serves both the Go API and the Vue SPA. The multi-stage Dockerfile builds through three stages:
+Ancient Coins runs as **two Docker containers** orchestrated via `docker-compose.yaml`:
+
+| Container | Image | Port | Purpose |
+|---|---|---|---|
+| `app` | `<user>/ancient-coins:latest` | 8080 | Go API + Vue SPA |
+| `agent` | `<user>/ancient-coins-agent:latest` | 8081 | Python LangGraph agent service |
+
+The **app** container uses a 3-stage Dockerfile (`Dockerfile`) that builds through:
 
 1. **Node 24** — builds the Vue frontend (`npm run build`)
 2. **Go 1.26** — compiles the API binary and embeds the Vue dist
 3. **Alpine 3.21** — minimal runtime (~40 MB final image)
 
-The final image contains:
+The **agent** container uses a separate Dockerfile (`src/agent/Dockerfile`) to build the Python LangGraph service.
+
+The app container contains:
 
 | Path | Description |
 |---|---|
@@ -25,22 +34,43 @@ Data is stored in a **SQLite database** (via GORM, WAL mode enabled) and coin im
 
 ## Quick Start (Docker Compose)
 
-The fastest way to run in production. Create a `docker-compose.yaml`:
+The fastest way to run in production. The repository includes a `docker-compose.yaml` that runs both containers:
 
 ```yaml
 services:
   app:
-    image: ghcr.io/briandenicola/ancient-coins:latest
+    image: ${DOCKERHUB_USERNAME:-briandenicola}/ancient-coins:latest
     environment:
       - JWT_SECRET=${JWT_SECRET:?Set JWT_SECRET in .env (min 32 chars)}
       - DB_PATH=/app/data/ancientcoins.db
       - PORT=8080
+      - AGENT_SERVICE_URL=http://agent:8081
     ports:
       - "8080:8080"
     volumes:
       - db-data:/app/data
       - uploads:/app/uploads
+    depends_on:
+      agent:
+        condition: service_healthy
     restart: unless-stopped
+
+  agent:
+    image: ${DOCKERHUB_USERNAME:-ancient-coins}/ancient-coins-agent:latest
+    environment:
+      - AGENT_SEARXNG_URL=${SEARXNG_URL:-}
+      - AGENT_LOG_LEVEL=${AGENT_LOG_LEVEL:-INFO}
+      - AGENT_DEBUG=false
+    ports:
+      - "8081:8081"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8081/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+
 volumes:
   db-data:
   uploads:
@@ -66,6 +96,8 @@ The app is now available at `http://localhost:8080`.
 | `UPLOAD_DIR` | `./uploads` | Directory for uploaded coin images |
 | `WEBAUTHN_RP_ID` | `localhost` | WebAuthn Relying Party ID (your domain) |
 | `WEBAUTHN_ORIGIN` | `http://localhost:8080` | WebAuthn origin URL (supports comma-separated list) |
+| `AGENT_SERVICE_URL` | `http://agent:8081` | Python agent service URL |
+| `AGENT_LOG_LEVEL` | `INFO` | Python agent log level |
 
 ### Generating a JWT Secret
 
@@ -215,7 +247,7 @@ Options:
 After deploying, complete the initial setup:
 
 1. **Register the first account** — navigate to your app URL and click **Register**. The first user to register automatically becomes the **admin**.
-2. **Configure AI** — go to **Admin → AI Configuration** to set up your Ollama server URL and Anthropic API key for the coin search agent.
+2. **Configure AI** — go to **Admin → AI Configuration** and select your AI Provider. Choose **Anthropic** (recommended) and enter your API key, or select **Ollama** for self-hosted models.
 3. **System Settings** — go to **Admin → System Settings** to set the log level and Numista API key for catalog lookups.
 4. **Start adding coins** — see the [Getting Started Guide](getting-started.md) for details on adding coins and using AI analysis.
 
@@ -232,9 +264,13 @@ The GitHub Actions workflow at `.github/workflows/docker-publish.yml` automates 
 **Image Tags:**
 | Tag | Example |
 |---|---|
-| Full SHA | `ghcr.io/briandenicola/ancient-coins:a1b2c3d4e5f6...` |
-| Short SHA | `ghcr.io/briandenicola/ancient-coins:a1b2c3d` |
-| `latest` | `ghcr.io/briandenicola/ancient-coins:latest` |
+| Full SHA | `<user>/ancient-coins:a1b2c3d4e5f6...` |
+| Short SHA | `<user>/ancient-coins:a1b2c3d` |
+| `latest` | `<user>/ancient-coins:latest` |
+
+Two images are published per build:
+- `<user>/ancient-coins:latest` (app)
+- `<user>/ancient-coins-agent:latest` (agent)
 
 **Required Repository Secrets:**
 
@@ -287,17 +323,21 @@ These settings are stored in the database and configured through the **Admin** U
 
 | Setting | Default | Description |
 |---|---|---|
-| OllamaURL | `http://localhost:11434` | Ollama server URL for AI coin analysis |
-| OllamaModel | `llava` | Vision model name for image analysis |
-| OllamaTimeout | `300` | AI request timeout in seconds |
-| AnthropicAPIKey | — | API key for Claude-powered search agent |
-| AnthropicModel | — | Claude model name (e.g., `claude-sonnet-4-20250514`) |
-| AgentPrompt | — | Custom system prompt for the search agent |
-| NumistaAPIKey | — | Numista catalog API key for coin lookups |
-| ObversePrompt | — | Custom prompt for obverse (front) image analysis |
-| ReversePrompt | — | Custom prompt for reverse (back) image analysis |
-| TextExtractionPrompt | — | Custom prompt for OCR text extraction |
-| LogLevel | — | Application log level (e.g., `debug`, `info`, `warn`) |
+| AIProvider | — | Explicit provider choice: `anthropic` or `ollama` (must be set before agent features work) |
+| AnthropicAPIKey | — | API key for Claude models |
+| AnthropicModel | — | Claude model (e.g., `claude-sonnet-4-20250514`) |
+| OllamaURL | `http://localhost:11434` | Ollama server URL |
+| OllamaModel | `llava` | Vision model name |
+| OllamaTimeout | `300` | Request timeout in seconds |
+| SearXNGURL | — | SearXNG search engine URL (required for Ollama web search) |
+| NumistaAPIKey | — | Numista catalog API key |
+| CoinSearchPrompt | — | System prompt for coin search agent |
+| CoinShowsPrompt | — | System prompt for coin shows agent |
+| ValuationPrompt | — | System prompt for value estimator |
+| ObversePrompt | — | Prompt for obverse image analysis |
+| ReversePrompt | — | Prompt for reverse image analysis |
+| TextExtractionPrompt | — | Prompt for OCR text extraction |
+| LogLevel | — | Application log level |
 
 ---
 
@@ -316,6 +356,13 @@ These settings are stored in the database and configured through the **Admin** U
 - Check that the Ollama server is reachable from the container (use `host.docker.internal` if Ollama runs on the host)
 - Verify the configured model is pulled (`ollama pull llava`)
 - Increase `OllamaTimeout` in Admin settings for slower hardware
+
+### AI agent not responding
+- Check that the agent container is running (`docker compose logs agent`)
+- Verify `AGENT_SERVICE_URL` points to the agent container
+
+### AI provider not configured
+- Set AIProvider in Admin → AI Configuration. The agent chat shows a configuration banner when it's empty.
 
 ### Container won't start
 - Check logs: `docker compose logs -f`

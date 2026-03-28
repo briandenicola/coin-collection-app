@@ -8,7 +8,7 @@
       <div class="detail-header">
         <button class="btn btn-secondary btn-sm" @click="$router.back()">← Back</button>
         <div class="detail-actions">
-          <button v-if="coin.isWishlist" class="btn btn-primary btn-sm" @click="handlePurchase">🛒 Mark as Purchased</button>
+          <button v-if="coin.isWishlist" class="btn btn-primary btn-sm" @click="showPurchaseModal = true">Mark as Purchased</button>
           <button v-if="!coin.isWishlist && !coin.isSold" class="btn btn-secondary btn-sm" @click="showSellModal = true">Sell</button>
           <router-link :to="`/edit/${coin.id}`" class="btn btn-secondary btn-sm">Edit</router-link>
           <button class="btn btn-danger btn-sm" @click="handleDelete">Delete</button>
@@ -307,6 +307,7 @@
     </div>
 
     <SellModal v-if="showSellModal && coin" :coin="coin" @close="showSellModal = false" @confirm="confirmSell" />
+    <PurchaseModal v-if="showPurchaseModal && coin" :coin="coin" @close="showPurchaseModal = false" @confirm="confirmPurchase" />
   </div>
 </template>
 
@@ -316,6 +317,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useCoinsStore } from '@/stores/coins'
 import ImageGallery from '@/components/ImageGallery.vue'
 import SellModal from '@/components/SellModal.vue'
+import PurchaseModal from '@/components/PurchaseModal.vue'
 import { uploadImage, proxyImage, analyzeCoin, deleteAnalysis, deleteCoin, deleteImage, purchaseCoin, sellCoin, getOllamaStatus, getJournalEntries, addJournalEntry, deleteJournalEntry, searchNumista, estimateCoinValue, updateCoin, getCoinValueHistory } from '@/api/client'
 import { removeBackground as removeBg } from '@imgly/background-removal'
 import type { CoinImage, CoinJournal, NumistaType, ValueEstimate, CoinValueHistory as CoinValueHistoryType } from '@/types'
@@ -340,6 +342,7 @@ const ollamaAvailable = ref(true)
 const ollamaMessage = ref('')
 const removingBg = ref(false)
 const showSellModal = ref(false)
+const showPurchaseModal = ref(false)
 
 // Journal
 const journalEntries = ref<CoinJournal[]>([])
@@ -549,13 +552,14 @@ async function handleAnalyze(side: 'obverse' | 'reverse') {
   }
 }
 
-async function handlePurchase() {
-  if (!coin.value || !confirm(`Move "${coin.value.name}" to your collection?`)) return
+async function confirmPurchase(data: { purchasePrice?: number; purchaseDate?: string; purchaseLocation?: string }) {
+  if (!coin.value) return
   try {
-    await purchaseCoin(coin.value.id)
+    await purchaseCoin(coin.value.id, data)
+    showPurchaseModal.value = false
     store.fetchCoin(coin.value.id)
   } catch {
-    alert('Failed to mark as purchased')
+    showPurchaseModal.value = false
   }
 }
 

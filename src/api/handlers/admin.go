@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"time"
@@ -15,12 +16,13 @@ import (
 )
 
 type AdminHandler struct {
-	UploadDir string
-	repo      *repository.AdminRepository
+	UploadDir  string
+	repo       *repository.AdminRepository
+	agentProxy *services.AgentProxy
 }
 
-func NewAdminHandler(uploadDir string, repo *repository.AdminRepository) *AdminHandler {
-	return &AdminHandler{UploadDir: uploadDir, repo: repo}
+func NewAdminHandler(uploadDir string, repo *repository.AdminRepository, agentProxy *services.AgentProxy) *AdminHandler {
+	return &AdminHandler{UploadDir: uploadDir, repo: repo, agentProxy: agentProxy}
 }
 
 // AdminRequired middleware ensures only admin users can access
@@ -212,6 +214,12 @@ func (h *AdminHandler) UpdateSettings(c *gin.Context) {
 	// Sync log level if it was updated
 	services.SyncLogLevel()
 
+	// Push log level to Python agent service
+	if h.agentProxy != nil {
+		logLevel := services.GetSetting(services.SettingLogLevel)
+		h.agentProxy.SetLogLevel(c.Request.Context(), logLevel)
+	}
+
 	c.JSON(http.StatusOK, gin.H{"message": "Settings updated"})
 }
 
@@ -249,11 +257,98 @@ func (h *AdminHandler) GetLogs(c *gin.Context) {
 		logs = filtered
 	}
 
+	// Merge agent service logs if available
+	if h.agentProxy != nil {
+		agentLogs := h.agentProxy.FetchLogs(c.Request.Context(), limit, level)
+		logs = mergeLogsByTimestamp(logs, agentLogs)
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"logs":     logs,
 		"count":    len(logs),
 		"logLevel": services.AppLogger.GetLevel(),
 	})
+}
+
+// mergeLogsByTimestamp merges two sorted log slices by timestamp (oldest first).
+func mergeLogsByTimestamp(a, b []services.LogEntry) []services.LogEntry {
+	merged := make([]services.LogEntry, 0, len(a)+len(b))
+	i, j := 0, 0
+	for i < len(a) && j < len(b) {
+		if a[i].Timestamp <= b[j].Timestamp {
+			merged = append(merged, a[i])
+			i++
+		} else {
+			merged = append(merged, b[j])
+			j++
+		}
+	}
+	merged = append(merged, a[i:]...)
+	merged = append(merged, b[j:]...)
+	return merged
+}
+
+// TestAnthropicConnection validates the Anthropic API key by listing models.
+func (h *AdminHandler) TestAnthropicConnection(c *gin.Context) {
+	apiKey := services.GetSetting(services.SettingAnthropicAPIKey)
+	if apiKey == "" {
+		c.JSON(http.StatusOK, gin.H{"available": false, "message": "Anthropic API key is not configured"})
+		return
+	}
+
+	req, err := http.NewRequestWithContext(c.Request.Context(), "GET", "https://api.anthropic.com/v1/models", nil)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"available": false, "message": "Failed to create request"})
+		return
+	}
+	req.Header.Set("x-api-key", apiKey)
+	req.Header.Set("anthropic-version", "2023-06-01")
+
+	resp, err := (&http.Client{Timeout: 10 * time.Second}).Do(req)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"available": false, "message": fmt.Sprintf("Connection failed: %s", err.Error())})
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusOK {
+		c.JSON(http.StatusOK, gin.H{"available": true, "message": "Anthropic API key is valid"})
+	} else {
+		body, _ := io.ReadAll(resp.Body)
+		msg := string(body)
+		if len(msg) > 200 {
+			msg = msg[:200]
+		}
+		c.JSON(http.StatusOK, gin.H{"available": false, "message": fmt.Sprintf("API returned HTTP %d: %s", resp.StatusCode, msg)})
+	}
+}
+
+// TestSearXNGConnection validates the SearXNG endpoint is reachable.
+func (h *AdminHandler) TestSearXNGConnection(c *gin.Context) {
+	searxngURL := services.GetSetting(services.SettingSearXNGURL)
+	if searxngURL == "" {
+		c.JSON(http.StatusOK, gin.H{"available": false, "message": "SearXNG URL is not configured"})
+		return
+	}
+
+	req, err := http.NewRequestWithContext(c.Request.Context(), "GET", searxngURL, nil)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"available": false, "message": "Invalid URL"})
+		return
+	}
+
+	resp, err := (&http.Client{Timeout: 10 * time.Second}).Do(req)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"available": false, "message": fmt.Sprintf("Connection failed: %s", err.Error())})
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 200 && resp.StatusCode < 400 {
+		c.JSON(http.StatusOK, gin.H{"available": true, "message": fmt.Sprintf("SearXNG is reachable at %s", searxngURL)})
+	} else {
+		c.JSON(http.StatusOK, gin.H{"available": false, "message": fmt.Sprintf("SearXNG returned HTTP %d", resp.StatusCode)})
+	}
 }
 
 // ExportAllData exports all coins and images as a zip archive

@@ -10,12 +10,13 @@ On first launch, the first user to register is automatically assigned as the adm
 
 ## Architecture
 
-| Layer    | Tech                                  | Path       |
-| -------- | ------------------------------------- | ---------- |
-| Backend  | Go (Gin), GORM, Pure-Go SQLite       | `src/api/` |
-| Frontend | Vue 3, TypeScript, Vite, Pinia (PWA)  | `src/web/` |
+| Layer    | Tech                                       | Path         |
+| -------- | ------------------------------------------ | ------------ |
+| Backend  | Go (Gin), GORM, Pure-Go SQLite             | `src/api/`   |
+| Frontend | Vue 3, TypeScript, Vite, Pinia (PWA)       | `src/web/`   |
+| Agent    | Python, FastAPI, LangGraph, LangChain      | `src/agent/` |
 
-The Vue SPA communicates with the Go API exclusively via REST (`/api/*`). In production the API serves the SPA as static files from a single container, so no separate web server is needed.
+The Vue SPA communicates with the Go API exclusively via REST (`/api/*`). The Go API proxies all AI agent requests to a Python LangGraph service. In production, docker-compose runs two containers (Go+Vue and Python agent).
 
 The frontend is a Progressive Web App (PWA) and can be installed on iOS (Safari → Share → Add to Home Screen), Android, and desktop browsers for a native app-like experience with offline caching.
 
@@ -30,9 +31,9 @@ Browser → localhost:8080 (Go/Gin API, serves REST endpoints)
 
 In development, the Vite dev server runs on `:5173` with hot-reload and proxies any `/api/*` or `/uploads/*` request to the Go API on `:8080`. The browser only talks to the Vite server.
 
-### Production (single container, single port)
+### Production (two containers)
 
-The Dockerfile uses a multi-stage build to combine both into one image:
+The app Dockerfile uses a multi-stage build to combine the Go API and Vue SPA into one image. A separate Python agent container runs the LangGraph AI service. Both are orchestrated via `docker-compose.yaml`:
 
 ```
 Stage 1: node:24-alpine     → npm run build  → produces dist/ (static HTML/JS/CSS)
@@ -42,16 +43,19 @@ Stage 3: alpine:3.21        → copies both:
            /app/wwwroot/             (Vue dist/ output)
 ```
 
-The Go binary serves the Vue SPA as static files **and** handles API routes — one process does both jobs:
+The Go binary serves the Vue SPA as static files **and** handles API routes — one process does both jobs. AI agent requests are proxied to the Python agent container:
 
 ```
-Browser → localhost:8080 → Go binary inside container
+Browser → localhost:8080 → Go binary (app container)
               ├─ /api/*      → Gin REST handlers
               ├─ /uploads/*  → serves uploaded images from volume
               └─ /*          → serves Vue SPA from /app/wwwroot/
+
+Go API → localhost:8081 → Python agent (agent container)
+              └─ AI agent requests (search, analysis, portfolio)
 ```
 
-No nginx or reverse proxy needed. Docker volumes persist the SQLite database and uploaded images across container restarts.
+No nginx or reverse proxy needed. Docker volumes persist the SQLite database and uploaded images across container restarts. The agent container has a healthcheck and the app container depends on it being healthy.
 
 ## Prerequisites
 
@@ -95,10 +99,15 @@ For a detailed walkthrough of first-time setup, adding coins, import/export, and
 | `task test`        | Run Go architecture and unit tests       |
 | `task docker-build`| Build the Docker container image         |
 | `task docker-run`  | Run the Docker container locally         |
+| `task build-agent` | Build the Python agent service            |
+| `task run-agent`   | Run the Python agent dev server           |
+| `task test-agent`  | Run Python agent tests                    |
+| `task lint-agent`  | Lint Python agent code                    |
+| `task up-all`      | Run API, web, and agent servers in parallel |
 
 ## CI/CD
 
-A GitHub Actions workflow builds and pushes the Docker image to Docker Hub on push to `main`. See the [Deployment Guide](docs/deployment.md) for required secrets and full configuration.
+A GitHub Actions workflow builds and pushes the Docker images to Docker Hub on push to `main`. See the [Deployment Guide](docs/deployment.md) for required secrets and full configuration.
 
 ## Contributing
 
@@ -124,7 +133,7 @@ For detailed descriptions of every feature, see the [Features Guide](docs/featur
 
 ## Deployment
 
-The application ships as a single Docker container serving both the API and SPA. See the [Deployment Guide](docs/deployment.md) for full instructions.
+The application ships as two Docker containers — one for the Go API + Vue SPA, and one for the Python LangGraph agent. See the [Deployment Guide](docs/deployment.md) for full instructions.
 
 ```sh
 docker compose up        # quickest way to run
@@ -155,8 +164,8 @@ AncientCoins/
 │   │   │   ├── auth.go               # Registration, login, token refresh
 │   │   │   ├── coins.go              # Coin CRUD, list/filter/sort, stats, sell, value history
 │   │   │   ├── images.go             # Image upload/delete, proxy, scrape
-│   │   │   ├── analysis.go           # Ollama AI coin analysis & OCR
-│   │   │   ├── agent.go              # Anthropic chat agent with SSE streaming
+│   │   │   ├── analysis.go           # AI coin analysis (proxied to agent service)
+│   │   │   ├── agent.go              # AI agent chat (proxied to agent service via SSE)
 │   │   │   ├── conversations.go      # Saved agent conversation CRUD
 │   │   │   ├── journal.go            # Per-coin activity log
 │   │   │   ├── numista.go            # Numista catalog search proxy
@@ -178,12 +187,31 @@ AncientCoins/
 │   │   │   ├── social_service.go     # Follow rules, access control, profiles
 │   │   │   ├── auth_service.go       # Registration, authentication, token lifecycle
 │   │   │   ├── image_service.go      # File upload/delete coordination
-│   │   │   ├── ollama_service.go     # Ollama vision model integration
+│   │   │   ├── agent_proxy.go        # SSE proxy to Python agent service
+│   │   │   ├── ollama_service.go     # Ollama vision model integration (OCR)
 │   │   │   ├── settings_service.go   # App settings with DB-backed defaults
 │   │   │   └── logger.go             # Structured logger with in-memory buffer
 │   │   ├── middleware/               # JWT & API key auth middleware
 │   │   ├── models/                   # GORM entities (Coin, User, Follow, etc.)
 │   │   └── architecture_test.go      # Enforces layering rules (no database.DB in handlers)
+│   ├── agent/                         # Python LangGraph agent service
+│   │   ├── app/
+│   │   │   ├── main.py               # FastAPI app entry point
+│   │   │   ├── config.py             # Service settings
+│   │   │   ├── routes.py             # API endpoints (search, analyze, portfolio)
+│   │   │   ├── supervisor.py         # Top-level router + team delegation
+│   │   │   ├── streaming.py          # SSE streaming from LangGraph events
+│   │   │   ├── llm/provider.py       # LLM factory (Anthropic vs Ollama)
+│   │   │   ├── tools/search.py       # SearXNG search + URL verification tools
+│   │   │   ├── models/               # Pydantic request/response schemas
+│   │   │   └── teams/                # Multi-agent team pipelines
+│   │   │       ├── coin_search.py    # Team 1: Search → Fetch → Format
+│   │   │       ├── coin_shows.py     # Team 2: Shows → Date verify → Format
+│   │   │       ├── coin_analysis.py  # Team 3: Vision analysis → Format
+│   │   │       └── portfolio_review.py # Team 4: Read → Valuate → Analyze
+│   │   ├── tests/                    # Pytest tests
+│   │   ├── Dockerfile                # Python 3.12-slim multi-stage
+│   │   └── pyproject.toml            # Dependencies (FastAPI, LangGraph, LangChain)
 │   └── web/                          # Vue 3 SPA
 │       ├── src/
 │       │   ├── api/                  # Axios API client

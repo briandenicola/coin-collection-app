@@ -62,133 +62,210 @@
         </table>
       </section>
 
-      <!-- Ollama / AI Tab -->
+      <!-- AI Tab -->
       <section v-if="activeTab === 'ai'" class="admin-section card">
         <h2>AI Configuration</h2>
         <form @submit.prevent="saveSettings">
+          <!-- Provider Selection -->
           <div class="form-group">
-            <label class="form-label">Ollama URL</label>
-            <input v-model="settings.OllamaURL" class="form-input" placeholder="http://localhost:11434" />
-          </div>
-          <div class="form-group">
-            <label class="form-label">Vision Model</label>
-            <input v-model="settings.OllamaModel" class="form-input" placeholder="llava" />
-            <span class="form-hint">e.g. llava, llama3.2-vision, bakllava</span>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Request Timeout (seconds)</label>
-            <input v-model="settings.OllamaTimeout" class="form-input" type="number" min="10" max="1800" step="10" />
-            <span class="form-hint">Time limit for AI analysis calls. Default: 300 (5 minutes)</span>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Anthropic API Key</label>
-            <input v-model="settings.AnthropicAPIKey" class="form-input" type="password" placeholder="Enter your Anthropic API key" />
-            <span class="form-hint">Required for the AI coin search agent. Get a key at <a href="https://console.anthropic.com/" target="_blank" rel="noopener">console.anthropic.com</a></span>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Anthropic Model</label>
-            <select v-model="settings.AnthropicModel" class="form-input">
-              <option v-for="m in anthropicModels" :key="m.id" :value="m.id">{{ m.name }}</option>
-            </select>
-            <span class="form-hint">Model used for the coin search agent</span>
-          </div>
-          <div class="form-group">
-            <div class="prompt-header">
-              <label class="form-label">Agent Search Prompt</label>
-              <button
-                type="button"
-                class="btn btn-ghost btn-xs"
-                :disabled="settings.AgentPrompt === agentPromptDefault"
-                @click="settings.AgentPrompt = agentPromptDefault"
-              >Revert to Default</button>
+            <label class="form-label">AI Provider</label>
+            <div class="provider-toggle">
+              <label class="provider-option" :class="{ active: settings.AIProvider === 'anthropic' }">
+                <input type="radio" v-model="settings.AIProvider" value="anthropic" />
+                <span class="provider-label">Anthropic (Recommended)</span>
+                <span class="provider-desc">Claude models with built-in web search</span>
+              </label>
+              <label class="provider-option" :class="{ active: settings.AIProvider === 'ollama' }">
+                <input type="radio" v-model="settings.AIProvider" value="ollama" />
+                <span class="provider-label">Ollama</span>
+                <span class="provider-desc">Self-hosted models. Requires SearXNG for web search.</span>
+              </label>
             </div>
-            <textarea
-              v-model="settings.AgentPrompt"
-              class="form-textarea"
-              rows="8"
-            />
-            <span class="form-hint">System prompt for the AI coin search agent. Controls how it searches and formats results.</span>
+            <p v-if="!settings.AIProvider" class="provider-warning">
+              Please select an AI provider to enable agent features.
+            </p>
           </div>
-          <div class="form-group">
-            <div class="prompt-header">
-              <label class="form-label">Value Estimator Prompt</label>
-              <button
-                type="button"
-                class="btn btn-ghost btn-xs"
-                :disabled="settings.ValuationPrompt === valuationPromptDefault"
-                @click="settings.ValuationPrompt = valuationPromptDefault"
-              >Revert to Default</button>
+
+          <!-- Anthropic Settings -->
+          <template v-if="settings.AIProvider === 'anthropic'">
+            <div class="form-group">
+              <label class="form-label">Anthropic API Key</label>
+              <input v-model="settings.AnthropicAPIKey" class="form-input" type="password" placeholder="Enter your Anthropic API key" />
+              <span class="form-hint">Get a key at <a href="https://console.anthropic.com/" target="_blank" rel="noopener">console.anthropic.com</a></span>
             </div>
-            <textarea
-              v-model="settings.ValuationPrompt"
-              class="form-textarea"
-              rows="8"
-            />
-            <span class="form-hint">System prompt for the AI value estimator. Controls how it researches and estimates coin values.</span>
-          </div>
-          <div class="form-group">
-            <div class="prompt-header">
-              <label class="form-label">Obverse Analysis Prompt</label>
-              <button
-                type="button"
-                class="btn btn-ghost btn-xs"
-                :disabled="settings.ObversePrompt === settingDefaults.ObversePrompt"
-                @click="settings.ObversePrompt = settingDefaults.ObversePrompt"
-              >Revert to Default</button>
+            <div class="form-group">
+              <label class="form-label">Anthropic Model</label>
+              <select v-model="settings.AnthropicModel" class="form-input">
+                <option v-for="m in anthropicModels" :key="m.id" :value="m.id">{{ m.name }}</option>
+              </select>
             </div>
-            <textarea
-              v-model="settings.ObversePrompt"
-              class="form-textarea"
-              rows="6"
-            />
-            <span class="form-hint">Prompt for obverse image analysis. Coin context (name, category, denomination) is appended automatically.</span>
-          </div>
-          <div class="form-group">
-            <div class="prompt-header">
-              <label class="form-label">Reverse Analysis Prompt</label>
-              <button
-                type="button"
-                class="btn btn-ghost btn-xs"
-                :disabled="settings.ReversePrompt === settingDefaults.ReversePrompt"
-                @click="settings.ReversePrompt = settingDefaults.ReversePrompt"
-              >Revert to Default</button>
+            <div class="connectivity-actions">
+              <button type="button" class="btn btn-secondary btn-sm" :disabled="anthropicTesting" @click="testAnthropicConn">
+                {{ anthropicTesting ? 'Testing...' : 'Test Anthropic API' }}
+              </button>
+              <div v-if="anthropicTestResult" class="connectivity-result" :class="{ success: anthropicTestOk, error: !anthropicTestOk }">
+                <span class="connectivity-icon">{{ anthropicTestOk ? '&#x25CF;' : '&#x25CF;' }}</span>
+                {{ anthropicTestResult }}
+              </div>
             </div>
-            <textarea
-              v-model="settings.ReversePrompt"
-              class="form-textarea"
-              rows="6"
-            />
-            <span class="form-hint">Prompt for reverse image analysis. Coin context (name, category, denomination) is appended automatically.</span>
-          </div>
-          <div class="form-group">
-            <div class="prompt-header">
-              <label class="form-label">Text Extraction Prompt</label>
-              <button
-                type="button"
-                class="btn btn-ghost btn-xs"
-                :disabled="settings.TextExtractionPrompt === settingDefaults.TextExtractionPrompt"
-                @click="settings.TextExtractionPrompt = settingDefaults.TextExtractionPrompt"
-              >Revert to Default</button>
+          </template>
+
+          <!-- Ollama Settings -->
+          <template v-if="settings.AIProvider === 'ollama'">
+            <div class="form-group">
+              <label class="form-label">Ollama URL</label>
+              <input v-model="settings.OllamaURL" class="form-input" placeholder="http://localhost:11434" />
             </div>
-            <textarea
-              v-model="settings.TextExtractionPrompt"
-              class="form-textarea"
-              rows="6"
-            />
-            <span class="form-hint">Prompt for extracting text from store card images.</span>
-          </div>
+            <div class="form-group">
+              <label class="form-label">Vision Model</label>
+              <input v-model="settings.OllamaModel" class="form-input" placeholder="llava" />
+              <span class="form-hint">e.g. llava, llama3.2-vision, bakllava</span>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Request Timeout (seconds)</label>
+              <input v-model="settings.OllamaTimeout" class="form-input" type="number" min="10" max="1800" step="10" />
+              <span class="form-hint">Time limit for AI analysis calls. Default: 300 (5 minutes)</span>
+            </div>
+            <div class="form-group">
+              <label class="form-label">SearXNG URL</label>
+              <input v-model="settings.SearXNGURL" class="form-input" placeholder="http://localhost:8888" />
+              <span class="form-hint">Required for web search features (coin search, coin shows, valuations).</span>
+              <p v-if="settings.AIProvider === 'ollama' && !settings.SearXNGURL" class="provider-warning">
+                Web search features require a SearXNG instance. Configure the URL or switch to Anthropic.
+              </p>
+            </div>
+            <div class="connectivity-actions">
+              <button type="button" class="btn btn-secondary btn-sm" :disabled="ollamaTesting" @click="testOllamaConnection">
+                {{ ollamaTesting ? 'Testing...' : 'Test Ollama' }}
+              </button>
+              <button v-if="settings.SearXNGURL" type="button" class="btn btn-secondary btn-sm" :disabled="searxngTesting" @click="testSearxngConn">
+                {{ searxngTesting ? 'Testing...' : 'Test SearXNG' }}
+              </button>
+            </div>
+            <div v-if="ollamaTestResult" class="connectivity-result" :class="{ success: ollamaTestOk, error: !ollamaTestOk }">
+              <span class="connectivity-icon">{{ ollamaTestOk ? '&#x25CF;' : '&#x25CF;' }}</span>
+              {{ ollamaTestResult }}
+            </div>
+            <div v-if="searxngTestResult" class="connectivity-result" :class="{ success: searxngTestOk, error: !searxngTestOk }">
+              <span class="connectivity-icon">{{ searxngTestOk ? '&#x25CF;' : '&#x25CF;' }}</span>
+              {{ searxngTestResult }}
+            </div>
+          </template>
+
+          <!-- Shared Prompt Settings (visible when a provider is selected) -->
+          <template v-if="settings.AIProvider">
+            <hr class="section-divider" />
+            <h3 class="subsection-title">Agent Prompts</h3>
+            <div class="form-group">
+              <div class="prompt-header">
+                <label class="form-label">Coin Search Prompt</label>
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-xs"
+                  :disabled="settings.CoinSearchPrompt === coinSearchPromptDefault"
+                  @click="settings.CoinSearchPrompt = coinSearchPromptDefault"
+                >Revert to Default</button>
+              </div>
+              <textarea
+                v-model="settings.CoinSearchPrompt"
+                class="form-textarea"
+                rows="8"
+              />
+              <span class="form-hint">Search instructions for the coin search agent (Team 1). Controls which dealer sites to search, availability rules, and search strategy.</span>
+            </div>
+            <div class="form-group">
+              <div class="prompt-header">
+                <label class="form-label">Coin Shows Prompt</label>
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-xs"
+                  :disabled="settings.CoinShowsPrompt === coinShowsPromptDefault"
+                  @click="settings.CoinShowsPrompt = coinShowsPromptDefault"
+                >Revert to Default</button>
+              </div>
+              <textarea
+                v-model="settings.CoinShowsPrompt"
+                class="form-textarea"
+                rows="8"
+              />
+              <span class="form-hint">Search instructions for the coin shows agent (Team 2). Controls which show directories and organizations to search.</span>
+            </div>
+            <div class="form-group">
+              <div class="prompt-header">
+                <label class="form-label">Value Estimator Prompt</label>
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-xs"
+                  :disabled="settings.ValuationPrompt === valuationPromptDefault"
+                  @click="settings.ValuationPrompt = valuationPromptDefault"
+                >Revert to Default</button>
+              </div>
+              <textarea
+                v-model="settings.ValuationPrompt"
+                class="form-textarea"
+                rows="8"
+              />
+              <span class="form-hint">System prompt for the AI value estimator. Controls how it researches and estimates coin values.</span>
+            </div>
+            <h3 class="subsection-title">Analysis Prompts</h3>
+            <div class="form-group">
+              <div class="prompt-header">
+                <label class="form-label">Obverse Analysis Prompt</label>
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-xs"
+                  :disabled="settings.ObversePrompt === settingDefaults.ObversePrompt"
+                  @click="settings.ObversePrompt = settingDefaults.ObversePrompt"
+                >Revert to Default</button>
+              </div>
+              <textarea
+                v-model="settings.ObversePrompt"
+                class="form-textarea"
+                rows="6"
+              />
+              <span class="form-hint">Prompt for obverse image analysis. Coin context is appended automatically.</span>
+            </div>
+            <div class="form-group">
+              <div class="prompt-header">
+                <label class="form-label">Reverse Analysis Prompt</label>
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-xs"
+                  :disabled="settings.ReversePrompt === settingDefaults.ReversePrompt"
+                  @click="settings.ReversePrompt = settingDefaults.ReversePrompt"
+                >Revert to Default</button>
+              </div>
+              <textarea
+                v-model="settings.ReversePrompt"
+                class="form-textarea"
+                rows="6"
+              />
+              <span class="form-hint">Prompt for reverse image analysis. Coin context is appended automatically.</span>
+            </div>
+            <div class="form-group">
+              <div class="prompt-header">
+                <label class="form-label">Text Extraction Prompt</label>
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-xs"
+                  :disabled="settings.TextExtractionPrompt === settingDefaults.TextExtractionPrompt"
+                  @click="settings.TextExtractionPrompt = settingDefaults.TextExtractionPrompt"
+                >Revert to Default</button>
+              </div>
+              <textarea
+                v-model="settings.TextExtractionPrompt"
+                class="form-textarea"
+                rows="6"
+              />
+              <span class="form-hint">Prompt for extracting text from store card images.</span>
+            </div>
+          </template>
+
           <p v-if="settingsMsg" class="msg" :class="{ error: settingsError }">{{ settingsMsg }}</p>
           <div class="ai-actions">
             <button type="submit" class="btn btn-primary btn-sm" :disabled="settingsSaving">
               {{ settingsSaving ? 'Saving...' : 'Save AI Settings' }}
             </button>
-            <button type="button" class="btn btn-secondary btn-sm" :disabled="ollamaTesting" @click="testOllamaConnection">
-              {{ ollamaTesting ? 'Testing...' : 'Test Connectivity' }}
-            </button>
-          </div>
-          <div v-if="ollamaTestResult" class="connectivity-result" :class="{ success: ollamaTestOk, error: !ollamaTestOk }">
-            <span class="connectivity-icon">{{ ollamaTestOk ? '●' : '●' }}</span>
-            {{ ollamaTestResult }}
           </div>
         </form>
       </section>
@@ -238,6 +315,14 @@
           >
             {{ logsAutoRefresh ? 'Auto ●' : 'Auto ○' }}
           </button>
+          <button
+            class="btn btn-secondary btn-sm"
+            @click="exportLogs"
+            :disabled="logs.length === 0"
+            title="Export logs as text file"
+          >
+            <Download :size="14" /> Export
+          </button>
         </div>
         <div class="logs-container">
           <div v-if="logs.length === 0 && !logsLoading" class="logs-empty">
@@ -285,12 +370,13 @@ import { useAuthStore } from '@/stores/auth'
 import {
   getUsers, deleteUser, resetUserPassword,
   getAppSettings, getAppSettingDefaults, updateAppSettings, getAdminLogs, getOllamaStatus,
-  getAnthropicModels, getAgentPrompt, getValuationPrompt,
+  getAnthropicModels, getCoinSearchPrompt, getCoinShowsPrompt, getValuationPrompt,
+  testAnthropicConnection, testSearXNGConnection,
 } from '@/api/client'
 import type { AnthropicModel } from '@/api/client'
 import { LOG_LEVELS } from '@/types'
 import type { UserInfo, AppSettings, LogEntry } from '@/types'
-import { Users, Cpu, Wrench, ScrollText } from 'lucide-vue-next'
+import { Users, Cpu, Wrench, ScrollText, Download } from 'lucide-vue-next'
 
 const tabIcons: Record<string, Component> = { users: Users, ai: Cpu, system: Wrench, logs: ScrollText }
 
@@ -375,21 +461,25 @@ async function handleResetPassword() {
 
 // Settings
 const settings = ref<AppSettings>({
+  AIProvider: '',
   OllamaURL: 'http://localhost:11434',
   OllamaModel: 'llava',
   ObversePrompt: '',
   ReversePrompt: '',
   TextExtractionPrompt: '',
   OllamaTimeout: '300',
+  SearXNGURL: '',
   LogLevel: 'info',
 })
 const settingDefaults = ref<AppSettings>({
+  AIProvider: '',
   OllamaURL: '',
   OllamaModel: '',
   ObversePrompt: '',
   ReversePrompt: '',
   TextExtractionPrompt: '',
   OllamaTimeout: '',
+  SearXNGURL: '',
   LogLevel: '',
 })
 const settingsMsg = ref('')
@@ -398,12 +488,19 @@ const settingsSaving = ref(false)
 const ollamaTesting = ref(false)
 const ollamaTestResult = ref('')
 const ollamaTestOk = ref(false)
+const anthropicTesting = ref(false)
+const anthropicTestResult = ref('')
+const anthropicTestOk = ref(false)
+const searxngTesting = ref(false)
+const searxngTestResult = ref('')
+const searxngTestOk = ref(false)
 const anthropicModels = ref<AnthropicModel[]>([
   { id: 'claude-sonnet-4-20250514', name: 'Claude Sonnet 4' },
   { id: 'claude-haiku-4-20250414', name: 'Claude Haiku 4' },
   { id: 'claude-opus-4-20250514', name: 'Claude Opus 4' },
 ])
-const agentPromptDefault = ref('')
+const coinSearchPromptDefault = ref('')
+const coinShowsPromptDefault = ref('')
 const valuationPromptDefault = ref('')
 
 async function loadSettings() {
@@ -416,9 +513,10 @@ async function loadSettings() {
     settings.value = { ...settings.value, ...settingsRes.data }
 
     // Load Anthropic models and prompts in parallel
-    const [modelsRes, promptRes, valPromptRes] = await Promise.all([
+    const [modelsRes, coinSearchRes, coinShowsRes, valPromptRes] = await Promise.all([
       getAnthropicModels().catch(() => null),
-      getAgentPrompt().catch(() => null),
+      getCoinSearchPrompt().catch(() => null),
+      getCoinShowsPrompt().catch(() => null),
       getValuationPrompt().catch(() => null),
     ])
 
@@ -426,10 +524,17 @@ async function loadSettings() {
       anthropicModels.value = modelsRes.data
     }
 
-    if (promptRes?.data) {
-      agentPromptDefault.value = promptRes.data.default
-      if (!settings.value.AgentPrompt) {
-        settings.value.AgentPrompt = promptRes.data.prompt
+    if (coinSearchRes?.data) {
+      coinSearchPromptDefault.value = coinSearchRes.data.default
+      if (!settings.value.CoinSearchPrompt) {
+        settings.value.CoinSearchPrompt = coinSearchRes.data.prompt
+      }
+    }
+
+    if (coinShowsRes?.data) {
+      coinShowsPromptDefault.value = coinShowsRes.data.default
+      if (!settings.value.CoinShowsPrompt) {
+        settings.value.CoinShowsPrompt = coinShowsRes.data.prompt
       }
     }
 
@@ -473,6 +578,36 @@ async function testOllamaConnection() {
   }
 }
 
+async function testAnthropicConn() {
+  anthropicTesting.value = true
+  anthropicTestResult.value = ''
+  try {
+    const res = await testAnthropicConnection()
+    anthropicTestOk.value = res.data.available
+    anthropicTestResult.value = res.data.message
+  } catch {
+    anthropicTestOk.value = false
+    anthropicTestResult.value = 'Failed to test Anthropic connection'
+  } finally {
+    anthropicTesting.value = false
+  }
+}
+
+async function testSearxngConn() {
+  searxngTesting.value = true
+  searxngTestResult.value = ''
+  try {
+    const res = await testSearXNGConnection()
+    searxngTestOk.value = res.data.available
+    searxngTestResult.value = res.data.message
+  } catch {
+    searxngTestOk.value = false
+    searxngTestResult.value = 'Failed to test SearXNG connection'
+  } finally {
+    searxngTesting.value = false
+  }
+}
+
 // Logs
 const logs = ref<LogEntry[]>([])
 const logsLoading = ref(false)
@@ -498,6 +633,21 @@ function toggleAutoRefresh() {
     clearInterval(logsInterval)
     logsInterval = null
   }
+}
+
+function exportLogs() {
+  if (logs.value.length === 0) return
+  const lines = logs.value.map(
+    (e) => `${e.timestamp} [${e.level.padEnd(5)}] ${e.message}`
+  )
+  const blob = new Blob([lines.join('\n')], { type: 'text/plain' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  const date = new Date().toISOString().slice(0, 10)
+  a.download = `ancientcoins-logs-${date}.log`
+  a.click()
+  URL.revokeObjectURL(url)
 }
 
 function logLevelClass(level: string) {
@@ -698,6 +848,79 @@ onUnmounted(() => {
 
 .connectivity-icon {
   font-size: 0.7rem;
+}
+
+/* Provider Toggle */
+.provider-toggle {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.provider-option {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 1rem;
+  border: 2px solid var(--border-subtle, #333);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.provider-option:hover {
+  border-color: var(--accent-gold, #d4a843);
+}
+
+.provider-option.active {
+  border-color: var(--accent-gold, #d4a843);
+  background: rgba(212, 168, 67, 0.08);
+}
+
+.provider-option input[type="radio"] {
+  display: none;
+}
+
+.provider-label {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text-primary, #e0e0e0);
+}
+
+.provider-desc {
+  font-size: 0.8rem;
+  color: var(--text-secondary, #999);
+}
+
+.provider-warning {
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(231, 176, 60, 0.1);
+  border: 1px solid rgba(231, 176, 60, 0.3);
+  border-radius: 6px;
+  color: #e7b03c;
+  font-size: 0.85rem;
+}
+
+.section-divider {
+  border: none;
+  border-top: 1px solid var(--border-subtle, #333);
+  margin: 1.5rem 0;
+}
+
+.subsection-title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: var(--text-primary, #e0e0e0);
+}
+
+.connectivity-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  margin-bottom: 0.5rem;
 }
 
 /* Modal */

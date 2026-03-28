@@ -123,7 +123,8 @@ export const getCoin = (id: number) => api.get<Coin>(`/coins/${id}`)
 export const createCoin = (coin: Partial<Coin>) => api.post<Coin>('/coins', sanitizeCoin(coin))
 export const updateCoin = (id: number, coin: Partial<Coin>, params?: Record<string, string>) =>
   api.put<Coin>(`/coins/${id}`, sanitizeCoin(coin), { params })
-export const purchaseCoin = (id: number) => api.post<Coin>(`/coins/${id}/purchase`)
+export const purchaseCoin = (id: number, data?: { purchasePrice?: number; purchaseDate?: string; purchaseLocation?: string }) =>
+  api.post<Coin>(`/coins/${id}/purchase`, data || {})
 export const sellCoin = (id: number, soldPrice: number | null, soldTo: string) =>
   api.post<Coin>(`/coins/${id}/sell`, { soldPrice, soldTo })
 export const deleteCoin = (id: number) => api.delete(`/coins/${id}`)
@@ -159,6 +160,7 @@ export async function agentChatStream(
   onText: (text: string) => void,
   onDone: (message: string, suggestions: CoinSuggestion[]) => void,
   onError: (error: string) => void,
+  onStatus?: (status: string) => void,
 ) {
   const token = localStorage.getItem('token')
   const baseURL = import.meta.env.VITE_API_BASE_URL || ''
@@ -202,6 +204,8 @@ export async function agentChatStream(
           const event = JSON.parse(data)
           if (event.type === 'text') {
             onText(event.text)
+          } else if (event.type === 'status') {
+            onStatus?.(event.message)
           } else if (event.type === 'done') {
             onDone(event.message, event.suggestions || [])
           }
@@ -220,7 +224,8 @@ export interface AnthropicModel {
 
 export const getAnthropicModels = () => api.get<AnthropicModel[]>('/agent/models')
 
-export const getAgentPrompt = () => api.get<{ prompt: string; default: string }>('/agent/prompt')
+export const getCoinSearchPrompt = () => api.get<{ prompt: string; default: string }>('/agent/coin-search-prompt')
+export const getCoinShowsPrompt = () => api.get<{ prompt: string; default: string }>('/agent/coin-shows-prompt')
 
 // Agent Conversations
 export interface ConversationSummary {
@@ -310,6 +315,16 @@ export const getAdminLogs = (limit = 500, level?: string) => {
   if (level) params.level = level
   return api.get<{ logs: LogEntry[]; count: number; logLevel: string }>('/admin/logs', { params })
 }
+
+type ConnectivityResult = { available: boolean; message: string }
+export const testAnthropicConnection = () =>
+  api.get<ConnectivityResult>('/admin/test-anthropic')
+export const testSearXNGConnection = () =>
+  api.get<ConnectivityResult>('/admin/test-searxng')
+
+// Agent status
+export const getAgentStatus = () =>
+  api.get<{ provider: string; configured: boolean }>('/agent/status')
 
 // WebAuthn
 export const webauthnRegisterBegin = () =>

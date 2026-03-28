@@ -10,7 +10,7 @@ Run the app using one of the methods described in the [README](../README.md):
 
 ```sh
 task run                    # development (Go + Vite)
-docker compose up           # production (single container)
+docker compose up           # production (two containers)
 ```
 
 ### 2. Create Your Admin Account
@@ -23,7 +23,7 @@ Click **Register** and create your account. The **first user** to register is au
 
 As admin, click **Admin** in the navigation bar to configure:
 
-- **AI Configuration** — Set the Ollama URL, the vision model name (default `llava`), and optionally a custom analysis prompt. The Ollama URL is configured here (default `http://localhost:11434`).
+- **AI Configuration** — Select your AI Provider: **Anthropic** (recommended) for Claude models with built-in web search, or **Ollama** for self-hosted models. Configure the provider-specific settings (API key, model, URL) and optionally customize analysis prompts. The Ollama URL is configured here (default `http://localhost:11434`).
 - **System** — Set the log level (`trace`, `debug`, `info`, `warn`, `error`) and configure the Numista API key for catalog lookups.
 - **Logs** — View real-time application logs with level filtering and auto-refresh
 
@@ -206,7 +206,7 @@ curl -X POST http://localhost:8080/api/user/import \
 
 ## AI Coin Analysis
 
-Upload photos of a coin and click **🤖 Analyze with AI** on the coin detail page. The AI will analyze the images and return a Markdown-formatted report covering:
+Upload photos of a coin and click **Analyze with AI** on the coin detail page. The request is routed through the Python agent service using whichever AI provider is configured (Anthropic or Ollama). The AI will analyze the images and return a Markdown-formatted report covering:
 
 - Coin identification (ruler, denomination, mint)
 - Obverse and reverse design descriptions

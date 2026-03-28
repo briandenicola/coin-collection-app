@@ -6,39 +6,44 @@ on:
   workflow_dispatch:
 
 env:
-  IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/ancient-coins
+  IMAGE_APP: ${{ secrets.DOCKERHUB_USERNAME }}/ancient-coins
+  IMAGE_AGENT: ${{ secrets.DOCKERHUB_USERNAME }}/ancient-coins-agent
 
 jobs:
-  build-and-push:
+  build-and-push-app:
     runs-on: ubuntu-latest
     permissions:
       contents: read
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
       - name: Log in to Docker Hub
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Extract metadata
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
-          images: ${{ env.IMAGE_NAME }}
+          images: ${{ env.IMAGE_APP }}
           tags: |
             type=sha,format=long
             type=sha,format=short
             type=raw,value=beta
 
-      - name: Build and push
-        uses: docker/build-push-action@v6
+      - name: Set build date
+        id: date
+        run: echo "build_date=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push app
+        uses: docker/build-push-action@v7
         with:
           context: .
           push: true
@@ -46,6 +51,45 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             APP_VERSION=${{ github.sha }}
-            BUILD_DATE=${{ github.event.head_commit.timestamp }}
+            BUILD_DATE=${{ steps.date.outputs.build_date }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  build-and-push-agent:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.IMAGE_AGENT }}
+          tags: |
+            type=sha,format=long
+            type=sha,format=short
+            type=raw,value=beta
+
+      - name: Build and push agent
+        uses: docker/build-push-action@v7
+        with:
+          context: src/agent
+          file: src/agent/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

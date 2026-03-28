@@ -18,16 +18,22 @@
         </div>
       </div>
 
+      <!-- Unconfigured provider banner -->
+      <div v-if="!providerConfigured" class="provider-banner">
+        <AlertTriangle :size="16" />
+        <span>AI provider not configured. <a href="/admin" @click="$emit('close')">Go to Admin Settings</a> to select Anthropic or Ollama.</span>
+      </div>
+
       <div class="chat-messages" ref="messagesEl">
         <div v-if="messages.length === 0" class="chat-intro">
           <Bot :size="32" />
-          <p>Describe the coins you're looking for and I'll search the web to find them.</p>
+          <p>Search for coins, find upcoming shows, or get a portfolio analysis -- ask me anything about collecting.</p>
           <div class="chat-examples">
             <button class="example-btn" @click="sendExample('Find me Roman silver denarii of Julius Caesar')">
               Roman denarii of Julius Caesar
             </button>
-            <button class="example-btn" @click="sendExample('I\'m looking for Byzantine gold solidi under $500')">
-              Byzantine gold solidi under $500
+            <button class="example-btn" @click="sendExample('I\'m looking for Byzantine gold solidi under $1000')">
+              Byzantine gold solidi under $1000
             </button>
             <button class="example-btn" @click="sendExample('Show me ancient Greek tetradrachms from Athens')">
               Greek tetradrachms from Athens
@@ -43,12 +49,37 @@
 
         <template v-for="(msg, i) in messages" :key="i">
           <div class="chat-bubble" :class="[msg.role, { streaming: msg.streaming }]">
-            <div class="bubble-content" v-html="formatMessage(msg.content)"></div>
+            <div v-if="msg.streaming && msg.statusText && !msg.content" class="bubble-content status-text">
+              <span class="status-indicator"></span>{{ msg.statusText }}
+            </div>
+            <div v-else class="bubble-content" v-html="formatMessage(msg.content)"></div>
           </div>
 
-          <!-- Suggestions after assistant message -->
-          <div v-if="msg.role === 'assistant' && msg.suggestions?.length" class="suggestions-grid">
-            <div v-for="(coin, j) in msg.suggestions" :key="j" class="suggestion-card">
+          <!-- Coin Show results -->
+          <div v-if="msg.role === 'assistant' && msg.suggestions?.length && isCoinShowResults(msg.suggestions)" class="suggestions-grid">
+            <div v-for="(show, j) in (msg.suggestions as CoinShow[])" :key="j" class="show-card">
+              <div class="show-body">
+                <a v-if="show.url" :href="show.url" target="_blank" rel="noopener" class="show-name-link">
+                  <h4>{{ show.name }} <ExternalLink :size="12" /></h4>
+                </a>
+                <h4 v-else>{{ show.name }}</h4>
+                <div class="show-details">
+                  <span v-if="show.dates" class="show-detail"><Calendar :size="13" /> {{ show.dates }}</span>
+                  <span v-if="show.venue" class="show-detail"><MapPin :size="13" /> {{ show.venue }}</span>
+                  <span v-if="show.location" class="show-detail-sub">{{ show.location }}</span>
+                  <span v-if="show.entryFee" class="show-detail"><Ticket :size="13" /> {{ show.entryFee }}</span>
+                </div>
+                <p v-if="show.description" class="show-desc">{{ show.description }}</p>
+                <div v-if="show.notableDealers?.length" class="show-dealers">
+                  <span v-for="(dealer, k) in show.notableDealers" :key="k" class="meta-tag">{{ dealer }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Coin suggestions after assistant message -->
+          <div v-if="msg.role === 'assistant' && msg.suggestions?.length && !isCoinShowResults(msg.suggestions)" class="suggestions-grid">
+            <div v-for="(coin, j) in (msg.suggestions as CoinSuggestion[])" :key="j" class="suggestion-card">
               <div class="suggestion-img" v-if="getSuggestionImageUrl(coin)">
                 <img :src="getSuggestionImageUrl(coin)" :alt="coin.name" @error="handleImgError" />
               </div>
@@ -66,6 +97,7 @@
                     <ExternalLink :size="12" /> {{ coin.sourceName || 'Source' }}
                   </a>
                   <button
+                    v-if="coin.era || coin.material || coin.denomination"
                     class="btn btn-primary btn-sm add-btn"
                     :disabled="addingIdx === `${i}-${j}`"
                     @click="addToWishlist(coin, `${i}-${j}`)"
@@ -82,7 +114,6 @@
         <div v-if="loading && !messages[messages.length-1]?.streaming" class="chat-bubble assistant">
           <div class="bubble-content thinking">
             <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-            Searching the web for coins...
           </div>
         </div>
       </div>
@@ -91,11 +122,11 @@
         <input
           v-model="input"
           class="chat-input"
-          placeholder="Describe the coins you're looking for..."
-          :disabled="loading"
+          :placeholder="providerConfigured ? 'Describe the coins you\'re looking for...' : 'Configure AI provider in Admin Settings'"
+          :disabled="loading || !providerConfigured"
           ref="inputEl"
         />
-        <button type="submit" class="send-btn" :disabled="!input.trim() || loading">
+        <button type="submit" class="send-btn" :disabled="!input.trim() || loading || !providerConfigured">
           <SendHorizontal :size="18" />
         </button>
       </form>
@@ -105,16 +136,20 @@
 
 <script setup lang="ts">
 import { ref, nextTick, onMounted, onBeforeUnmount, computed } from 'vue'
-import { agentChatStream, createCoin, proxyImage, scrapeImage, uploadImage, saveConversation, getPortfolioSummary } from '@/api/client'
-import type { CoinSuggestion, AgentChatMessage, Category, Material } from '@/types'
-import { Bot, X, SendHorizontal, CirclePlus, ExternalLink, Save } from 'lucide-vue-next'
+import { agentChatStream, createCoin, proxyImage, scrapeImage, uploadImage, saveConversation, getPortfolioSummary, getAgentStatus } from '@/api/client'
+import type { CoinSuggestion, CoinShow, AgentChatMessage, Category, Material } from '@/types'
+import { Bot, X, SendHorizontal, CirclePlus, ExternalLink, Save, AlertTriangle, Calendar, MapPin, Ticket } from 'lucide-vue-next'
 import DOMPurify from 'dompurify'
+import MarkdownIt from 'markdown-it'
+
+type ChatSuggestion = CoinSuggestion | CoinShow
 
 interface ChatMsg {
   role: 'user' | 'assistant'
   content: string
-  suggestions?: CoinSuggestion[]
+  suggestions?: ChatSuggestion[]
   streaming?: boolean
+  statusText?: string
 }
 
 const props = defineProps<{
@@ -137,6 +172,7 @@ const conversationId = ref<number | null>(null)
 const saving = ref(false)
 const scrapedImages = ref<Map<string, string>>(new Map())
 const saveLabel = ref('Save')
+const providerConfigured = ref(true)  // assume configured until checked
 
 const VALID_CATEGORIES = ['Roman', 'Greek', 'Byzantine', 'Modern', 'Other']
 const VALID_MATERIALS = ['Gold', 'Silver', 'Bronze', 'Copper', 'Electrum', 'Other']
@@ -175,6 +211,7 @@ async function sendMessage() {
     history,
     (chunk: string) => {
       const msg = messages.value[assistantIdx]!
+      if (msg.statusText) msg.statusText = ''
       msg.content += chunk
       scrollToBottom()
     },
@@ -183,6 +220,7 @@ async function sendMessage() {
       msg.content = message
       msg.suggestions = suggestions
       msg.streaming = false
+      msg.statusText = ''
       loading.value = false
       scrollToBottom()
     },
@@ -190,8 +228,16 @@ async function sendMessage() {
       const msg = messages.value[assistantIdx]!
       msg.content = error || 'Failed to get a response. Please try again.'
       msg.streaming = false
+      msg.statusText = ''
       loading.value = false
       scrollToBottom()
+    },
+    (status: string) => {
+      const msg = messages.value[assistantIdx]!
+      if (!msg.content) {
+        msg.statusText = status
+        scrollToBottom()
+      }
     },
   )
 }
@@ -338,11 +384,21 @@ function parsePrice(price: string): number | null {
   return parseFloat(match[0].replace(/,/g, ''))
 }
 
+const md = new MarkdownIt({ html: false, linkify: true, breaks: true })
+
 function formatMessage(text: string): string {
-  const formatted = text
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\n/g, '<br>')
-  return DOMPurify.sanitize(formatted, { ALLOWED_TAGS: ['strong', 'br'] })
+  if (!text) return ''
+  const html = md.render(text)
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: ['strong', 'em', 'br', 'p', 'ul', 'ol', 'li', 'a', 'h1', 'h2', 'h3', 'h4', 'code', 'pre', 'blockquote', 'hr'],
+    ALLOWED_ATTR: ['href', 'target', 'rel'],
+  })
+}
+
+function isCoinShowResults(suggestions: ChatSuggestion[]): boolean {
+  if (!suggestions?.length) return false
+  const first = suggestions[0]!
+  return 'dates' in first || 'venue' in first
 }
 
 function proxyImageUrl(url: string): string {
@@ -388,7 +444,7 @@ function handleImgError(e: Event) {
   img.style.display = 'none'
 }
 
-onMounted(() => {
+onMounted(async () => {
   inputEl.value?.focus()
   if (props.loadConversation) {
     conversationId.value = props.loadConversation.id
@@ -396,6 +452,13 @@ onMounted(() => {
       messages.value = JSON.parse(props.loadConversation.messages)
       scrollToBottom()
     } catch { /* ignore parse errors */ }
+  }
+  // Check if AI provider is configured
+  try {
+    const res = await getAgentStatus()
+    providerConfigured.value = res.data.configured
+  } catch {
+    providerConfigured.value = true // don't block on network error
   }
   // Handle iOS keyboard resizing the visual viewport
   if (window.visualViewport) {
@@ -464,6 +527,24 @@ function handleViewportResize() {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.provider-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: rgba(231, 176, 60, 0.1);
+  border-bottom: 1px solid rgba(231, 176, 60, 0.3);
+  color: #e7b03c;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+.provider-banner a {
+  color: var(--accent-gold, #d4a843);
+  text-decoration: underline;
+  font-weight: 600;
 }
 
 .chat-save {
@@ -608,6 +689,74 @@ function handleViewportResize() {
   color: var(--accent-gold);
 }
 
+/* Markdown inside chat bubbles */
+.bubble-content :deep(p) {
+  margin: 0 0 0.5em;
+}
+.bubble-content :deep(p:last-child) {
+  margin-bottom: 0;
+}
+.bubble-content :deep(ul),
+.bubble-content :deep(ol) {
+  margin: 0.25em 0 0.5em 1.25em;
+  padding: 0;
+}
+.bubble-content :deep(li) {
+  margin-bottom: 0.2em;
+}
+.bubble-content :deep(a) {
+  color: var(--accent-gold);
+  text-decoration: underline;
+}
+.bubble-content :deep(code) {
+  background: var(--bg-elevated, rgba(255,255,255,0.06));
+  padding: 0.1em 0.35em;
+  border-radius: 3px;
+  font-size: 0.88em;
+}
+.bubble-content :deep(pre) {
+  background: var(--bg-elevated, rgba(255,255,255,0.06));
+  padding: 0.6em 0.8em;
+  border-radius: var(--radius-sm);
+  overflow-x: auto;
+  margin: 0.5em 0;
+}
+.bubble-content :deep(blockquote) {
+  border-left: 3px solid var(--accent-gold);
+  margin: 0.5em 0;
+  padding: 0.25em 0.75em;
+  color: var(--text-secondary);
+}
+.bubble-content :deep(h1),
+.bubble-content :deep(h2),
+.bubble-content :deep(h3),
+.bubble-content :deep(h4) {
+  margin: 0.5em 0 0.25em;
+  font-size: 1em;
+  font-weight: 600;
+}
+
+.status-text {
+  color: var(--text-secondary, #999);
+  font-style: italic;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.status-text .status-indicator {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-gold);
+  animation: pulse-dot 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 0.3; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
 @keyframes blink {
   50% { opacity: 0; }
 }
@@ -711,6 +860,84 @@ function handleViewportResize() {
 
 .source-link:hover {
   color: var(--accent-gold);
+}
+
+/* Coin Show cards */
+.show-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  transition: border-color var(--transition-fast);
+}
+
+.show-card:hover {
+  border-color: var(--accent-gold);
+}
+
+.show-body {
+  padding: 0.7rem 0.85rem;
+}
+
+.show-body h4 {
+  font-size: 0.88rem;
+  margin: 0 0 0.4rem;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.show-name-link {
+  text-decoration: none;
+  color: inherit;
+}
+
+.show-name-link h4 {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--accent-gold);
+  transition: color var(--transition-fast);
+}
+
+.show-name-link:hover h4 {
+  color: var(--accent-bronze);
+}
+
+.show-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.4rem;
+}
+
+.show-detail {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.show-detail-sub {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  padding-left: 1.5rem;
+}
+
+.show-desc {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin: 0 0 0.4rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.show-dealers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
 }
 
 .add-btn {

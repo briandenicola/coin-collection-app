@@ -20,7 +20,7 @@ Track coins you'd like to acquire with an AI-powered search agent:
 
 - **Add to Wish List** — When creating a coin, toggle the "Wishlist" flag. The coin appears in the dedicated Wish List view instead of the main collection.
 - **AI Coin Search Agent** — Click "Find Coins" to open a chat drawer powered by Anthropic Claude with web search. Describe the coins you're looking for (e.g., "Roman silver denarii of Julius Caesar under $500") and the agent searches the web for real listings and references. Results appear as cards with images, metadata, estimated prices, and source links — each with an "Add to Wishlist" button for one-click import.
-- **Purchase** — Move a wishlist coin to your main collection when you acquire it.
+- **Purchase** — Move a wishlist coin to your main collection when you acquire it. A styled purchase modal prompts for the purchase price and date, replacing the default browser confirm dialog.
 - **Wish List Gallery** — A separate page showing only wishlist items with sorting support.
 
 ## Sold Coins
@@ -63,6 +63,9 @@ Chat with an AI agent that searches the web for coins matching your description.
 Key features:
 
 - **Streaming Responses** — Agent replies stream in real-time via Server-Sent Events (SSE) with a progressive text display and blinking cursor, so you see results as they arrive.
+- **Real-time Status Indicators** — During agent processing, status indicators show which team and step is active (searching, fetching, formatting).
+- **SSE Progress Events** — The agent streams structured progress events so the frontend can display step-by-step status updates.
+- **Multi-team Architecture** — The agent uses specialized teams: coin search finds listings, coin shows finds upcoming events, portfolio review analyzes your collection, and coin analysis examines uploaded images.
 - **Automatic Image Extraction** — When you add a coin to your wishlist, the system automatically extracts the listing's primary image using `og:image` meta tag scraping from the source page. Falls back to the agent-provided image URL if scraping finds nothing.
 - **Paste Image URL** — If automatic extraction misses an image, you can paste an image URL directly on the coin detail page to fetch and attach it.
 - **Save Conversations** — Save search conversations for later reference. Saved chats appear in the Settings → Conversations tab where you can reopen or delete them.
@@ -133,9 +136,9 @@ All authenticated users can access **Settings**, organized in a tabbed layout:
 The first registered user is the admin. Admins can access **Admin** to manage:
 
 - **Users** — View all registered users, delete accounts, and reset passwords.
-- **AI Configuration** — Configure Ollama (URL, vision model, timeout, analysis prompts) and Anthropic (API key, model dropdown, editable agent prompt for the search agent).
+- **AI Configuration** — Select your AI Provider: Anthropic (recommended) or Ollama. Configure Ollama (URL, vision model, timeout, analysis prompts), Anthropic (API key, model dropdown, editable agent prompt for the search agent), and SearXNG URL for Ollama web search.
 - **System** — Set the application log level (trace, debug, info, warn, error) and configure the Numista API key for catalog lookups.
-- **Logs** — View real-time application logs with level filtering and auto-refresh.
+- **Logs** — View real-time application logs with level filtering, auto-refresh, and log export.
 
 ## Authentication
 
@@ -171,6 +174,8 @@ For installation instructions and a full feature guide, see the [PWA Guide](pwa-
 | `UPLOAD_DIR`      | `./uploads`                     | Directory for uploaded coin images |
 | `WEBAUTHN_RP_ID`  | `localhost`                     | Relying Party ID for FIDO2/WebAuthn |
 | `WEBAUTHN_ORIGIN` | `http://localhost:8080`         | Origin URL for WebAuthn |
+| `AGENT_SERVICE_URL` | `http://agent:8081`           | Python agent service URL |
+| `AGENT_LOG_LEVEL` | `INFO`                          | Python agent log level |
 | `CORS_ORIGINS`    | *(WebAuthn origin + localhost)* | Comma-separated allowed CORS origins |
 
 ### Admin-Managed Settings
@@ -179,13 +184,17 @@ These are configured in the Admin UI (not environment variables) and stored in t
 
 | Setting              | Description |
 | -------------------- | ----------- |
-| `OllamaURL`          | Ollama server URL for AI coin analysis (default: `http://localhost:11434`) |
+| `AIProvider`          | Explicit provider choice: `anthropic` or `ollama` (must be set before agent features work) |
+| `AnthropicAPIKey`     | API key for Claude models |
+| `AnthropicModel`      | Claude model to use (default: `claude-sonnet-4-20250514`) |
+| `OllamaURL`          | Ollama server URL (default: `http://localhost:11434`) |
 | `OllamaModel`        | Vision model name (default: `llava`) |
 | `OllamaTimeout`      | AI request timeout in seconds (default: `300`) |
-| `AnthropicAPIKey`     | API key for the Claude-powered coin search agent |
-| `AnthropicModel`      | Claude model to use (default: `claude-sonnet-4-20250514`) |
-| `AgentPrompt`         | Custom system prompt for the AI coin search agent |
+| `SearXNGURL`         | SearXNG search engine URL (required for Ollama web search) |
 | `NumistaAPIKey`       | Numista catalog API key for coin lookups |
+| `CoinSearchPrompt`   | System prompt for the AI coin search agent |
+| `CoinShowsPrompt`    | System prompt for the coin shows agent |
+| `ValuationPrompt`    | System prompt for the value estimator |
 | `ObversePrompt`       | Custom prompt for obverse image analysis |
 | `ReversePrompt`       | Custom prompt for reverse image analysis |
 | `TextExtractionPrompt`| Custom prompt for OCR text extraction |
