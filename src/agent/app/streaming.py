@@ -56,6 +56,16 @@ async def stream_graph_events(graph, input_data: dict, config: dict | None = Non
                 if status:
                     yield format_sse({"type": "status", "message": status})
 
+            elif kind == "on_tool_start":
+                tool_name = event.get("name", "")
+                if "search" in tool_name.lower():
+                    yield format_sse({"type": "status", "message": "Searching the web..."})
+
+            elif kind == "on_tool_end":
+                tool_name = event.get("name", "")
+                if "search" in tool_name.lower():
+                    yield format_sse({"type": "status", "message": "Processing search results..."})
+
             elif kind == "on_chat_model_stream":
                 chunk = event.get("data", {}).get("chunk")
                 if isinstance(chunk, AIMessageChunk) and chunk.content:

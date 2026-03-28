@@ -129,7 +129,7 @@ Vue SPA ───> Go API (8080) ───> Python Agent (8081)
               │              ┌────┴────┐
               │              v         v
               │           Claude    Ollama + SearXNG
-              │           API       (external)
+              │           API       (ReAct agent)
               v
             SQLite
 ```
@@ -147,8 +147,8 @@ Each team follows a multi-agent pipeline with verification steps to prevent hall
 
 ### Search Strategy
 
-- **Anthropic/Claude**: Uses Claude's built-in `web_search` tool
-- **Ollama**: Uses SearXNG as an external web search provider
+- **Anthropic/Claude**: Uses Claude's built-in `web_search` server-side tool
+- **Ollama**: Uses a LangGraph `create_react_agent` with a SearXNG tool bound via `bind_tools` — the model decides when and how to search, mirroring how Anthropic's server-side tool works
 
 ### Data Flow
 

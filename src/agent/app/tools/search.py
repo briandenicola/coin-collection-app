@@ -37,7 +37,13 @@ def create_searxng_search(searxng_url: str = ""):
 
     @tool
     async def searxng_search(query: str) -> str:
-        """Search the web using SearXNG. Used when LLM provider is Ollama."""
+        """Search the web for current information.
+
+        Use this tool when you need to find real-time data such as items for
+        sale, upcoming events, prices, or any other information that requires
+        a live web search.  Pass a descriptive search query and receive
+        titles, URLs, and text snippets from multiple search engines.
+        """
         try:
             async with httpx.AsyncClient(timeout=settings.verification_timeout) as client:
                 resp = await client.get(
