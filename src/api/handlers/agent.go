@@ -545,11 +545,11 @@ func (h *AgentHandler) EstimateValue(c *gin.Context) {
 
 	// Save estimate to the coin's journal
 	if estVal, ok := estimate["estimatedValue"].(float64); ok && estVal > 0 {
-		reasoning, _ := estimate["reasoning"].(string)
-		journalText := fmt.Sprintf("AI Value Estimate: $%.2f", estVal)
-		if reasoning != "" {
-			journalText += fmt.Sprintf(" — %s", reasoning)
+		confidence, _ := estimate["confidence"].(string)
+		if confidence == "" {
+			confidence = "medium"
 		}
+		journalText := fmt.Sprintf("AI Value Estimate: $%.2f (%s confidence)", estVal, confidence)
 		entry := models.CoinJournal{
 			CoinID: uint(coinID),
 			UserID: userID,
