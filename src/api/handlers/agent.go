@@ -10,22 +10,25 @@ import (
 	"strings"
 	"time"
 
+	"github.com/briandenicola/ancient-coins-api/models"
 	"github.com/briandenicola/ancient-coins-api/repository"
 	"github.com/briandenicola/ancient-coins-api/services"
 	"github.com/gin-gonic/gin"
 )
 
 type AgentHandler struct {
-	repo     *repository.AgentRepository
-	userRepo *repository.UserRepository
-	proxy    *services.AgentProxy
+	repo        *repository.AgentRepository
+	userRepo    *repository.UserRepository
+	journalRepo *repository.JournalRepository
+	proxy       *services.AgentProxy
 }
 
-func NewAgentHandler(repo *repository.AgentRepository, userRepo *repository.UserRepository, proxy *services.AgentProxy) *AgentHandler {
+func NewAgentHandler(repo *repository.AgentRepository, userRepo *repository.UserRepository, journalRepo *repository.JournalRepository, proxy *services.AgentProxy) *AgentHandler {
 	return &AgentHandler{
-		repo:     repo,
-		userRepo: userRepo,
-		proxy:    proxy,
+		repo:        repo,
+		userRepo:    userRepo,
+		journalRepo: journalRepo,
+		proxy:       proxy,
 	}
 }
 
@@ -539,6 +542,24 @@ func (h *AgentHandler) EstimateValue(c *gin.Context) {
 
 	// Parse structured fields from the AI's free-text response
 	estimate := parseValueEstimate(aiText)
+
+	// Save estimate to the coin's journal
+	if estVal, ok := estimate["estimatedValue"].(float64); ok && estVal > 0 {
+		reasoning, _ := estimate["reasoning"].(string)
+		journalText := fmt.Sprintf("AI Value Estimate: $%.2f", estVal)
+		if reasoning != "" {
+			journalText += fmt.Sprintf(" — %s", reasoning)
+		}
+		entry := models.CoinJournal{
+			CoinID: uint(coinID),
+			UserID: userID,
+			Entry:  journalText,
+		}
+		if err := h.journalRepo.CreateEntry(&entry); err != nil {
+			logger.Warn("agent", "Failed to save estimate to journal: %v", err)
+		}
+	}
+
 	c.JSON(http.StatusOK, estimate)
 }
 
