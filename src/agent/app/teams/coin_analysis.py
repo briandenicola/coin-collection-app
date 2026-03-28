@@ -189,14 +189,14 @@ def _build_image_contents(images: list[str]) -> list[dict]:
             # Already a data URI
             data_uri = img_b64
         else:
-            # Validate full base64 and sniff MIME type from magic bytes
+            # Sniff MIME type from first few bytes (avoid decoding entire image)
             try:
-                raw = base64.b64decode(img_b64, validate=True)
-                if raw[:4] == b"\x89PNG":
+                preview = base64.b64decode(img_b64[:200], validate=False)
+                if preview[:4] == b"\x89PNG":
                     mime = "image/png"
-                elif raw[:2] == b"\xff\xd8":
+                elif preview[:2] == b"\xff\xd8":
                     mime = "image/jpeg"
-                elif raw[:4] == b"RIFF":
+                elif preview[:4] == b"RIFF":
                     mime = "image/webp"
             except Exception:
                 logger.warning("Skipping invalid base64 image data")

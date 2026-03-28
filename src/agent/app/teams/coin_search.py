@@ -208,7 +208,7 @@ def create_coin_search_team(llm_config: LLMConfig, search_prompt: str = ""):
 
 def _extract_urls(text: str) -> list[str]:
     """Extract dealer URLs from search results text."""
-    urls = re.findall(r'https?://[^\s"\'<>\])+,]+', text)
+    urls = re.findall(r'https?://[^\s"\'<>)\],]+', text)
     # Deduplicate while preserving order
     seen = set()
     unique = []

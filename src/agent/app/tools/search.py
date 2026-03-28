@@ -151,7 +151,7 @@ async def fetch_dealer_page(url: str) -> str:
     """
     try:
         async with httpx.AsyncClient(
-            timeout=settings.verification_timeout,
+            timeout=httpx.Timeout(15.0, connect=5.0, read=10.0),
             follow_redirects=True,
         ) as client:
             resp = await client.get(url, headers={"User-Agent": _USER_AGENT})

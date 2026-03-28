@@ -86,11 +86,17 @@ async def analyze_coin(request: AnalyzeRequest):
     # initial state — the team constructor captures them via closure and
     # the nodes use state.get(key, closure_default). Passing empty values
     # here would override the closure defaults.
-    result = await graph.ainvoke({
-        "messages": [],
-        "raw_analysis": "",
-        "formatted_analysis": "",
-    })
+    try:
+        result = await graph.ainvoke({
+            "messages": [],
+            "raw_analysis": "",
+            "formatted_analysis": "",
+        })
+    except Exception:
+        logger.exception("Coin analysis graph execution failed")
+        return AgentResponse(
+            analysis="Unable to complete the analysis. Please try again with clearer, well-lit images of the coin."
+        )
     analysis_text = result.get("formatted_analysis", "")
     if not analysis_text:
         # Fall back to messages

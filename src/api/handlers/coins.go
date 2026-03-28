@@ -242,6 +242,11 @@ func (h *CoinHandler) Purchase(c *gin.Context) {
 		return
 	}
 
+	if !coin.IsWishlist {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Coin is not on the wishlist"})
+		return
+	}
+
 	// Apply optional purchase details from request body
 	var req PurchaseRequest
 	if c.Request.ContentLength > 0 {

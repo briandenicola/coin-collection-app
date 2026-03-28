@@ -357,7 +357,7 @@ def _is_empty_json_result(text: str) -> bool:
 
 def _extract_urls_from_text(text: str) -> list[str]:
     """Extract all http/https URLs from free text."""
-    return re.findall(r'https?://[^\s"\'<>\])+,]+', text)
+    return re.findall(r'https?://[^\s"\'<>)\],]+', text)
 
 
 def _sanitize_urls(
