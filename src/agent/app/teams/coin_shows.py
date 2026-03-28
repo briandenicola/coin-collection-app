@@ -16,9 +16,8 @@ from urllib.parse import urlparse
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langgraph.graph import END, StateGraph
 
-from app.llm.provider import get_chat_model, get_search_model
+from app.llm.provider import create_search_agent, get_chat_model, get_search_model
 from app.models.requests import LLMConfig, UserContext
-from app.tools.search import create_searxng_search
 
 logger = logging.getLogger(__name__)
 
@@ -154,9 +153,11 @@ def create_coin_show_team(
     logger.debug("Coin shows prompt (%d chars): %.80s...", len(base_search_prompt), base_search_prompt)
 
     model = get_chat_model(llm_config)
-    search_model = get_search_model(llm_config)
-    use_searxng = llm_config.provider == "ollama"
-    search_tool = create_searxng_search(llm_config.searxng_url) if use_searxng else None
+    use_react_agent = llm_config.provider == "ollama"
+    if use_react_agent:
+        search_agent = create_search_agent(llm_config)
+    else:
+        search_model = get_search_model(llm_config)
 
     # Build location context from user's zip code
     location_hint = ""
@@ -182,31 +183,26 @@ def create_coin_show_team(
         else:
             prompt = base_search_prompt
 
-        if use_searxng and search_tool:
-            search_query = f"{user_msg} upcoming coin show numismatic convention"
-            if user_context and user_context.zip_code:
-                search_query += f" near {user_context.zip_code}"
-            raw_results = await search_tool.ainvoke(search_query)
-
+        if use_react_agent:
+            # Ollama: ReAct agent calls SearXNG tool autonomously
             messages = [
                 SystemMessage(content=prompt),
-                HumanMessage(
-                    content=f"The user asked: {user_msg}\n\n"
-                    f"Here are web search results:\n{raw_results}\n\n"
-                    "Extract coin shows from these results and format as instructed."
-                ),
+                HumanMessage(content=f"Search for: {user_msg}"),
             ]
-            response = await model.ainvoke(messages)
+            result = await search_agent.ainvoke({"messages": messages})
+            last_msg = result["messages"][-1]
+            response_content = last_msg.content if isinstance(last_msg.content, str) else str(last_msg.content)
         else:
-            # Claude mode: web_search enabled via get_search_model
+            # Anthropic: web_search enabled via get_search_model
             messages = [
                 SystemMessage(content=prompt),
                 HumanMessage(content=f"Search for: {user_msg}"),
             ]
             response = await search_model.ainvoke(messages)
+            response_content = response.content if isinstance(response.content, str) else str(response.content)
 
         return {
-            "search_results": response.content if isinstance(response.content, str) else str(response.content),
+            "search_results": response_content,
             "messages": [],
         }
 
