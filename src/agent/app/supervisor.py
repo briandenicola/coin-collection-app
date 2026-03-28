@@ -7,6 +7,7 @@ The supervisor examines the user's message and delegates to:
 - Team 4 (Portfolio Review) for portfolio analysis and valuation
 """
 
+import logging
 from typing import Literal
 
 from langchain_core.messages import SystemMessage
@@ -18,6 +19,8 @@ from app.models.requests import LLMConfig, PortfolioSummary, UserContext
 from app.teams.coin_search import create_coin_search_team
 from app.teams.coin_shows import create_coin_show_team
 from app.teams.portfolio_review import create_portfolio_review_team
+
+logger = logging.getLogger(__name__)
 
 ROUTER_PROMPT = """You are a routing agent for a numismatic (coin collecting) application.
 Your ONLY job is to classify the user's request into exactly one category.
@@ -53,8 +56,10 @@ def create_router(llm_config: LLMConfig):
 
         valid_routes = {"coin_search", "coin_shows", "analysis", "portfolio", "general"}
         if route not in valid_routes:
+            logger.warning("Router returned invalid route '%s', defaulting to 'general'", route)
             route = "general"
 
+        logger.debug("Router decision: '%s' (provider=%s)", route, llm_config.provider)
         return Command(goto=route)
 
     return route_request
@@ -74,6 +79,10 @@ def create_supervisor(
     Teams 1 (coin_search), 2 (coin_shows), and 4 (portfolio) are always wired.
     Team 3 (analysis) requires images and uses a direct endpoint.
     """
+    logger.info(
+        "Building supervisor graph (provider=%s, model=%s)",
+        llm_config.provider, llm_config.model,
+    )
 
     # Build Team 1 as a callable node
     coin_search_graph = create_coin_search_team(llm_config, search_prompt=coin_search_prompt)

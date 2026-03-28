@@ -90,6 +90,7 @@ def create_coin_analysis_team(
         # Use closure values — state fields may be empty/unset
         img_contents = image_contents
         ctx = coin_context
+        logger.debug("[coin_analysis] analysis_node start — %d images, side=%s", len(img_contents), side or "general")
 
         if not img_contents:
             return {
