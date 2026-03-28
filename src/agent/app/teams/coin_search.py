@@ -1,8 +1,9 @@
 """Team 1: Coin Search — two-phase search with page fetching.
 
-Phase 1: Claude searches the web using web_search (enabled via get_search_model).
+Phase 1: Search the web for dealer pages (Anthropic uses built-in web_search;
+         Ollama uses a ReAct agent with SearXNG tool — model decides when to search).
 Phase 2: We fetch dealer pages from the URLs found and extract real listings.
-Phase 3: Claude formats the extracted listings into the CoinSuggestion JSON schema.
+Phase 3: Format the extracted listings into the CoinSuggestion JSON schema.
 """
 
 import logging
@@ -12,9 +13,9 @@ from typing import Annotated, TypedDict
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langgraph.graph import END, StateGraph
 
-from app.llm.provider import get_chat_model, get_search_model
+from app.llm.provider import create_search_agent, get_chat_model, get_search_model
 from app.models.requests import LLMConfig
-from app.tools.search import create_searxng_search, fetch_dealer_page
+from app.tools.search import fetch_dealer_page
 
 logger = logging.getLogger(__name__)
 
@@ -97,37 +98,33 @@ def create_coin_search_team(llm_config: LLMConfig, search_prompt: str = ""):
     else:
         combined_search = SEARCH_PROMPT
 
-    use_searxng = llm_config.provider == "ollama"
+    use_react_agent = llm_config.provider == "ollama"
+    if use_react_agent:
+        search_agent = create_search_agent(llm_config)
 
     async def search_node(state: CoinSearchState) -> dict:
         """Phase 1: Search the web for dealer pages."""
         user_msg = state.get("user_message", "")
-        # get_search_model enables Anthropic's built-in web_search tool
-        model = get_search_model(llm_config)
 
-        if use_searxng:
-            search_tool = create_searxng_search(llm_config.searxng_url)
-            query = f"{user_msg} ancient coins for sale buy now"
-            raw_results = await search_tool.ainvoke(query)
-            messages = [
-                SystemMessage(content=combined_search),
-                HumanMessage(
-                    content=f"The user is looking for: {user_msg}\n\n"
-                    f"Here are web search results:\n{raw_results}\n\n"
-                    "List the most promising URLs to check for individual listings."
-                ),
-            ]
+        messages = [
+            SystemMessage(content=combined_search),
+            HumanMessage(
+                content=f"Find coins for sale matching: {user_msg}\n\n"
+                "Search multiple dealer sites and report all URLs you find."
+            ),
+        ]
+
+        if use_react_agent:
+            # Ollama: ReAct agent calls SearXNG tool autonomously
+            result = await search_agent.ainvoke({"messages": messages})
+            last_msg = result["messages"][-1]
+            content = last_msg.content if isinstance(last_msg.content, str) else str(last_msg.content)
         else:
-            messages = [
-                SystemMessage(content=combined_search),
-                HumanMessage(
-                    content=f"Find coins for sale matching: {user_msg}\n\n"
-                    "Search multiple dealer sites and report all URLs you find."
-                ),
-            ]
+            # Anthropic: built-in web_search handled server-side
+            model = get_search_model(llm_config)
+            response = await model.ainvoke(messages)
+            content = response.content if isinstance(response.content, str) else str(response.content)
 
-        response = await model.ainvoke(messages)
-        content = response.content if isinstance(response.content, str) else str(response.content)
         return {"search_results": content, "messages": []}
 
     async def fetch_node(state: CoinSearchState) -> dict:
