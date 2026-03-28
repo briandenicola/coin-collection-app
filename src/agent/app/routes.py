@@ -1,5 +1,7 @@
 """API routes for the agent service."""
 
+import logging
+
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 
@@ -13,6 +15,8 @@ from app.models.responses import AgentResponse
 from app.streaming import stream_graph_events
 from app.supervisor import create_supervisor
 from app.teams.coin_analysis import create_coin_analysis_team
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api")
 
