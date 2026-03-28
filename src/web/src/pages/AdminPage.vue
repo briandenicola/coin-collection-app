@@ -315,6 +315,14 @@
           >
             {{ logsAutoRefresh ? 'Auto ●' : 'Auto ○' }}
           </button>
+          <button
+            class="btn btn-secondary btn-sm"
+            @click="exportLogs"
+            :disabled="logs.length === 0"
+            title="Export logs as text file"
+          >
+            <Download :size="14" /> Export
+          </button>
         </div>
         <div class="logs-container">
           <div v-if="logs.length === 0 && !logsLoading" class="logs-empty">
@@ -368,7 +376,7 @@ import {
 import type { AnthropicModel } from '@/api/client'
 import { LOG_LEVELS } from '@/types'
 import type { UserInfo, AppSettings, LogEntry } from '@/types'
-import { Users, Cpu, Wrench, ScrollText } from 'lucide-vue-next'
+import { Users, Cpu, Wrench, ScrollText, Download } from 'lucide-vue-next'
 
 const tabIcons: Record<string, Component> = { users: Users, ai: Cpu, system: Wrench, logs: ScrollText }
 
@@ -625,6 +633,21 @@ function toggleAutoRefresh() {
     clearInterval(logsInterval)
     logsInterval = null
   }
+}
+
+function exportLogs() {
+  if (logs.value.length === 0) return
+  const lines = logs.value.map(
+    (e) => `${e.timestamp} [${e.level.padEnd(5)}] ${e.message}`
+  )
+  const blob = new Blob([lines.join('\n')], { type: 'text/plain' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  const date = new Date().toISOString().slice(0, 10)
+  a.download = `ancientcoins-logs-${date}.log`
+  a.click()
+  URL.revokeObjectURL(url)
 }
 
 function logLevelClass(level: string) {
