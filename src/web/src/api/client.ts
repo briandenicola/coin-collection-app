@@ -437,5 +437,7 @@ export const convertAuctionLotToCoin = (id: number) => api.post<Coin>(`/auctions
 export const deleteAuctionLot = (id: number) => api.delete(`/auctions/${id}`)
 export const importAuctionLot = (data: { url: string; title?: string; description?: string; auctionHouse?: string; saleName?: string; category?: string; imageUrl?: string; estimate?: number | null; currentBid?: number | null; currency?: string }) =>
   api.post<AuctionLot>('/auctions/import', data)
+export const syncNumisBidsWatchlist = () =>
+  api.post<{ synced: number; lots: AuctionLot[] }>('/auctions/sync')
 
 export default api
