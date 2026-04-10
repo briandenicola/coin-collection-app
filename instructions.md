@@ -60,11 +60,13 @@ src/
 │   │   ├── models/                   # Pydantic request/response schemas
 │   │   ├── llm/provider.py           # Anthropic vs Ollama LLM factory
 │   │   ├── tools/search.py           # SearXNG search + URL verify tools
+│   │   ├── tools/numisbids.py        # NumisBids scraping tools (lot, watchlist, search)
 │   │   └── teams/                    # Multi-agent team pipelines
 │   │       ├── coin_search.py        # Team 1: Search → Verify → Format
 │   │       ├── coin_shows.py         # Team 2: Search → Date verify → Format
 │   │       ├── coin_analysis.py      # Team 3: Vision analysis → Format
-│   │       └── portfolio_review.py   # Team 4: Read → Valuate → Analyze
+│   │       ├── portfolio_review.py   # Team 4: Read → Valuate → Analyze
+│   │       └── auction_search.py     # Team 5: Auction search → Fetch → Format
 │   └── tests/                        # pytest tests
 │
 └── web/                              # Vue 3 SPA

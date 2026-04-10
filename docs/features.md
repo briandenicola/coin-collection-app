@@ -32,6 +32,18 @@ Track coins you've sold with profit/loss visibility:
 - **Sold Gallery** — A dedicated gallery page showing all sold coins with their sale history, accessible from the navigation bar.
 - **Stats Integration** — Sold coins are excluded from active collection totals while their sold values are tracked separately.
 
+## Auction Tracking
+
+Track auction lots from NumisBids through a complete bidding lifecycle:
+
+- **Add Lots** — Manually add lots by pasting a NumisBids URL. The app scrapes the lot page for title, image, estimate, auction house, and sale name.
+- **NumisBids Watchlist Sync** — Connect your NumisBids account (username and password stored per-user, validated on save) and sync your watchlist with one click. Each synced lot gets a full-resolution image scraped from the lot page.
+- **Status Workflow** — Lots progress through statuses: Watching → Bidding → Won / Lost / Passed. Status transitions are validated (e.g., only Bidding lots can be marked Won).
+- **Filtered Views** — Filter the auctions page by status. Counts for each status appear as badges on filter buttons.
+- **Won → Collection** — When a lot is marked as Won, it is automatically converted into a coin in your collection (mapping title, category, auction house, sale date, bid price) and the edit page opens so you can add details. A manual "Add to Collection" button is also available.
+- **AI Auction Search** — Ask the AI agent to search NumisBids for coins matching a description. The agent (Team 5) searches, fetches lot details, and formats results.
+- **Credential Validation** — NumisBids credentials are validated against the live site before being saved. The Settings page shows connected/error/validating status indicators.
+
 ## Coin Details
 
 Each coin can store:

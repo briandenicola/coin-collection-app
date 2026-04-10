@@ -124,7 +124,8 @@ Vue SPA ───> Go API (8080) ───> Python Agent (8081)
               │                   ├── Team 1: Coin Search
               │                   ├── Team 2: Coin Shows
               │                   ├── Team 3: Coin Analysis
-              │                   └── Team 4: Portfolio Review
+              │                   ├── Team 4: Portfolio Review
+              │                   └── Team 5: Auction Search
               │                   │
               │              ┌────┴────┐
               │              v         v
@@ -144,6 +145,7 @@ Each team follows a multi-agent pipeline with verification steps to prevent hall
 | 2: Coin Shows | Search → Verify Dates → Format | Find upcoming numismatic events |
 | 3: Coin Analysis | Analyze (vision) → Format | AI image analysis of coins |
 | 4: Portfolio Review | Read → Valuate → Analyze | Collection analysis and recommendations |
+| 5: Auction Search | Search → Fetch → Format | Search NumisBids for auction lots |
 
 ### Search Strategy
 
@@ -170,6 +172,10 @@ The Python service is **stateless** — it has no database access. All configura
 | `src/agent/app/teams/coin_shows.py` | Team 2: Shows → Date verify → Format |
 | `src/agent/app/teams/coin_analysis.py` | Team 3: Vision analysis → Format |
 | `src/agent/app/teams/portfolio_review.py` | Team 4: Read → Valuate → Analyze |
+| `src/agent/app/teams/auction_search.py` | Team 5: Auction search → Fetch → Format |
+| `src/agent/app/tools/numisbids.py` | NumisBids scraping tools |
+| `src/api/services/numisbids_service.go` | Go NumisBids HTTP client (login, watchlist, scraper) |
+| `src/api/services/auction_lot_service.go` | Auction lot status transitions, convert-to-coin |
 | `src/agent/app/streaming.py` | SSE streaming from LangGraph events |
 | `src/agent/app/llm/provider.py` | LLM factory (Anthropic vs Ollama) |
 | `src/api/services/agent_proxy.go` | Go SSE proxy to Python service |

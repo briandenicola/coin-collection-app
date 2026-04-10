@@ -1242,3 +1242,70 @@ Errors return an appropriate HTTP status code with a JSON body:
 | `403` | Forbidden (insufficient permissions) |
 | `404` | Resource not found |
 | `500` | Internal server error |
+
+---
+
+## Auction Lots
+
+All auction lot endpoints require authentication. Lots are scoped to the authenticated user.
+
+### GET /api/auctions
+
+List auction lots with optional filtering.
+
+**Query Parameters:**
+
+| Param | Type | Description |
+|-------|------|-------------|
+| `status` | string | Filter by status: `watching`, `bidding`, `won`, `lost`, `passed` |
+| `search` | string | Full-text search across title, description, auction house |
+| `sort` | string | Sort field (default: `createdAt`) |
+| `order` | string | `asc` or `desc` (default: `desc`) |
+| `page` | int | Page number (default: 1) |
+| `limit` | int | Results per page (default: 50) |
+
+### GET /api/auctions/:id
+
+Get a single auction lot by ID.
+
+### POST /api/auctions
+
+Create a new auction lot.
+
+### PUT /api/auctions/:id
+
+Update an auction lot's fields.
+
+### PUT /api/auctions/:id/status
+
+Update a lot's status. Validates allowed transitions (e.g., only Bidding can become Won).
+
+**Body:** `{ "status": "won" }`
+
+### POST /api/auctions/:id/convert
+
+Convert a won lot into a coin in the user's collection. Only works when status is `won`. Returns the newly created coin.
+
+### DELETE /api/auctions/:id
+
+Delete an auction lot.
+
+### POST /api/auctions/import
+
+Import a lot from a NumisBids URL. Accepts scraped data from the frontend.
+
+**Body:** `{ "url": "https://www.numisbids.com/sale/123/lot/45", "title": "...", "imageUrl": "...", ... }`
+
+### POST /api/auctions/sync
+
+Sync the user's NumisBids watchlist. Requires NumisBids credentials configured in user settings. Logs into NumisBids, fetches the watchlist page, parses lots, and upserts them. Returns the number synced and the lot objects.
+
+**Response:** `{ "synced": 5, "lots": [...] }`
+
+### POST /api/auctions/validate-credentials
+
+Validate NumisBids credentials by attempting a login. Does not save anything.
+
+**Body:** `{ "username": "user@example.com", "password": "..." }`
+
+**Response:** `{ "valid": true }` or `{ "valid": false, "error": "Login failed. Check your credentials." }`

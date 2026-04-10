@@ -4,7 +4,7 @@
 
 Ancient Coins is a full-stack web application for cataloging and managing your personal coin collection. Track details like denomination, ruler, era, mint, material, grade, inscriptions, RIC rarity ratings, photos, and more — with AI-powered coin analysis via Ollama vision models and an Anthropic-powered coin search agent. Every coin is scoped to your authenticated account using JWT-based authentication.
 
-It includes a **wish list** with an AI search agent for discovering coins, a **stats dashboard** with grade distribution charts and portfolio value tracking over time, per-coin **activity journals**, **Numista catalog lookups**, collection **export/import**, and **social features** — follow other collectors, accept or block followers, browse follower galleries, leave comments and star ratings on coins, and discover users with search and public profiles.
+It includes a **wish list** with an AI search agent for discovering coins, **auction lot tracking** with NumisBids watchlist sync, a **stats dashboard** with grade distribution charts and portfolio value tracking over time, per-coin **activity journals**, **Numista catalog lookups**, collection **export/import**, and **social features** — follow other collectors, accept or block followers, browse follower galleries, leave comments and star ratings on coins, and discover users with search and public profiles.
 
 On first launch, the first user to register is automatically assigned as the admin and can configure application settings including AI integrations.
 
@@ -119,6 +119,7 @@ For detailed descriptions of every feature, see the [Features Guide](docs/featur
 
 - **Collection Management** — Card gallery with filtering, search, sorting, swipe/grid toggle, and category colors
 - **Wish List** — Track desired coins with an AI-powered search agent that finds real listings
+- **Auction Tracking** — Track NumisBids lots through watching/bidding/won/lost workflow with watchlist sync
 - **Sold Coins** — Record sales with profit/loss tracking
 - **Coin Details** — Full numismatic data, multiple images, AI analysis, activity journal, Numista lookup
 - **AI Coin Analysis** — Ollama vision model identifies coins, assesses condition, and estimates value
@@ -171,6 +172,7 @@ AncientCoins/
 │   │   │   ├── numista.go            # Numista catalog search proxy
 │   │   │   ├── admin.go              # User/settings management
 │   │   │   ├── user.go               # Password change, profile
+│   │   │   ├── auction_lots.go       # Auction lot CRUD, NumisBids sync, convert-to-coin
 │   │   │   ├── api_keys.go           # API key management
 │   │   │   └── webauthn.go           # FIDO2/WebAuthn auth
 │   │   ├── repository/               # Database access layer (all GORM queries)
@@ -181,6 +183,7 @@ AncientCoins/
 │   │   │   ├── image_repository.go   # Image records and primary flag management
 │   │   │   ├── admin_repository.go   # Admin user management, cascade delete
 │   │   │   ├── agent_repository.go   # Portfolio summary, value estimation
+│   │   │   ├── auction_lot_repository.go # Auction lot CRUD, upsert, status
 │   │   │   └── ...                   # journal, conversation, webauthn, api_key, analysis
 │   │   ├── services/                 # Business logic (HTTP-agnostic)
 │   │   │   ├── coin_service.go       # Value tracking, snapshot orchestration
@@ -190,6 +193,8 @@ AncientCoins/
 │   │   │   ├── agent_proxy.go        # SSE proxy to Python agent service
 │   │   │   ├── ollama_service.go     # Ollama vision model integration (OCR)
 │   │   │   ├── settings_service.go   # App settings with DB-backed defaults
+│   │   │   ├── numisbids_service.go  # NumisBids HTTP client (login, watchlist, scraper)
+│   │   │   ├── auction_lot_service.go # Auction lot status transitions, convert-to-coin
 │   │   │   └── logger.go             # Structured logger with in-memory buffer
 │   │   ├── middleware/               # JWT & API key auth middleware
 │   │   ├── models/                   # GORM entities (Coin, User, Follow, etc.)
@@ -203,12 +208,14 @@ AncientCoins/
 │   │   │   ├── streaming.py          # SSE streaming from LangGraph events
 │   │   │   ├── llm/provider.py       # LLM factory (Anthropic vs Ollama)
 │   │   │   ├── tools/search.py       # SearXNG search + URL verification tools
+│   │   │   ├── tools/numisbids.py   # NumisBids scraping tools (lot, watchlist, search)
 │   │   │   ├── models/               # Pydantic request/response schemas
 │   │   │   └── teams/                # Multi-agent team pipelines
 │   │   │       ├── coin_search.py    # Team 1: Search → Fetch → Format
 │   │   │       ├── coin_shows.py     # Team 2: Shows → Date verify → Format
 │   │   │       ├── coin_analysis.py  # Team 3: Vision analysis → Format
-│   │   │       └── portfolio_review.py # Team 4: Read → Valuate → Analyze
+│   │   │       ├── portfolio_review.py # Team 4: Read → Valuate → Analyze
+│   │   │       └── auction_search.py # Team 5: Auction search → Fetch → Format
 │   │   ├── tests/                    # Pytest tests
 │   │   ├── Dockerfile                # Python 3.12-slim multi-stage
 │   │   └── pyproject.toml            # Dependencies (FastAPI, LangGraph, LangChain)
@@ -226,6 +233,8 @@ AncientCoins/
 │       │   │   ├── SortSelect.vue    # Sort dropdown
 │       │   │   ├── ImageGallery.vue  # Image grid with lightbox
 │       │   │   ├── SwipeGallery.vue  # Mobile swipe carousel
+│       │   │   ├── AuctionLotCard.vue # Auction lot card with status badges
+│       │   │   ├── ImportLotModal.vue # Add lot from NumisBids URL
 │       │   │   ├── ImageProcessor.vue # Store card OCR upload
 │       │   │   └── AutocompleteInput.vue
 │       │   ├── pages/                # Route pages
@@ -288,6 +297,7 @@ Feature ideas and completed enhancements:
 - [x] **User Search** — Discover other collectors by username
 - [x] **Email Registration** — Required email for new users with legacy user prompt
 - [x] **Collection Timeline** — Visual timeline of when each coin was acquired
+- [x] **Auction Lot Tracking** — NumisBids integration with watchlist sync, status workflow, and auto-convert to collection
 - [ ] **Coin Comparison** — Side-by-side spec comparison of any two coins
 - [ ] **Advanced Search** — Filter by date range, price range, grade, material
 - [ ] **Price Alerts** — Notifications when watched coins appear below a target price
