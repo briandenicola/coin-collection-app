@@ -196,6 +196,7 @@ func main() {
 		protected.DELETE("/auctions/:id", auctionLotHandler.Delete)
 		protected.POST("/auctions/import", auctionLotHandler.ImportFromURL)
 		protected.POST("/auctions/sync", auctionLotHandler.SyncWatchlist)
+		protected.POST("/auctions/validate-credentials", auctionLotHandler.ValidateNumisBids)
 
 		agentRepo := repository.NewAgentRepository(database.DB)
 		userRepo := repository.NewUserRepository(database.DB)

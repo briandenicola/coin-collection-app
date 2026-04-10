@@ -430,6 +430,41 @@ type SyncWatchlistResponse struct {
 	Lots   []models.AuctionLot `json:"lots"`
 }
 
+// ValidateNumisBids tests the given credentials against NumisBids.
+//
+//	@Summary		Validate NumisBids credentials
+//	@Description	Attempts to log in to NumisBids with the provided credentials to verify they are correct.
+//	@Tags			Auctions
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		ValidateNumisBidsRequest	true	"NumisBids credentials"
+//	@Success		200		{object}	map[string]bool
+//	@Failure		400		{object}	ErrorResponse
+//	@Failure		401		{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/auctions/validate-credentials [post]
+func (h *AuctionLotHandler) ValidateNumisBids(c *gin.Context) {
+	var req ValidateNumisBidsRequest
+	if err := c.ShouldBindJSON(&req); err != nil || req.Username == "" || req.Password == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Username and password are required"})
+		return
+	}
+
+	_, err := h.nbSvc.Login(req.Username, req.Password)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"valid": false, "error": "Login failed. Check your credentials."})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"valid": true})
+}
+
+// ValidateNumisBidsRequest holds credentials for validation.
+type ValidateNumisBidsRequest struct {
+	Username string `json:"username" binding:"required"`
+	Password string `json:"password" binding:"required"`
+}
+
 // ImportLotRequest holds the data for importing a lot from NumisBids.
 type ImportLotRequest struct {
 	URL          string   `json:"url" binding:"required"`

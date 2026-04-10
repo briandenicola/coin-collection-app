@@ -16,7 +16,7 @@
               :key="tab.id"
               class="settings-dropdown-item"
               :class="{ active: activeTab === tab.id }"
-              @click="activeTab = tab.id; settingsMenuOpen = false"
+              @click="selectTab(tab.id); settingsMenuOpen = false"
             >
               <component :is="tabIcons[tab.id]" :size="16" />
               {{ tab.label }}
@@ -34,7 +34,7 @@
           :key="tab.id"
           class="tab-btn"
           :class="{ active: activeTab === tab.id }"
-          @click="activeTab = tab.id"
+          @click="selectTab(tab.id)"
         ><component :is="tabIcons[tab.id]" :size="16" /> {{ tab.label }}</button>
       </div>
 
@@ -100,7 +100,13 @@
           <input v-model="nbPassword" type="password" class="form-input" placeholder="Your NumisBids password" autocomplete="new-password" />
           <span class="setting-desc" style="font-size: 0.8rem; margin-top: 0.25rem; display: block">Stored securely on the server. Used only for watchlist sync.</span>
         </div>
-        <div v-if="auth.user?.numisBidsConfigured" class="nb-status connected">
+        <div v-if="nbValidating" class="nb-status validating">
+          Validating NumisBids credentials...
+        </div>
+        <div v-else-if="nbValidationError" class="nb-status error">
+          {{ nbValidationError }}
+        </div>
+        <div v-else-if="auth.user?.numisBidsConfigured" class="nb-status connected">
           NumisBids account connected
         </div>
         <div class="setting-item">
@@ -113,8 +119,8 @@
             <span class="toggle-slider"></span>
           </label>
         </div>
-        <button class="btn btn-primary btn-sm" @click="handleSaveProfile" :disabled="profileSaving" style="margin-top: 0.5rem">
-          {{ profileSaving ? 'Saving...' : 'Save Profile' }}
+        <button class="btn btn-primary btn-sm" @click="handleSaveProfile" :disabled="profileSaving || nbValidating" style="margin-top: 0.5rem">
+          {{ nbValidating ? 'Validating...' : profileSaving ? 'Saving...' : 'Save Profile' }}
         </button>
         <p v-if="profileMsg" class="msg" :class="{ error: profileError }" style="margin-top: 0.5rem">{{ profileMsg }}</p>
 
@@ -707,7 +713,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, type Component } from 'vue'
+import { ref, computed, onMounted, type Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import PullToRefresh from '@/components/PullToRefresh.vue'
@@ -718,13 +724,13 @@ import {
   webauthnListCredentials, webauthnDeleteCredential,
   listConversations, getConversation, deleteConversation,
   uploadAvatar, deleteAvatar, updateProfile, getMe,
-  getBlockedUsers, unblockFollower,
+  getBlockedUsers, unblockFollower, validateNumisBidsCredentials,
 } from '@/api/client'
 import type { ConversationSummary } from '@/api/client'
 import type { Coin, Theme, ApiKey, WebAuthnCredentialInfo } from '@/types'
 import CoinSearchChat from '@/components/CoinSearchChat.vue'
 import ImageProcessor from '@/components/ImageProcessor.vue'
-import { User, Palette, Database, MessageSquare, HelpCircle, Scissors, Menu, ShieldOff } from 'lucide-vue-next'
+import { User, Palette, Database, MessageSquare, HelpCircle, Scissors, Menu, ShieldOff, ShieldCheck } from 'lucide-vue-next'
 
 const tabIcons: Record<string, Component> = {
   account: User,
@@ -734,17 +740,9 @@ const tabIcons: Record<string, Component> = {
   process: Scissors,
   conversations: MessageSquare,
   help: HelpCircle,
+  admin: ShieldCheck,
 }
 
-const tabs = [
-  { id: 'account', label: 'Account' },
-  { id: 'appearance', label: 'Appearance' },
-  { id: 'data', label: 'Data' },
-  { id: 'process', label: 'Process' },
-  { id: 'conversations', label: 'Conversations' },
-  { id: 'blocked', label: 'Blocked' },
-  { id: 'help', label: 'Help' },
-]
 const activeTab = ref('account')
 const settingsMenuOpen = ref(false)
 const isPwa = window.matchMedia('(display-mode: standalone)').matches
@@ -754,10 +752,33 @@ const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 
+const baseTabs = [
+  { id: 'account', label: 'Account' },
+  { id: 'appearance', label: 'Appearance' },
+  { id: 'data', label: 'Data' },
+  { id: 'process', label: 'Process' },
+  { id: 'conversations', label: 'Conversations' },
+  { id: 'blocked', label: 'Blocked' },
+  { id: 'help', label: 'Help' },
+]
+const tabs = computed(() => {
+  if (auth.isAdmin) {
+    return [...baseTabs, { id: 'admin', label: 'Admin' }]
+  }
+  return baseTabs
+})
+
 // Set active tab from query param (e.g. /settings?tab=process)
-const validTabs = tabs.map(t => t.id)
-if (route.query.tab && validTabs.includes(route.query.tab as string)) {
+if (route.query.tab && baseTabs.map(t => t.id).concat('admin').includes(route.query.tab as string)) {
   activeTab.value = route.query.tab as string
+}
+
+function selectTab(tabId: string) {
+  if (tabId === 'admin') {
+    router.push('/admin')
+    return
+  }
+  activeTab.value = tabId
 }
 
 function handleProcessSaved(savedCoinId: number) {
@@ -853,11 +874,36 @@ function cancelGoPrivate() {
   showPrivacyWarning.value = false
 }
 
+const nbValidating = ref(false)
+const nbValidationError = ref('')
+
 async function handleSaveProfile() {
   profileMsg.value = ''
   profileError.value = false
   profileSaving.value = true
+  nbValidationError.value = ''
   try {
+    // If user entered new NB credentials, validate them first
+    if (nbPassword.value && nbUsername.value) {
+      nbValidating.value = true
+      try {
+        const valRes = await validateNumisBidsCredentials(nbUsername.value, nbPassword.value)
+        if (!valRes.data.valid) {
+          nbValidationError.value = valRes.data.error || 'Invalid NumisBids credentials'
+          profileSaving.value = false
+          nbValidating.value = false
+          return
+        }
+      } catch {
+        nbValidationError.value = 'Could not validate NumisBids credentials. Check your username and password.'
+        profileSaving.value = false
+        nbValidating.value = false
+        return
+      } finally {
+        nbValidating.value = false
+      }
+    }
+
     const data: Record<string, unknown> = {
       email: profileEmail.value,
       bio: profileBio.value,
@@ -1340,6 +1386,18 @@ onMounted(() => {
   background: rgba(74, 222, 128, 0.1);
   color: #4ade80;
   border: 1px solid rgba(74, 222, 128, 0.2);
+}
+
+.nb-status.validating {
+  background: rgba(250, 204, 21, 0.1);
+  color: #facc15;
+  border: 1px solid rgba(250, 204, 21, 0.2);
+}
+
+.nb-status.error {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.2);
 }
 
 .setting-value {
