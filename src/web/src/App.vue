@@ -49,6 +49,10 @@
             <Settings :size="18" />
             <span class="nav-label">Settings</span>
           </router-link>
+          <router-link v-if="auth.isAdmin && !isPwa" to="/admin" class="nav-link" active-class="active">
+            <ShieldCheck :size="18" />
+            <span class="nav-label">Admin</span>
+          </router-link>
           <button v-if="!isPwa" class="btn-logout" @click="handleLogout">
             <LogOut :size="16" />
           </button>
@@ -93,7 +97,7 @@
 import { ref, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
-import { Landmark, Bookmark, BadgeDollarSign, BarChart3, CirclePlus, Settings, LogOut, Users as UsersIcon, Clock, Bot, Gavel } from 'lucide-vue-next'
+import { Landmark, Bookmark, BadgeDollarSign, BarChart3, CirclePlus, Settings, ShieldCheck, LogOut, Users as UsersIcon, Clock, Bot, Gavel } from 'lucide-vue-next'
 import { updateProfile, getMe } from '@/api/client'
 import CoinSearchChat from '@/components/CoinSearchChat.vue'
 
