@@ -182,6 +182,18 @@ func main() {
 		numistaHandler := handlers.NewNumistaHandler()
 		protected.GET("/numista/search", numistaHandler.Search)
 
+		auctionLotRepo := repository.NewAuctionLotRepository(database.DB)
+		auctionLotSvc := services.NewAuctionLotService(auctionLotRepo, coinRepo)
+		auctionLotHandler := handlers.NewAuctionLotHandler(auctionLotRepo, auctionLotSvc)
+		protected.GET("/auctions", auctionLotHandler.List)
+		protected.GET("/auctions/:id", auctionLotHandler.Get)
+		protected.POST("/auctions", auctionLotHandler.Create)
+		protected.PUT("/auctions/:id", auctionLotHandler.Update)
+		protected.PUT("/auctions/:id/status", auctionLotHandler.UpdateStatus)
+		protected.POST("/auctions/:id/convert", auctionLotHandler.ConvertToCoin)
+		protected.DELETE("/auctions/:id", auctionLotHandler.Delete)
+		protected.POST("/auctions/import", auctionLotHandler.ImportFromURL)
+
 		agentRepo := repository.NewAgentRepository(database.DB)
 		userRepo := repository.NewUserRepository(database.DB)
 		agentHandler := handlers.NewAgentHandler(agentRepo, userRepo, journalRepo, agentProxy)
