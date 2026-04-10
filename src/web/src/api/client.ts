@@ -439,5 +439,7 @@ export const importAuctionLot = (data: { url: string; title?: string; descriptio
   api.post<AuctionLot>('/auctions/import', data)
 export const syncNumisBidsWatchlist = () =>
   api.post<{ synced: number; lots: AuctionLot[] }>('/auctions/sync')
+export const validateNumisBidsCredentials = (username: string, password: string) =>
+  api.post<{ valid: boolean; error?: string }>('/auctions/validate-credentials', { username, password })
 
 export default api
