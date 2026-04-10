@@ -2,7 +2,7 @@
   <div class="modal-overlay" @click.self="emit('close')">
     <div class="modal card">
       <div class="modal-header">
-        <h3>Import from NumisBids</h3>
+        <h3>Add from NumisBids</h3>
         <button class="btn-close" @click="emit('close')"><X :size="18" /></button>
       </div>
 
@@ -38,7 +38,7 @@
         <button class="btn btn-secondary" @click="emit('close')" :disabled="importing">Cancel</button>
         <button class="btn btn-primary" @click="handleImport" :disabled="!url || importing">
           <Loader2 v-if="importing" :size="16" class="spin" />
-          {{ importing ? 'Importing...' : 'Import Lot' }}
+          {{ importing ? 'Adding...' : 'Add Lot' }}
         </button>
       </div>
     </div>
@@ -90,7 +90,7 @@ async function handleImport() {
     emit('imported', res.data)
   } catch (e: unknown) {
     const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error
-    error.value = msg ?? 'Failed to import lot. Please check the URL and try again.'
+    error.value = msg ?? 'Failed to add lot. Please check the URL and try again.'
   } finally {
     importing.value = false
   }

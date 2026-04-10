@@ -25,6 +25,7 @@ const (
 var (
 	lotLinkRe    = regexp.MustCompile(`href="(/sale/(\d+)/lot/(\d+))"`)
 	imgSrcRe     = regexp.MustCompile(`<img[^>]*src="([^"]*)"`)
+	ogImageRe    = regexp.MustCompile(`<meta\s+property="og:image"\s+content="([^"]+)"`)
 	estimateRe   = regexp.MustCompile(`Estimate:\s*([\d,]+(?:\.\d+)?\s*\w+)`)
 	currencyValRe = regexp.MustCompile(`([\d,]+(?:\.\d+)?)\s*(USD|EUR|GBP|CHF)`)
 )
@@ -124,6 +125,35 @@ func (s *NumisBidsService) FetchWatchlist(client *http.Client) (string, error) {
 	return string(body), nil
 }
 
+// ScrapeLotImage fetches a NumisBids lot page and extracts the og:image URL.
+func (s *NumisBidsService) ScrapeLotImage(lotURL string) (string, error) {
+	req, err := http.NewRequest("GET", lotURL, nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("User-Agent", numisbidsUserAgent)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("lot page returned HTTP %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	if match := ogImageRe.FindSubmatch(body); match != nil {
+		return string(match[1]), nil
+	}
+	return "", fmt.Errorf("no og:image found")
+}
+
 // ParseWatchlist extracts lot data from NumisBids watchlist HTML.
 // Mirrors the Python scrape_numisbids_watchlist logic.
 func (s *NumisBidsService) ParseWatchlist(rawHTML string) []WatchlistLot {
@@ -162,8 +192,8 @@ func (s *NumisBidsService) ParseWatchlist(rawHTML string) []WatchlistLot {
 			lot.ImageURL = imgURL
 		}
 
-		// Title: cleaned HTML text
-		lot.Title = cleanHTML(block)
+		// Title: extract only the text inside the lot anchor tag
+		lot.Title = extractLotTitle(block, linkMatch[1])
 		if len(lot.Title) > 200 {
 			lot.Title = lot.Title[:200]
 		}
@@ -196,6 +226,47 @@ func parseCurrencyValue(text string) (*float64, string) {
 		return nil, match[2]
 	}
 	return &val, match[2]
+}
+
+// extractLotTitle extracts the text content of the anchor tag that links to the lot.
+// It walks the HTML tokens looking for <a href="...lotPath...">, then collects
+// text until the closing </a> tag.
+func extractLotTitle(block, lotPath string) string {
+	tokenizer := html.NewTokenizer(strings.NewReader(block))
+	inLotLink := false
+	var result strings.Builder
+
+	for {
+		tt := tokenizer.Next()
+		if tt == html.ErrorToken {
+			break
+		}
+
+		switch tt {
+		case html.StartTagToken:
+			t := tokenizer.Token()
+			if t.Data == "a" && !inLotLink {
+				for _, attr := range t.Attr {
+					if attr.Key == "href" && attr.Val == lotPath {
+						inLotLink = true
+						break
+					}
+				}
+			}
+		case html.EndTagToken:
+			if inLotLink && tokenizer.Token().Data == "a" {
+				goto done
+			}
+		case html.TextToken:
+			if inLotLink {
+				result.WriteString(tokenizer.Token().Data)
+			}
+		}
+	}
+
+done:
+	text := strings.Join(strings.Fields(result.String()), " ")
+	return strings.TrimSpace(text)
 }
 
 // cleanHTML strips HTML tags and normalizes whitespace.

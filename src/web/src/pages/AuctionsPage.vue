@@ -8,7 +8,7 @@
           <RefreshCw :size="16" :class="{ spinning: syncing }" />
           {{ syncing ? 'Syncing...' : 'Sync Watchlist' }}
         </button>
-        <button class="btn btn-primary" @click="showImport = true"><Import :size="16" /> Import Lot</button>
+        <button class="btn btn-primary" @click="showImport = true"><Import :size="16" /> Add Lot</button>
       </div>
     </div>
 
@@ -123,6 +123,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { getAuctionLots, updateAuctionLotStatus, convertAuctionLotToCoin, deleteAuctionLot, syncNumisBidsWatchlist } from '@/api/client'
 import type { AuctionLot, AuctionLotStatus } from '@/types'
 import AuctionLotCard from '@/components/AuctionLotCard.vue'
@@ -130,6 +131,7 @@ import ImportLotModal from '@/components/ImportLotModal.vue'
 import PullToRefresh from '@/components/PullToRefresh.vue'
 import { Import, X, ExternalLink, ArrowRightCircle, Trash2, RefreshCw } from 'lucide-vue-next'
 
+const router = useRouter()
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
 const lots = ref<AuctionLot[]>([])
@@ -210,6 +212,17 @@ async function changeStatus() {
   try {
     const res = await updateAuctionLotStatus(selectedLot.value.id, newStatus.value)
     selectedLot.value = res.data
+
+    // When marked as Won, automatically convert to a coin and open edit page
+    if (newStatus.value === 'won') {
+      try {
+        const coinRes = await convertAuctionLotToCoin(selectedLot.value.id)
+        selectedLot.value = null
+        router.push(`/edit/${coinRes.data.id}`)
+        return
+      } catch { /* fall through — show drawer with manual convert button */ }
+    }
+
     fetchLots()
     fetchAllCounts()
   } catch { /* ignore */ }
@@ -218,10 +231,9 @@ async function changeStatus() {
 async function convertToCoin() {
   if (!selectedLot.value) return
   try {
-    await convertAuctionLotToCoin(selectedLot.value.id)
+    const coinRes = await convertAuctionLotToCoin(selectedLot.value.id)
     selectedLot.value = null
-    fetchLots()
-    fetchAllCounts()
+    router.push(`/edit/${coinRes.data.id}`)
   } catch { /* ignore */ }
 }
 
