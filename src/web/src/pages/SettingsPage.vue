@@ -86,6 +86,23 @@
           <input v-model="profileZipCode" class="form-input" placeholder="e.g. 90210" maxlength="10" />
           <span class="setting-desc" style="font-size: 0.8rem; margin-top: 0.25rem; display: block">Used by the Agent to find nearby coin shows and dealers</span>
         </div>
+
+        <h3>NumisBids Integration</h3>
+        <p class="setting-desc" style="margin-bottom: 0.75rem">
+          Connect your NumisBids account to sync your watchlist and track auction lots.
+        </p>
+        <div class="form-group">
+          <label class="form-label">NumisBids Username</label>
+          <input v-model="nbUsername" class="form-input" placeholder="Your NumisBids username" autocomplete="off" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">NumisBids Password</label>
+          <input v-model="nbPassword" type="password" class="form-input" placeholder="Your NumisBids password" autocomplete="new-password" />
+          <span class="setting-desc" style="font-size: 0.8rem; margin-top: 0.25rem; display: block">Stored securely on the server. Used only for watchlist sync.</span>
+        </div>
+        <div v-if="auth.user?.numisBidsConfigured" class="nb-status connected">
+          NumisBids account connected
+        </div>
         <div class="setting-item">
           <div class="setting-info">
             <span class="setting-label">Public Collection</span>
@@ -808,6 +825,8 @@ async function handleAvatarDelete() {
 const profileEmail = ref(auth.user?.email || '')
 const profileBio = ref(auth.user?.bio || '')
 const profileZipCode = ref(auth.user?.zipCode || '')
+const nbUsername = ref(auth.user?.numisBidsUsername || '')
+const nbPassword = ref('')
 const profilePublic = ref(auth.user?.isPublic || false)
 const profileMsg = ref('')
 const profileError = ref(false)
@@ -839,19 +858,27 @@ async function handleSaveProfile() {
   profileError.value = false
   profileSaving.value = true
   try {
-    const res = await updateProfile({
+    const data: Record<string, unknown> = {
       email: profileEmail.value,
       bio: profileBio.value,
       zipCode: profileZipCode.value,
       isPublic: profilePublic.value,
-    })
+      numisBidsUsername: nbUsername.value,
+    }
+    if (nbPassword.value) {
+      data.numisBidsPassword = nbPassword.value
+    }
+    const res = await updateProfile(data as Parameters<typeof updateProfile>[0])
     if (auth.user) {
       auth.user.email = res.data.email
       auth.user.bio = res.data.bio
       auth.user.zipCode = res.data.zipCode
       auth.user.isPublic = res.data.isPublic
+      auth.user.numisBidsUsername = res.data.numisBidsUsername
+      auth.user.numisBidsConfigured = res.data.numisBidsConfigured
       localStorage.setItem('user', JSON.stringify(auth.user))
     }
+    nbPassword.value = ''
     profileMsg.value = 'Profile saved'
   } catch {
     profileMsg.value = 'Failed to save profile'
@@ -1300,6 +1327,19 @@ onMounted(() => {
 .setting-desc {
   font-size: 0.75rem;
   color: var(--text-muted);
+}
+
+.nb-status {
+  font-size: 0.82rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--radius-sm);
+  margin-top: 0.25rem;
+}
+
+.nb-status.connected {
+  background: rgba(74, 222, 128, 0.1);
+  color: #4ade80;
+  border: 1px solid rgba(74, 222, 128, 0.2);
 }
 
 .setting-value {

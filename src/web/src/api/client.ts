@@ -387,8 +387,8 @@ interface PublicKeyCredentialRequestOptionsJSON {
 // --- Social / Profile API ---
 
 // Profile
-export const updateProfile = (data: { email?: string; bio?: string; zipCode?: string; isPublic?: boolean }) =>
-  api.put<{ id: number; username: string; role: string; email: string; avatarPath: string; isPublic: boolean; bio: string; zipCode: string }>('/user/profile', data)
+export const updateProfile = (data: { email?: string; bio?: string; zipCode?: string; isPublic?: boolean; numisBidsUsername?: string; numisBidsPassword?: string }) =>
+  api.put<{ id: number; username: string; role: string; email: string; avatarPath: string; isPublic: boolean; bio: string; zipCode: string; numisBidsUsername: string; numisBidsConfigured: boolean }>('/user/profile', data)
 export const uploadAvatar = (file: File) => {
   const form = new FormData()
   form.append('avatar', file)
@@ -437,5 +437,7 @@ export const convertAuctionLotToCoin = (id: number) => api.post<Coin>(`/auctions
 export const deleteAuctionLot = (id: number) => api.delete(`/auctions/${id}`)
 export const importAuctionLot = (data: { url: string; title?: string; description?: string; auctionHouse?: string; saleName?: string; category?: string; imageUrl?: string; estimate?: number | null; currentBid?: number | null; currency?: string }) =>
   api.post<AuctionLot>('/auctions/import', data)
+export const syncNumisBidsWatchlist = () =>
+  api.post<{ synced: number; lots: AuctionLot[] }>('/auctions/sync')
 
 export default api

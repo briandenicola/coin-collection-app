@@ -4,9 +4,15 @@
     <div class="page-header">
       <h1>Auctions</h1>
       <div class="header-actions">
+        <button class="btn btn-secondary" :disabled="syncing" @click="syncWatchlist">
+          <RefreshCw :size="16" :class="{ spinning: syncing }" />
+          {{ syncing ? 'Syncing...' : 'Sync Watchlist' }}
+        </button>
         <button class="btn btn-primary" @click="showImport = true"><Import :size="16" /> Import Lot</button>
       </div>
     </div>
+
+    <div v-if="syncMessage" class="sync-toast">{{ syncMessage }}</div>
 
     <div class="filter-bar">
       <div class="status-filters">
@@ -50,7 +56,7 @@
         </div>
 
         <div v-if="selectedLot.imageUrl" class="detail-image-container">
-          <img :src="selectedLot.imageUrl" :alt="selectedLot.title" class="detail-image" referrerpolicy="no-referrer" />
+          <img :src="proxiedDetailImageUrl" :alt="selectedLot.title" class="detail-image" />
         </div>
 
         <div class="detail-body">
@@ -117,12 +123,14 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { getAuctionLots, updateAuctionLotStatus, convertAuctionLotToCoin, deleteAuctionLot } from '@/api/client'
+import { getAuctionLots, updateAuctionLotStatus, convertAuctionLotToCoin, deleteAuctionLot, syncNumisBidsWatchlist } from '@/api/client'
 import type { AuctionLot, AuctionLotStatus } from '@/types'
 import AuctionLotCard from '@/components/AuctionLotCard.vue'
 import ImportLotModal from '@/components/ImportLotModal.vue'
 import PullToRefresh from '@/components/PullToRefresh.vue'
-import { Import, X, ExternalLink, ArrowRightCircle, Trash2 } from 'lucide-vue-next'
+import { Import, X, ExternalLink, ArrowRightCircle, Trash2, RefreshCw } from 'lucide-vue-next'
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
 const lots = ref<AuctionLot[]>([])
 const allLots = ref<AuctionLot[]>([])
@@ -131,6 +139,14 @@ const showImport = ref(false)
 const selectedLot = ref<AuctionLot | null>(null)
 const newStatus = ref<AuctionLotStatus>('watching')
 const activeStatus = ref('')
+const syncing = ref(false)
+const syncMessage = ref('')
+
+const proxiedDetailImageUrl = computed(() => {
+  if (!selectedLot.value?.imageUrl) return ''
+  const token = localStorage.getItem('token') ?? ''
+  return `${API_BASE}/api/proxy-image?url=${encodeURIComponent(selectedLot.value.imageUrl)}&token=${encodeURIComponent(token)}`
+})
 
 const statuses = [
   { value: '', label: 'All' },
@@ -217,6 +233,25 @@ async function removeLot() {
     fetchLots()
     fetchAllCounts()
   } catch { /* ignore */ }
+}
+
+async function syncWatchlist() {
+  syncing.value = true
+  syncMessage.value = ''
+  try {
+    const res = await syncNumisBidsWatchlist()
+    const count = res.data?.synced ?? 0
+    syncMessage.value = `Synced ${count} lot${count !== 1 ? 's' : ''} from NumisBids`
+    fetchLots()
+    fetchAllCounts()
+    setTimeout(() => { syncMessage.value = '' }, 4000)
+  } catch (err: unknown) {
+    const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Sync failed'
+    syncMessage.value = msg
+    setTimeout(() => { syncMessage.value = '' }, 5000)
+  } finally {
+    syncing.value = false
+  }
 }
 
 function formatCurrency(value: number, currency?: string) {
@@ -439,5 +474,31 @@ fetchAllCounts()
 .btn-danger:hover {
   background: rgba(248, 113, 113, 0.1);
   border-color: rgba(248, 113, 113, 0.6);
+}
+
+.sync-toast {
+  padding: 0.6rem 1rem;
+  margin-bottom: 1rem;
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  text-align: center;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 </style>

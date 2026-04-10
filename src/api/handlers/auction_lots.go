@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -14,13 +15,15 @@ import (
 
 // AuctionLotHandler handles HTTP requests for auction lot operations.
 type AuctionLotHandler struct {
-	repo *repository.AuctionLotRepository
-	svc  *services.AuctionLotService
+	repo     *repository.AuctionLotRepository
+	svc      *services.AuctionLotService
+	userRepo *repository.UserRepository
+	nbSvc    *services.NumisBidsService
 }
 
 // NewAuctionLotHandler creates a new AuctionLotHandler.
-func NewAuctionLotHandler(repo *repository.AuctionLotRepository, svc *services.AuctionLotService) *AuctionLotHandler {
-	return &AuctionLotHandler{repo: repo, svc: svc}
+func NewAuctionLotHandler(repo *repository.AuctionLotRepository, svc *services.AuctionLotService, userRepo *repository.UserRepository, nbSvc *services.NumisBidsService) *AuctionLotHandler {
+	return &AuctionLotHandler{repo: repo, svc: svc, userRepo: userRepo, nbSvc: nbSvc}
 }
 
 // List returns a paginated list of auction lots for the authenticated user.
@@ -347,6 +350,84 @@ func (h *AuctionLotHandler) ImportFromURL(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusCreated, imported)
+}
+
+// SyncWatchlist syncs auction lots from the user's NumisBids watchlist.
+//
+//	@Summary		Sync NumisBids watchlist
+//	@Description	Logs into NumisBids with the user's stored credentials, fetches their watchlist, and upserts each lot.
+//	@Tags			Auctions
+//	@Produce		json
+//	@Success		200	{object}	SyncWatchlistResponse
+//	@Failure		400	{object}	ErrorResponse
+//	@Failure		401	{object}	ErrorResponse
+//	@Failure		500	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/auctions/sync [post]
+func (h *AuctionLotHandler) SyncWatchlist(c *gin.Context) {
+	userID := c.GetUint("userId")
+
+	user, err := h.userRepo.FindByID(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load user"})
+		return
+	}
+
+	if user.NumisBidsUsername == "" || user.NumisBidsPassword == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "NumisBids credentials not configured. Go to Settings to add them."})
+		return
+	}
+
+	client, err := h.nbSvc.Login(user.NumisBidsUsername, user.NumisBidsPassword)
+	if err != nil {
+		log.Printf("NumisBids login failed for user %d: %v", userID, err)
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "NumisBids login failed. Check your credentials in Settings."})
+		return
+	}
+
+	rawHTML, err := h.nbSvc.FetchWatchlist(client)
+	if err != nil {
+		log.Printf("NumisBids watchlist fetch failed for user %d: %v", userID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch watchlist from NumisBids"})
+		return
+	}
+
+	parsed := h.nbSvc.ParseWatchlist(rawHTML)
+
+	var synced []models.AuctionLot
+	for _, wl := range parsed {
+		lot := models.AuctionLot{
+			NumisBidsURL: wl.URL,
+			SaleID:       wl.SaleID,
+			LotNumber:    wl.LotNumber,
+			Title:        wl.Title,
+			ImageURL:     wl.ImageURL,
+			Estimate:     wl.Estimate,
+			Currency:     wl.Currency,
+			Status:       models.AuctionStatusWatching,
+			UserID:       userID,
+		}
+		if lot.Currency == "" {
+			lot.Currency = "USD"
+		}
+
+		if err := h.repo.Upsert(&lot); err != nil {
+			log.Printf("Failed to upsert lot %s for user %d: %v", wl.URL, userID, err)
+			continue
+		}
+
+		if upserted, err := h.repo.GetByURL(wl.URL, userID); err == nil {
+			synced = append(synced, *upserted)
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"synced": len(synced), "lots": synced})
+}
+
+// SyncWatchlistResponse is the response for the sync watchlist endpoint.
+type SyncWatchlistResponse struct {
+	Synced int                `json:"synced"`
+	Lots   []models.AuctionLot `json:"lots"`
 }
 
 // ImportLotRequest holds the data for importing a lot from NumisBids.

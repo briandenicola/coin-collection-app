@@ -184,7 +184,9 @@ func main() {
 
 		auctionLotRepo := repository.NewAuctionLotRepository(database.DB)
 		auctionLotSvc := services.NewAuctionLotService(auctionLotRepo, coinRepo)
-		auctionLotHandler := handlers.NewAuctionLotHandler(auctionLotRepo, auctionLotSvc)
+		nbSvc := services.NewNumisBidsService()
+		auctionUserRepo := repository.NewUserRepository(database.DB)
+		auctionLotHandler := handlers.NewAuctionLotHandler(auctionLotRepo, auctionLotSvc, auctionUserRepo, nbSvc)
 		protected.GET("/auctions", auctionLotHandler.List)
 		protected.GET("/auctions/:id", auctionLotHandler.Get)
 		protected.POST("/auctions", auctionLotHandler.Create)
@@ -193,6 +195,7 @@ func main() {
 		protected.POST("/auctions/:id/convert", auctionLotHandler.ConvertToCoin)
 		protected.DELETE("/auctions/:id", auctionLotHandler.Delete)
 		protected.POST("/auctions/import", auctionLotHandler.ImportFromURL)
+		protected.POST("/auctions/sync", auctionLotHandler.SyncWatchlist)
 
 		agentRepo := repository.NewAgentRepository(database.DB)
 		userRepo := repository.NewUserRepository(database.DB)

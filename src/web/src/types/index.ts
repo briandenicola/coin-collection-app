@@ -71,6 +71,8 @@ export interface User {
   isPublic: boolean
   bio: string
   zipCode: string
+  numisBidsUsername?: string
+  numisBidsConfigured?: boolean
 }
 
 export interface AuthResponse {
@@ -153,6 +155,8 @@ export interface UserInfo {
   bio: string
   zipCode: string
   emailMissing: boolean
+  numisBidsUsername: string
+  numisBidsConfigured: boolean
   createdAt: string
 }
 

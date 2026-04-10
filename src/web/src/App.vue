@@ -7,6 +7,10 @@
           <span class="nav-title">Coin Collection</span>
         </component>
         <div class="nav-links">
+          <router-link v-if="isPwa" to="/add" class="nav-link add-link" active-class="active">
+            <CirclePlus :size="18" />
+            <span class="nav-label">Add</span>
+          </router-link>
           <router-link v-if="!isPwa" to="/" class="nav-link" active-class="active">
             <Landmark :size="18" />
             <span class="nav-label">Collection</span>
@@ -22,10 +26,6 @@
           <router-link to="/auctions" class="nav-link" active-class="active">
             <Gavel :size="18" />
             <span class="nav-label">Auctions</span>
-          </router-link>
-          <router-link v-if="isPwa" to="/add" class="nav-link add-link" active-class="active">
-            <CirclePlus :size="18" />
-            <span class="nav-label">Add</span>
           </router-link>
           <router-link to="/followers" class="nav-link" active-class="active">
             <UsersIcon :size="18" />
