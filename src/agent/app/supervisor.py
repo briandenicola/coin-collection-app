@@ -5,6 +5,7 @@ The supervisor examines the user's message and delegates to:
 - Team 2 (Coin Shows) for finding upcoming shows/events
 - Team 3 (Coin Analysis) for analyzing coin images
 - Team 4 (Portfolio Review) for portfolio analysis and valuation
+- Team 5 (Auction Search) for searching NumisBids auction lots
 """
 
 import logging
@@ -16,6 +17,7 @@ from langgraph.types import Command
 
 from app.llm.provider import get_chat_model
 from app.models.requests import LLMConfig, PortfolioSummary, UserContext
+from app.teams.auction_search import create_auction_search_team
 from app.teams.coin_search import create_coin_search_team
 from app.teams.coin_shows import create_coin_show_team
 from app.teams.portfolio_review import create_portfolio_review_team
@@ -35,6 +37,8 @@ Respond with ONLY one of these words:
   OR if the user is providing location info following a coin shows conversation
 - "analysis" — if the user wants to analyze coin images or get AI analysis of a coin
 - "portfolio" — if the user wants portfolio analysis, collection review, or valuation
+- "auction_search" — if the user wants to search for auction lots, find coins at auction,
+  search NumisBids, or asks about upcoming auctions/sales
 - "general" — if the request doesn't fit the above categories
 
 Respond with ONLY the category word, nothing else."""
@@ -44,7 +48,7 @@ def create_router(llm_config: LLMConfig):
     """Create a lightweight router that classifies intent."""
     model = get_chat_model(llm_config)
 
-    RouteTarget = Literal["coin_search", "coin_shows", "analysis", "portfolio", "general"]
+    RouteTarget = Literal["coin_search", "coin_shows", "analysis", "portfolio", "auction_search", "general"]
 
     async def route_request(state: MessagesState) -> Command[RouteTarget]:
         # Include recent history for context (last 4 messages max to keep it light)
@@ -54,7 +58,7 @@ def create_router(llm_config: LLMConfig):
         content = response.content if isinstance(response.content, str) else str(response.content)
         route = content.strip().lower().replace('"', "").replace("'", "")
 
-        valid_routes = {"coin_search", "coin_shows", "analysis", "portfolio", "general"}
+        valid_routes = {"coin_search", "coin_shows", "analysis", "portfolio", "auction_search", "general"}
         if route not in valid_routes:
             logger.warning("Router returned invalid route '%s', defaulting to 'general'", route)
             route = "general"
@@ -161,6 +165,19 @@ def create_supervisor(
         })
         return {"messages": result.get("messages", [])}
 
+    # Build Team 5 as a callable node
+    auction_search_graph = create_auction_search_team(llm_config)
+
+    async def auction_search_node(state: MessagesState) -> dict:
+        """Delegate to Team 5 auction search pipeline."""
+        result = await auction_search_graph.ainvoke({
+            "messages": [],
+            "search_results": "",
+            "fetched_lots": "",
+            "user_message": user_message,
+        })
+        return {"messages": result.get("messages", [])}
+
     # Build Team 4 as a callable node
     portfolio_graph = create_portfolio_review_team(
         llm_config, portfolio=portfolio, user_message=user_message,
@@ -197,7 +214,9 @@ def create_supervisor(
             "- **Coin Analysis**: Analyze coin images for identification, grading, "
             "and authenticity\n"
             "- **Portfolio Review**: Analyze the user's collection for strengths, "
-            "gaps, and recommendations\n\n"
+            "gaps, and recommendations\n"
+            "- **Auction Search**: Search NumisBids for coins at auction, "
+            "upcoming sales, and lot details\n\n"
             "If the user's question relates to any of these, let them know they can "
             "ask directly. For example: 'Would you like me to search for those coins?' "
             "or 'I can look up shows near you.'\n\n"
@@ -217,6 +236,7 @@ def create_supervisor(
     graph.add_node("coin_shows", coin_shows_node)
     graph.add_node("analysis", analysis_node or passthrough)
     graph.add_node("portfolio", portfolio_node)
+    graph.add_node("auction_search", auction_search_node)
     graph.add_node("general", general_handler)
 
     graph.set_entry_point("router")
@@ -225,6 +245,7 @@ def create_supervisor(
     graph.add_edge("coin_shows", END)
     graph.add_edge("analysis", END)
     graph.add_edge("portfolio", END)
+    graph.add_edge("auction_search", END)
     graph.add_edge("general", END)
 
     return graph.compile()
