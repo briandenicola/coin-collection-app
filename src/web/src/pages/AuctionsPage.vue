@@ -8,7 +8,7 @@
           <RefreshCw :size="16" :class="{ spinning: syncing }" />
           {{ syncing ? 'Syncing...' : 'Sync Watchlist' }}
         </button>
-        <button class="btn btn-primary" @click="showImport = true"><Import :size="16" /> Import Lot</button>
+        <button class="btn btn-primary" @click="showImport = true"><Import :size="16" /> Add Lot</button>
       </div>
     </div>
 

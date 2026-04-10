@@ -396,6 +396,13 @@ func (h *AuctionLotHandler) SyncWatchlist(c *gin.Context) {
 
 	var synced []models.AuctionLot
 	for _, wl := range parsed {
+		// Scrape the lot page for the full-resolution og:image
+		if imgURL, err := h.nbSvc.ScrapeLotImage(wl.URL); err == nil {
+			wl.ImageURL = imgURL
+		} else if wl.ImageURL == "" {
+			log.Printf("Could not scrape image for %s: %v", wl.URL, err)
+		}
+
 		lot := models.AuctionLot{
 			NumisBidsURL: wl.URL,
 			SaleID:       wl.SaleID,

@@ -25,6 +25,7 @@ const (
 var (
 	lotLinkRe    = regexp.MustCompile(`href="(/sale/(\d+)/lot/(\d+))"`)
 	imgSrcRe     = regexp.MustCompile(`<img[^>]*src="([^"]*)"`)
+	ogImageRe    = regexp.MustCompile(`<meta\s+property="og:image"\s+content="([^"]+)"`)
 	estimateRe   = regexp.MustCompile(`Estimate:\s*([\d,]+(?:\.\d+)?\s*\w+)`)
 	currencyValRe = regexp.MustCompile(`([\d,]+(?:\.\d+)?)\s*(USD|EUR|GBP|CHF)`)
 )
@@ -122,6 +123,35 @@ func (s *NumisBidsService) FetchWatchlist(client *http.Client) (string, error) {
 	}
 
 	return string(body), nil
+}
+
+// ScrapeLotImage fetches a NumisBids lot page and extracts the og:image URL.
+func (s *NumisBidsService) ScrapeLotImage(lotURL string) (string, error) {
+	req, err := http.NewRequest("GET", lotURL, nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("User-Agent", numisbidsUserAgent)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("lot page returned HTTP %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	if match := ogImageRe.FindSubmatch(body); match != nil {
+		return string(match[1]), nil
+	}
+	return "", fmt.Errorf("no og:image found")
 }
 
 // ParseWatchlist extracts lot data from NumisBids watchlist HTML.
