@@ -50,7 +50,7 @@
         </div>
 
         <div v-if="selectedLot.imageUrl" class="detail-image-container">
-          <img :src="selectedLot.imageUrl" :alt="selectedLot.title" class="detail-image" referrerpolicy="no-referrer" />
+          <img :src="proxiedDetailImageUrl" :alt="selectedLot.title" class="detail-image" />
         </div>
 
         <div class="detail-body">
@@ -124,6 +124,8 @@ import ImportLotModal from '@/components/ImportLotModal.vue'
 import PullToRefresh from '@/components/PullToRefresh.vue'
 import { Import, X, ExternalLink, ArrowRightCircle, Trash2 } from 'lucide-vue-next'
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
+
 const lots = ref<AuctionLot[]>([])
 const allLots = ref<AuctionLot[]>([])
 const loading = ref(true)
@@ -131,6 +133,12 @@ const showImport = ref(false)
 const selectedLot = ref<AuctionLot | null>(null)
 const newStatus = ref<AuctionLotStatus>('watching')
 const activeStatus = ref('')
+
+const proxiedDetailImageUrl = computed(() => {
+  if (!selectedLot.value?.imageUrl) return ''
+  const token = localStorage.getItem('token') ?? ''
+  return `${API_BASE}/api/proxy-image?url=${encodeURIComponent(selectedLot.value.imageUrl)}&token=${encodeURIComponent(token)}`
+})
 
 const statuses = [
   { value: '', label: 'All' },

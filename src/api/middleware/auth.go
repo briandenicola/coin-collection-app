@@ -26,8 +26,13 @@ func AuthRequired(jwtSecret string, db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
-		// Fall back to JWT bearer auth
+		// Fall back to JWT bearer auth (header or query param for image proxy)
 		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			if tokenParam := c.Query("token"); tokenParam != "" {
+				authHeader = "Bearer " + tokenParam
+			}
+		}
 		if authHeader == "" {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Authorization header required"})
 			return

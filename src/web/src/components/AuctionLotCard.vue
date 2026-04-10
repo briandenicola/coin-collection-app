@@ -1,7 +1,7 @@
 <template>
   <div class="lot-card card" @click="emit('select', lot)">
     <div class="lot-image-container">
-      <img v-if="lot.imageUrl" :src="lot.imageUrl" :alt="lot.title" class="lot-image" referrerpolicy="no-referrer" />
+      <img v-if="lot.imageUrl" :src="proxiedImageUrl" :alt="lot.title" class="lot-image" />
       <div v-else class="lot-image-placeholder"><Gavel :size="48" :stroke-width="1" /></div>
       <span class="lot-status-badge" :class="`status-${lot.status}`">{{ statusLabel }}</span>
     </div>
@@ -42,6 +42,13 @@ import { Gavel } from 'lucide-vue-next'
 const props = defineProps<{ lot: AuctionLot }>()
 const emit = defineEmits<{ select: [lot: AuctionLot] }>()
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
+
+const proxiedImageUrl = computed(() => {
+  if (!props.lot.imageUrl) return ''
+  const token = localStorage.getItem('token') ?? ''
+  return `${API_BASE}/api/proxy-image?url=${encodeURIComponent(props.lot.imageUrl)}&token=${encodeURIComponent(token)}`
+})
 const statusLabel = computed(() => {
   const labels: Record<string, string> = {
     watching: 'Watching',
