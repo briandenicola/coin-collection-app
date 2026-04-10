@@ -176,6 +176,7 @@ function handleLogout() {
   border: none;
   cursor: pointer;
   padding: 0;
+  flex-shrink: 0;
 }
 
 .nav-logo {
@@ -197,6 +198,15 @@ function handleLogout() {
 .nav-links {
   display: flex;
   gap: 0.25rem;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.nav-links::-webkit-scrollbar {
+  display: none;
 }
 
 .nav-link {
@@ -209,6 +219,8 @@ function handleLogout() {
   font-size: 0.85rem;
   transition: all var(--transition-fast);
   text-decoration: none;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .nav-link:hover,
@@ -225,6 +237,7 @@ function handleLogout() {
   display: flex;
   align-items: center;
   gap: 0.25rem;
+  flex-shrink: 0;
 }
 
 .btn-logout {
@@ -251,7 +264,7 @@ function handleLogout() {
   padding-top: 76px;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 900px) {
   .nav-title { display: none; }
   .nav-label { display: none; }
   .nav-link { padding: 0.5rem; }
