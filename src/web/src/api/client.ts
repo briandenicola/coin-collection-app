@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Coin, CoinListResponse, CoinImage, AuthResponse, StatsResponse, UserInfo, AppSettings, LogEntry, ApiKey, WebAuthnCredentialInfo, ValueSnapshot, CoinJournal, NumistaSearchResponse, AgentChatMessage, AgentChatResponse, CoinSuggestion, FollowUser, PublicProfile, CoinComment, CoinRating, LimitedCoin, ValueEstimate, CoinValueHistory, PortfolioSummary } from '@/types'
+import type { Coin, CoinListResponse, CoinImage, AuthResponse, StatsResponse, UserInfo, AppSettings, LogEntry, ApiKey, WebAuthnCredentialInfo, ValueSnapshot, CoinJournal, NumistaSearchResponse, AgentChatMessage, AgentChatResponse, CoinSuggestion, FollowUser, PublicProfile, CoinComment, CoinRating, LimitedCoin, ValueEstimate, CoinValueHistory, PortfolioSummary, AuctionLot, AuctionLotListResponse } from '@/types'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
@@ -387,8 +387,8 @@ interface PublicKeyCredentialRequestOptionsJSON {
 // --- Social / Profile API ---
 
 // Profile
-export const updateProfile = (data: { email?: string; bio?: string; zipCode?: string; isPublic?: boolean }) =>
-  api.put<{ id: number; username: string; role: string; email: string; avatarPath: string; isPublic: boolean; bio: string; zipCode: string }>('/user/profile', data)
+export const updateProfile = (data: { email?: string; bio?: string; zipCode?: string; isPublic?: boolean; numisBidsUsername?: string; numisBidsPassword?: string }) =>
+  api.put<{ id: number; username: string; role: string; email: string; avatarPath: string; isPublic: boolean; bio: string; zipCode: string; numisBidsUsername: string; numisBidsConfigured: boolean }>('/user/profile', data)
 export const uploadAvatar = (file: File) => {
   const form = new FormData()
   form.append('avatar', file)
@@ -425,5 +425,21 @@ export const deleteComment = (coinId: number, commentId: number) =>
 export const rateCoin = (coinId: number, rating: number) =>
   api.put<CoinRating>(`/social/coins/${coinId}/rating`, { rating })
 export const getCoinRating = (coinId: number) => api.get<CoinRating>(`/social/coins/${coinId}/rating`)
+
+// Auction lots
+export const getAuctionLots = (params?: { status?: string; search?: string; sort?: string; order?: string; page?: number; limit?: number }) =>
+  api.get<AuctionLotListResponse>('/auctions', { params })
+export const getAuctionLot = (id: number) => api.get<AuctionLot>(`/auctions/${id}`)
+export const createAuctionLot = (lot: Partial<AuctionLot>) => api.post<AuctionLot>('/auctions', lot)
+export const updateAuctionLot = (id: number, lot: Partial<AuctionLot>) => api.put<AuctionLot>(`/auctions/${id}`, lot)
+export const updateAuctionLotStatus = (id: number, status: string) => api.put<AuctionLot>(`/auctions/${id}/status`, { status })
+export const convertAuctionLotToCoin = (id: number) => api.post<Coin>(`/auctions/${id}/convert`)
+export const deleteAuctionLot = (id: number) => api.delete(`/auctions/${id}`)
+export const importAuctionLot = (data: { url: string; title?: string; description?: string; auctionHouse?: string; saleName?: string; category?: string; imageUrl?: string; estimate?: number | null; currentBid?: number | null; currency?: string }) =>
+  api.post<AuctionLot>('/auctions/import', data)
+export const syncNumisBidsWatchlist = () =>
+  api.post<{ synced: number; lots: AuctionLot[] }>('/auctions/sync')
+export const validateNumisBidsCredentials = (username: string, password: string) =>
+  api.post<{ valid: boolean; error?: string }>('/auctions/validate-credentials', { username, password })
 
 export default api

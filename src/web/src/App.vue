@@ -7,6 +7,10 @@
           <span class="nav-title">Coin Collection</span>
         </component>
         <div class="nav-links">
+          <router-link v-if="isPwa" to="/add" class="nav-link add-link" active-class="active">
+            <CirclePlus :size="18" />
+            <span class="nav-label">Add</span>
+          </router-link>
           <router-link v-if="!isPwa" to="/" class="nav-link" active-class="active">
             <Landmark :size="18" />
             <span class="nav-label">Collection</span>
@@ -19,9 +23,9 @@
             <BadgeDollarSign :size="18" />
             <span class="nav-label">Sold</span>
           </router-link>
-          <router-link v-if="isPwa" to="/add" class="nav-link add-link" active-class="active">
-            <CirclePlus :size="18" />
-            <span class="nav-label">Add</span>
+          <router-link to="/auctions" class="nav-link" active-class="active">
+            <Gavel :size="18" />
+            <span class="nav-label">Auctions</span>
           </router-link>
           <router-link to="/followers" class="nav-link" active-class="active">
             <UsersIcon :size="18" />
@@ -44,10 +48,6 @@
           <router-link to="/settings" class="nav-link" active-class="active">
             <Settings :size="18" />
             <span class="nav-label">Settings</span>
-          </router-link>
-          <router-link v-if="auth.isAdmin" to="/admin" class="nav-link" active-class="active">
-            <ShieldCheck :size="18" />
-            <span class="nav-label">Admin</span>
           </router-link>
           <button v-if="!isPwa" class="btn-logout" @click="handleLogout">
             <LogOut :size="16" />
@@ -93,7 +93,7 @@
 import { ref, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
-import { Landmark, Bookmark, BadgeDollarSign, BarChart3, CirclePlus, Settings, ShieldCheck, LogOut, Users as UsersIcon, Clock, Bot } from 'lucide-vue-next'
+import { Landmark, Bookmark, BadgeDollarSign, BarChart3, CirclePlus, Settings, LogOut, Users as UsersIcon, Clock, Bot, Gavel } from 'lucide-vue-next'
 import { updateProfile, getMe } from '@/api/client'
 import CoinSearchChat from '@/components/CoinSearchChat.vue'
 
@@ -176,6 +176,7 @@ function handleLogout() {
   border: none;
   cursor: pointer;
   padding: 0;
+  flex-shrink: 0;
 }
 
 .nav-logo {
@@ -197,6 +198,15 @@ function handleLogout() {
 .nav-links {
   display: flex;
   gap: 0.25rem;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.nav-links::-webkit-scrollbar {
+  display: none;
 }
 
 .nav-link {
@@ -209,6 +219,8 @@ function handleLogout() {
   font-size: 0.85rem;
   transition: all var(--transition-fast);
   text-decoration: none;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .nav-link:hover,
@@ -225,6 +237,7 @@ function handleLogout() {
   display: flex;
   align-items: center;
   gap: 0.25rem;
+  flex-shrink: 0;
 }
 
 .btn-logout {
@@ -251,7 +264,7 @@ function handleLogout() {
   padding-top: 76px;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 900px) {
   .nav-title { display: none; }
   .nav-label { display: none; }
   .nav-link { padding: 0.5rem; }
