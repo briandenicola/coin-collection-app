@@ -127,11 +127,19 @@ func (s *NumisBidsService) FetchWatchlist(client *http.Client) (string, error) {
 // ParseWatchlist extracts lot data from NumisBids watchlist HTML.
 // Mirrors the Python scrape_numisbids_watchlist logic.
 func (s *NumisBidsService) ParseWatchlist(rawHTML string) []WatchlistLot {
-	// Split on <a tags that link to /sale/{id}/lot/{num}
-	blocks := regexp.MustCompile(`(?i)(?=<a[^>]*href="/sale/\d+/lot/\d+)`).Split(rawHTML, -1)
+	// Find all lot link positions, then extract the block between each pair.
+	// Go's regexp engine (RE2) doesn't support lookaheads, so we split manually.
+	indices := lotLinkRe.FindAllStringIndex(rawHTML, -1)
 
 	var lots []WatchlistLot
-	for _, block := range blocks {
+	for i, idx := range indices {
+		start := idx[0]
+		end := len(rawHTML)
+		if i+1 < len(indices) {
+			end = indices[i+1][0]
+		}
+		block := rawHTML[start:end]
+
 		linkMatch := lotLinkRe.FindStringSubmatch(block)
 		if linkMatch == nil {
 			continue
