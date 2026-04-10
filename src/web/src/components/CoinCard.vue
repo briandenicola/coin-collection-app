@@ -99,21 +99,46 @@ function formatCurrency(value: number) {
   width: 100%;
   aspect-ratio: 1;
   overflow: hidden;
-  background: var(--bg-primary);
+  background: radial-gradient(ellipse at center, var(--bg-secondary) 0%, var(--bg-primary) 100%);
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* Vignette overlay + gold accent border */
+.card-image-container::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.35);
+  border-bottom: 1px solid var(--accent-gold-dim);
+  pointer-events: none;
+  z-index: 1;
+  transition: box-shadow var(--transition-med);
+}
+
+.coin-card:hover .card-image-container::after {
+  box-shadow: inset 0 0 25px rgba(0, 0, 0, 0.2),
+              0 0 20px var(--accent-gold-glow);
 }
 
 .card-image {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform var(--transition-med);
+  transition: transform var(--transition-med), filter var(--transition-med);
 }
 
 .coin-card:hover .card-image {
   transform: scale(1.05);
+  filter: brightness(1.1);
+}
+
+/* PWA: taller image area for more prominence */
+@media (display-mode: standalone) {
+  .card-image-container {
+    aspect-ratio: 5 / 6;
+  }
 }
 
 .card-image-placeholder {

@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Coin, CoinListResponse, CoinImage, AuthResponse, StatsResponse, UserInfo, AppSettings, LogEntry, ApiKey, WebAuthnCredentialInfo, ValueSnapshot, CoinJournal, NumistaSearchResponse, AgentChatMessage, AgentChatResponse, CoinSuggestion, FollowUser, PublicProfile, CoinComment, CoinRating, LimitedCoin, ValueEstimate, CoinValueHistory, PortfolioSummary } from '@/types'
+import type { Coin, CoinListResponse, CoinImage, AuthResponse, StatsResponse, UserInfo, AppSettings, LogEntry, ApiKey, WebAuthnCredentialInfo, ValueSnapshot, CoinJournal, NumistaSearchResponse, AgentChatMessage, AgentChatResponse, CoinSuggestion, FollowUser, PublicProfile, CoinComment, CoinRating, LimitedCoin, ValueEstimate, CoinValueHistory, PortfolioSummary, AuctionLot, AuctionLotListResponse } from '@/types'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
@@ -425,5 +425,17 @@ export const deleteComment = (coinId: number, commentId: number) =>
 export const rateCoin = (coinId: number, rating: number) =>
   api.put<CoinRating>(`/social/coins/${coinId}/rating`, { rating })
 export const getCoinRating = (coinId: number) => api.get<CoinRating>(`/social/coins/${coinId}/rating`)
+
+// Auction lots
+export const getAuctionLots = (params?: { status?: string; search?: string; sort?: string; order?: string; page?: number; limit?: number }) =>
+  api.get<AuctionLotListResponse>('/auctions', { params })
+export const getAuctionLot = (id: number) => api.get<AuctionLot>(`/auctions/${id}`)
+export const createAuctionLot = (lot: Partial<AuctionLot>) => api.post<AuctionLot>('/auctions', lot)
+export const updateAuctionLot = (id: number, lot: Partial<AuctionLot>) => api.put<AuctionLot>(`/auctions/${id}`, lot)
+export const updateAuctionLotStatus = (id: number, status: string) => api.put<AuctionLot>(`/auctions/${id}/status`, { status })
+export const convertAuctionLotToCoin = (id: number) => api.post<Coin>(`/auctions/${id}/convert`)
+export const deleteAuctionLot = (id: number) => api.delete(`/auctions/${id}`)
+export const importAuctionLot = (data: { url: string; title?: string; description?: string; auctionHouse?: string; saleName?: string; category?: string; imageUrl?: string; estimate?: number | null; currentBid?: number | null; currency?: string }) =>
+  api.post<AuctionLot>('/auctions/import', data)
 
 export default api

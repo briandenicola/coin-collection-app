@@ -302,3 +302,34 @@ export interface LimitedCoin {
   grade: string
   images: CoinImage[]
 }
+
+export type AuctionLotStatus = 'watching' | 'bidding' | 'won' | 'lost' | 'passed'
+
+export interface AuctionLot {
+  id: number
+  numisBidsUrl: string
+  saleId: string
+  lotNumber: number
+  auctionHouse: string
+  saleName: string
+  saleDate: string | null
+  title: string
+  description: string
+  category: Category
+  estimate: number | null
+  currentBid: number | null
+  maxBid: number | null
+  currency: string
+  status: AuctionLotStatus
+  imageUrl: string
+  coinId: number | null
+  coin?: Coin
+  userId: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface AuctionLotListResponse {
+  lots: AuctionLot[]
+  total: number
+}

@@ -276,10 +276,24 @@ onUnmounted(() => {
   touch-action: none;
 }
 
+@media (display-mode: standalone) {
+  .card-stack {
+    width: 340px;
+    height: 430px;
+  }
+}
+
 @media (min-width: 480px) {
   .card-stack {
     width: 340px;
     height: 420px;
+  }
+}
+
+@media (display-mode: standalone) and (min-width: 480px) {
+  .card-stack {
+    width: 380px;
+    height: 470px;
   }
 }
 
@@ -314,7 +328,19 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--bg-primary);
+  background: radial-gradient(ellipse at center, var(--bg-secondary) 0%, var(--bg-primary) 100%);
+  position: relative;
+}
+
+/* Vignette overlay */
+.swipe-card-image::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.3);
+  border-bottom: 1px solid var(--accent-gold-dim);
+  pointer-events: none;
+  z-index: 1;
 }
 
 .swipe-card-image img {

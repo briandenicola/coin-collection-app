@@ -19,6 +19,10 @@
             <BadgeDollarSign :size="18" />
             <span class="nav-label">Sold</span>
           </router-link>
+          <router-link to="/auctions" class="nav-link" active-class="active">
+            <Gavel :size="18" />
+            <span class="nav-label">Auctions</span>
+          </router-link>
           <router-link v-if="isPwa" to="/add" class="nav-link add-link" active-class="active">
             <CirclePlus :size="18" />
             <span class="nav-label">Add</span>
@@ -93,7 +97,7 @@
 import { ref, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
-import { Landmark, Bookmark, BadgeDollarSign, BarChart3, CirclePlus, Settings, ShieldCheck, LogOut, Users as UsersIcon, Clock, Bot } from 'lucide-vue-next'
+import { Landmark, Bookmark, BadgeDollarSign, BarChart3, CirclePlus, Settings, ShieldCheck, LogOut, Users as UsersIcon, Clock, Bot, Gavel } from 'lucide-vue-next'
 import { updateProfile, getMe } from '@/api/client'
 import CoinSearchChat from '@/components/CoinSearchChat.vue'
 
