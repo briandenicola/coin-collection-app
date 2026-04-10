@@ -162,8 +162,8 @@ func (s *NumisBidsService) ParseWatchlist(rawHTML string) []WatchlistLot {
 			lot.ImageURL = imgURL
 		}
 
-		// Title: cleaned HTML text
-		lot.Title = cleanHTML(block)
+		// Title: extract only the text inside the lot anchor tag
+		lot.Title = extractLotTitle(block, linkMatch[1])
 		if len(lot.Title) > 200 {
 			lot.Title = lot.Title[:200]
 		}
@@ -196,6 +196,47 @@ func parseCurrencyValue(text string) (*float64, string) {
 		return nil, match[2]
 	}
 	return &val, match[2]
+}
+
+// extractLotTitle extracts the text content of the anchor tag that links to the lot.
+// It walks the HTML tokens looking for <a href="...lotPath...">, then collects
+// text until the closing </a> tag.
+func extractLotTitle(block, lotPath string) string {
+	tokenizer := html.NewTokenizer(strings.NewReader(block))
+	inLotLink := false
+	var result strings.Builder
+
+	for {
+		tt := tokenizer.Next()
+		if tt == html.ErrorToken {
+			break
+		}
+
+		switch tt {
+		case html.StartTagToken:
+			t := tokenizer.Token()
+			if t.Data == "a" && !inLotLink {
+				for _, attr := range t.Attr {
+					if attr.Key == "href" && attr.Val == lotPath {
+						inLotLink = true
+						break
+					}
+				}
+			}
+		case html.EndTagToken:
+			if inLotLink && tokenizer.Token().Data == "a" {
+				goto done
+			}
+		case html.TextToken:
+			if inLotLink {
+				result.WriteString(tokenizer.Token().Data)
+			}
+		}
+	}
+
+done:
+	text := strings.Join(strings.Fields(result.String()), " ")
+	return strings.TrimSpace(text)
 }
 
 // cleanHTML strips HTML tags and normalizes whitespace.
