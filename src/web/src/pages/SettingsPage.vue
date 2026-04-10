@@ -762,8 +762,17 @@ const baseTabs = [
   { id: 'help', label: 'Help' },
 ]
 const tabs = computed(() => {
-  if (auth.isAdmin) {
-    return [...baseTabs, { id: 'admin', label: 'Admin' }]
+  if (isPwa && auth.isAdmin) {
+    return [
+      { id: 'account', label: 'Account' },
+      { id: 'admin', label: 'Admin' },
+      { id: 'appearance', label: 'Appearance' },
+      { id: 'data', label: 'Data' },
+      { id: 'process', label: 'Process' },
+      { id: 'conversations', label: 'Conversations' },
+      { id: 'blocked', label: 'Blocked' },
+      { id: 'help', label: 'Help' },
+    ]
   }
   return baseTabs
 })
