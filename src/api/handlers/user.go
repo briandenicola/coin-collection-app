@@ -98,16 +98,18 @@ func (h *UserHandler) GetMe(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"id":           user.ID,
-		"username":     user.Username,
-		"role":         user.Role,
-		"email":        user.Email,
-		"avatarPath":   user.AvatarPath,
-		"isPublic":     user.IsPublic,
-		"bio":          user.Bio,
-		"zipCode":      user.ZipCode,
-		"emailMissing": user.Email == "",
-		"createdAt":    user.CreatedAt,
+		"id":                  user.ID,
+		"username":            user.Username,
+		"role":                user.Role,
+		"email":               user.Email,
+		"avatarPath":          user.AvatarPath,
+		"isPublic":            user.IsPublic,
+		"bio":                 user.Bio,
+		"zipCode":             user.ZipCode,
+		"emailMissing":        user.Email == "",
+		"createdAt":           user.CreatedAt,
+		"numisBidsUsername":   user.NumisBidsUsername,
+		"numisBidsConfigured": user.NumisBidsUsername != "" && user.NumisBidsPassword != "",
 	})
 }
 
@@ -173,10 +175,12 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 	userID := c.GetUint("userId")
 
 	var req struct {
-		Email    *string `json:"email"`
-		Bio      *string `json:"bio"`
-		IsPublic *bool   `json:"isPublic"`
-		ZipCode  *string `json:"zipCode"`
+		Email             *string `json:"email"`
+		Bio               *string `json:"bio"`
+		IsPublic          *bool   `json:"isPublic"`
+		ZipCode           *string `json:"zipCode"`
+		NumisBidsUsername *string `json:"numisBidsUsername"`
+		NumisBidsPassword *string `json:"numisBidsPassword"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -213,6 +217,12 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 	if req.ZipCode != nil {
 		updates["zip_code"] = strings.TrimSpace(*req.ZipCode)
 	}
+	if req.NumisBidsUsername != nil {
+		updates["numis_bids_username"] = strings.TrimSpace(*req.NumisBidsUsername)
+	}
+	if req.NumisBidsPassword != nil {
+		updates["numis_bids_password"] = *req.NumisBidsPassword
+	}
 	if req.IsPublic != nil {
 		updates["is_public"] = *req.IsPublic
 		goingPrivate := !*req.IsPublic && user.IsPublic
@@ -231,14 +241,16 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 	// Reload and return
 	h.repo.Reload(&user)
 	c.JSON(http.StatusOK, gin.H{
-		"id":         user.ID,
-		"username":   user.Username,
-		"role":       user.Role,
-		"email":      user.Email,
-		"avatarPath": user.AvatarPath,
-		"isPublic":   user.IsPublic,
-		"bio":        user.Bio,
-		"zipCode":    user.ZipCode,
+		"id":                  user.ID,
+		"username":            user.Username,
+		"role":                user.Role,
+		"email":               user.Email,
+		"avatarPath":          user.AvatarPath,
+		"isPublic":            user.IsPublic,
+		"bio":                 user.Bio,
+		"zipCode":             user.ZipCode,
+		"numisBidsUsername":   user.NumisBidsUsername,
+		"numisBidsConfigured": user.NumisBidsUsername != "" && user.NumisBidsPassword != "",
 	})
 }
 
