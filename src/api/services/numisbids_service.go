@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/cookiejar"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -14,7 +15,7 @@ import (
 
 const (
 	numisbidsBase    = "https://www.numisbids.com"
-	numisbidsLoginURL = numisbidsBase + "/login.php"
+	numisbidsLoginURL = numisbidsBase + "/registration/login.php"
 	numisbidsWatchlistURL = numisbidsBase + "/watchlist"
 	numisbidsUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
 		"AppleWebKit/537.36 (KHTML, like Gecko) " +
@@ -54,25 +55,22 @@ func (s *NumisBidsService) Login(username, password string) (*http.Client, error
 		return nil, fmt.Errorf("failed to create cookie jar: %w", err)
 	}
 
-	client := &http.Client{
-		Jar: jar,
-		// Don't follow redirects automatically so we can check the login response
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
+	client := &http.Client{Jar: jar}
+
+	form := url.Values{
+		"email":    {username},
+		"password": {password},
+		"login":    {"Login"},
 	}
 
-	body := fmt.Sprintf("name=%s&password=%s&submit=Login",
-		strings.ReplaceAll(strings.ReplaceAll(username, "&", "%26"), "=", "%3D"),
-		strings.ReplaceAll(strings.ReplaceAll(password, "&", "%26"), "=", "%3D"),
-	)
-
-	req, err := http.NewRequest("POST", numisbidsLoginURL, strings.NewReader(body))
+	req, err := http.NewRequest("POST", numisbidsLoginURL, strings.NewReader(form.Encode()))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create login request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("User-Agent", numisbidsUserAgent)
+	req.Header.Set("Referer", numisbidsBase+"/")
+	req.Header.Set("X-Requested-With", "XMLHttpRequest")
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -80,13 +78,22 @@ func (s *NumisBidsService) Login(username, password string) (*http.Client, error
 	}
 	defer resp.Body.Close()
 
-	// NumisBids typically redirects (302) on successful login
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusFound {
 		return nil, fmt.Errorf("login returned HTTP %d", resp.StatusCode)
 	}
 
-	// Re-enable redirect following for subsequent requests
-	client.CheckRedirect = nil
+	// Read body to check for login errors (AJAX form returns HTML fragment)
+	body, _ := io.ReadAll(resp.Body)
+	bodyStr := string(body)
+	if strings.Contains(bodyStr, "Incorrect") || strings.Contains(bodyStr, "invalid") {
+		return nil, fmt.Errorf("invalid credentials")
+	}
+
+	// Verify session cookie was set by checking for a PHPSESSID or similar
+	parsedURL, _ := url.Parse(numisbidsBase)
+	if len(jar.Cookies(parsedURL)) == 0 {
+		return nil, fmt.Errorf("no session cookie received — login may have failed")
+	}
 
 	return client, nil
 }
