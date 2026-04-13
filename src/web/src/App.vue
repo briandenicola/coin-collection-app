@@ -90,6 +90,8 @@
         </div>
       </div>
     </div>
+
+    <AppDialog />
   </div>
 </template>
 
@@ -100,6 +102,7 @@ import { useRouter } from 'vue-router'
 import { Landmark, Bookmark, BadgeDollarSign, BarChart3, CirclePlus, Settings, ShieldCheck, LogOut, Users as UsersIcon, Clock, Bot, Gavel } from 'lucide-vue-next'
 import { updateProfile, getMe } from '@/api/client'
 import CoinSearchChat from '@/components/CoinSearchChat.vue'
+import AppDialog from '@/components/AppDialog.vue'
 
 const auth = useAuthStore()
 const router = useRouter()

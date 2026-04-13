@@ -491,10 +491,12 @@ import {
 import type { AnthropicModel } from '@/api/client'
 import { LOG_LEVELS } from '@/types'
 import type { UserInfo, AppSettings, LogEntry, AvailabilityRun } from '@/types'
+import { useDialog } from '@/composables/useDialog'
 import { Users, Cpu, Wrench, ScrollText, Download, ShieldCheck } from 'lucide-vue-next'
 
 const tabIcons: Record<string, Component> = { users: Users, ai: Cpu, system: Wrench, logs: ScrollText, availability: ShieldCheck }
 
+const { showConfirm, showAlert } = useDialog()
 const auth = useAuthStore()
 
 const rawVersion = import.meta.env.VITE_APP_VERSION || 'dev'
@@ -536,12 +538,12 @@ async function loadUsers() {
 }
 
 async function handleDeleteUser(user: UserInfo) {
-  if (!confirm(`Delete user "${user.username}" and all their data? This cannot be undone.`)) return
+  if (!await showConfirm(`Delete user "${user.username}" and all their data? This cannot be undone.`, { title: 'Delete User', variant: 'danger' })) return
   try {
     await deleteUser(user.id)
     users.value = users.value.filter((u) => u.id !== user.id)
   } catch {
-    alert('Failed to delete user')
+    await showAlert('Failed to delete user', { title: 'Error' })
   }
 }
 

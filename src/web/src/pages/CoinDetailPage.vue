@@ -340,7 +340,9 @@ import type { CoinImage, CoinJournal, NumistaType, ValueEstimate, CoinValueHisto
 import MarkdownIt from 'markdown-it'
 import DOMPurify from 'dompurify'
 import { Camera } from 'lucide-vue-next'
+import { useDialog } from '@/composables/useDialog'
 
+const { showConfirm, showAlert } = useDialog()
 const route = useRoute()
 const router = useRouter()
 const store = useCoinsStore()
@@ -424,7 +426,7 @@ async function handleAddJournalEntry() {
     journalInput.value = ''
     loadJournal(coin.value.id)
   } catch {
-    alert('Failed to add journal entry')
+    await showAlert('Failed to add journal entry', { title: 'Error' })
   }
 }
 
@@ -434,7 +436,7 @@ async function handleDeleteJournalEntry(entryId: number) {
     await deleteJournalEntry(coin.value.id, entryId)
     loadJournal(coin.value.id)
   } catch {
-    alert('Failed to delete journal entry')
+    await showAlert('Failed to delete journal entry', { title: 'Error' })
   }
 }
 
@@ -560,12 +562,12 @@ async function handleRemoveBackground(image: CoinImage) {
 }
 
 async function handleDeleteImage(image: CoinImage) {
-  if (!coin.value || !confirm(`Delete this ${image.imageType} image?`)) return
+  if (!coin.value || !await showConfirm(`Delete this ${image.imageType} image?`, { title: 'Delete Image', variant: 'danger' })) return
   try {
     await deleteImage(coin.value.id, image.id)
     store.fetchCoin(coin.value.id)
   } catch {
-    alert('Failed to delete image')
+    await showAlert('Failed to delete image', { title: 'Error' })
   }
 }
 
@@ -577,7 +579,7 @@ async function handleAnalyze(side: 'obverse' | 'reverse') {
     await analyzeCoin(coin.value.id, side)
     store.fetchCoin(coin.value.id)
   } catch {
-    alert(`AI analysis failed for ${side}. Ensure Ollama is running.`)
+    await showAlert(`AI analysis failed for ${side}. Ensure Ollama is running.`, { title: 'Analysis Failed' })
   } finally {
     analyzing.value = false
     analyzingSide.value = null
@@ -596,7 +598,7 @@ async function confirmPurchase(data: { purchasePrice?: number; purchaseDate?: st
 }
 
 async function handleDelete() {
-  if (!coin.value || !confirm('Delete this coin from your collection?')) return
+  if (!coin.value || !await showConfirm('Delete this coin from your collection?', { title: 'Delete Coin', variant: 'danger' })) return
   await deleteCoin(coin.value.id)
   router.push('/')
 }
@@ -608,18 +610,18 @@ async function confirmSell(soldPrice: number | null, soldTo: string) {
     showSellModal.value = false
     router.push('/sold')
   } catch {
-    alert('Failed to mark as sold')
+    await showAlert('Failed to mark as sold', { title: 'Error' })
     showSellModal.value = false
   }
 }
 
 async function handleDeleteAnalysis(side: 'obverse' | 'reverse') {
-  if (!coin.value || !confirm(`Delete the ${side} analysis?`)) return
+  if (!coin.value || !await showConfirm(`Delete the ${side} analysis?`, { title: 'Delete Analysis', variant: 'danger' })) return
   try {
     await deleteAnalysis(coin.value.id, side)
     store.fetchCoin(coin.value.id)
   } catch {
-    alert(`Failed to delete ${side} analysis`)
+    await showAlert(`Failed to delete ${side} analysis`, { title: 'Error' })
   }
 }
 
@@ -653,7 +655,7 @@ async function applyEstimate() {
     await store.fetchCoin(coin.value.id)
     valueEstimate.value = null
   } catch {
-    alert('Failed to update coin value')
+    await showAlert('Failed to update coin value', { title: 'Error' })
   }
 }
 

@@ -16,7 +16,9 @@ import { useCoinsStore } from '@/stores/coins'
 import { uploadImage, deleteImage, extractText, updateCoin } from '@/api/client'
 import CoinForm from '@/components/CoinForm.vue'
 import type { Coin } from '@/types'
+import { useDialog } from '@/composables/useDialog'
 
+const { showAlert } = useDialog()
 const router = useRouter()
 const store = useCoinsStore()
 const saving = ref(false)
@@ -79,7 +81,7 @@ async function handleSubmit() {
 
     router.push(`/coin/${coin.id}`)
   } catch {
-    alert('Failed to add coin')
+    await showAlert('Failed to add coin', { title: 'Error' })
   } finally {
     saving.value = false
   }

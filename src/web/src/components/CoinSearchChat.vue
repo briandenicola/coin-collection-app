@@ -140,6 +140,7 @@ import { agentChatStream, createCoin, proxyImage, scrapeImage, uploadImage, save
 import type { CoinSuggestion, CoinShow, AgentChatMessage, Category, Material } from '@/types'
 import { Bot, X, SendHorizontal, CirclePlus, ExternalLink, Save, AlertTriangle, Calendar, MapPin, Ticket } from 'lucide-vue-next'
 import DOMPurify from 'dompurify'
+import { useDialog } from '@/composables/useDialog'
 import MarkdownIt from 'markdown-it'
 
 type ChatSuggestion = CoinSuggestion | CoinShow
@@ -161,6 +162,7 @@ const emit = defineEmits<{
   added: []
 }>()
 
+const { showAlert } = useDialog()
 const messages = ref<ChatMsg[]>([])
 const input = ref('')
 const loading = ref(false)
@@ -370,7 +372,7 @@ async function addToWishlist(coin: CoinSuggestion, idx: string) {
     addedSet.value.add(idx)
     emit('added')
   } catch {
-    alert('Failed to add coin to wishlist')
+    await showAlert('Failed to add coin to wishlist', { title: 'Error' })
   } finally {
     addingIdx.value = null
   }

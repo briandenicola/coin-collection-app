@@ -18,7 +18,9 @@ import { useRoute, useRouter } from 'vue-router'
 import CoinForm from '@/components/CoinForm.vue'
 import { getCoin, updateCoin, uploadImage, deleteImage, extractText } from '@/api/client'
 import type { Coin } from '@/types'
+import { useDialog } from '@/composables/useDialog'
 
+const { showAlert } = useDialog()
 const route = useRoute()
 const router = useRouter()
 const loading = ref(true)
@@ -36,7 +38,7 @@ onMounted(async () => {
       form.purchaseDate = form.purchaseDate.substring(0, 10)
     }
   } catch {
-    alert('Failed to load coin')
+    await showAlert('Failed to load coin', { title: 'Error' })
     router.push('/')
   } finally {
     loading.value = false
@@ -95,7 +97,7 @@ async function handleSubmit() {
 
     router.replace(`/coin/${coinId}`)
   } catch {
-    alert('Failed to update coin')
+    await showAlert('Failed to update coin', { title: 'Error' })
   } finally {
     saving.value = false
   }

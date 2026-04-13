@@ -727,6 +727,7 @@ import {
   getBlockedUsers, unblockFollower, validateNumisBidsCredentials,
 } from '@/api/client'
 import type { ConversationSummary } from '@/api/client'
+import { useDialog } from '@/composables/useDialog'
 import type { Coin, Theme, ApiKey, WebAuthnCredentialInfo } from '@/types'
 import CoinSearchChat from '@/components/CoinSearchChat.vue'
 import ImageProcessor from '@/components/ImageProcessor.vue'
@@ -743,6 +744,7 @@ const tabIcons: Record<string, Component> = {
   admin: ShieldCheck,
 }
 
+const { showConfirm, showAlert } = useDialog()
 const activeTab = ref('account')
 const settingsMenuOpen = ref(false)
 const isPwa = window.matchMedia('(display-mode: standalone)').matches
@@ -1203,7 +1205,7 @@ async function handleRegisterCredential() {
 }
 
 async function handleDeleteCredential(id: number) {
-  if (!confirm('Remove this biometric credential?')) return
+  if (!await showConfirm('Remove this biometric credential?', { title: 'Remove Credential' })) return
   try {
     await webauthnDeleteCredential(id)
     await loadCredentials()
@@ -1241,17 +1243,17 @@ async function openConversation(id: number) {
     }
     showChat.value = true
   } catch {
-    alert('Failed to load conversation')
+    await showAlert('Failed to load conversation', { title: 'Error' })
   }
 }
 
 async function handleDeleteConversation(id: number) {
-  if (!confirm('Delete this saved conversation?')) return
+  if (!await showConfirm('Delete this saved conversation?', { title: 'Delete Conversation', variant: 'danger' })) return
   try {
     await deleteConversation(id)
     conversations.value = conversations.value.filter(c => c.id !== id)
   } catch {
-    alert('Failed to delete conversation')
+    await showAlert('Failed to delete conversation', { title: 'Error' })
   }
 }
 
