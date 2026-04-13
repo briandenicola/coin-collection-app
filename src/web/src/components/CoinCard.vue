@@ -3,9 +3,28 @@
     <div class="card-image-container">
       <img v-if="primaryImage" :src="primaryImage" :alt="coin.name" class="card-image" />
       <div v-else class="card-image-placeholder"><Coins :size="48" :stroke-width="1" /></div>
+      <div v-if="wishlist && coin.listingStatus === 'unavailable'" class="listing-overlay"></div>
+      <span v-if="wishlist && coin.listingStatus === 'unavailable'" class="listing-badge listing-badge-unavailable">Unavailable</span>
+      <button
+        v-if="wishlist && coin.listingStatus === 'unavailable'"
+        class="listing-dismiss-btn"
+        @click.stop="emit('dismiss-status', coin.id)"
+      >Dismiss</button>
     </div>
     <div class="card-body">
-      <h3 class="card-title">{{ coin.name }}</h3>
+      <h3 class="card-title">
+        <span
+          v-if="wishlist && coin.listingStatus === 'available'"
+          class="status-dot status-dot-available"
+          title="Available"
+        ></span>
+        <span
+          v-if="wishlist && coin.listingStatus === 'unknown'"
+          class="status-dot status-dot-unknown"
+          title="Unknown"
+        ></span>
+        {{ coin.name }}
+      </h3>
       <template v-if="!wishlist && !sold">
         <div class="card-meta">
           <span v-if="coin.ruler" class="meta-item">{{ coin.ruler }}</span>
@@ -67,6 +86,7 @@ const props = withDefaults(defineProps<{ coin: Coin; imageSide?: ImageType | nul
 
 const emit = defineEmits<{
   purchase: [coin: Coin]
+  'dismiss-status': [coinId: number]
 }>()
 
 const primaryImage = computed(() => {
@@ -274,4 +294,66 @@ function formatCurrency(value: number) {
 .category-byzantine { color: #e67e73; }
 .category-modern { color: #7ab3d4; }
 .category-other { color: #aaa; }
+
+/* Listing status overlay & badge */
+.listing-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 2;
+  pointer-events: none;
+}
+
+.listing-badge {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--radius-full);
+  font-size: 0.7rem;
+  font-weight: 600;
+  z-index: 3;
+}
+
+.listing-badge-unavailable {
+  background: rgba(231, 76, 60, 0.85);
+  color: #fff;
+}
+
+.listing-dismiss-btn {
+  position: absolute;
+  bottom: 0.5rem;
+  right: 0.5rem;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.65rem;
+  background: rgba(0, 0, 0, 0.7);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  z-index: 3;
+}
+
+.listing-dismiss-btn:hover {
+  color: var(--text-primary);
+  background: rgba(0, 0, 0, 0.85);
+}
+
+.status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 0.35rem;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.status-dot-available {
+  background: #2ecc71;
+}
+
+.status-dot-unknown {
+  background: #f1c40f;
+}
 </style>
