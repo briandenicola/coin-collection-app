@@ -93,6 +93,7 @@ The Python agent is a **stateless** FastAPI service — no database access. All 
 | Coin Shows | Search → Verify dates are future → Format |
 | Coin Analysis | Vision model analysis → Format |
 | Portfolio Review | Read holdings → Valuate → Analyze |
+| Availability Check | Check URLs → Analyze results → Verdict |
 
 **Key design rules:**
 - Search agents pass only tool-returned data downstream — never invented details
