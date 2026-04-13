@@ -825,8 +825,14 @@ function formatDuration(ms: number) {
 }
 
 function truncateUrl(url: string) {
-  if (url.length <= 50) return url
-  return url.substring(0, 47) + '...'
+  try {
+    const u = new URL(url)
+    const path = u.pathname.length > 20 ? u.pathname.substring(0, 17) + '...' : u.pathname
+    return u.hostname + path
+  } catch {
+    if (url.length <= 35) return url
+    return url.substring(0, 32) + '...'
+  }
 }
 
 onMounted(() => {
@@ -1285,6 +1291,8 @@ onUnmounted(() => {
 
 .avail-table {
   font-size: 0.82rem;
+  table-layout: fixed;
+  width: 100%;
 }
 
 .avail-row {
@@ -1307,12 +1315,14 @@ onUnmounted(() => {
 .avail-detail-row td {
   padding: 0.5rem;
   background: var(--bg-body);
+  overflow: hidden;
 }
 
 .avail-detail-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.78rem;
+  table-layout: fixed;
 }
 
 .avail-detail-table th,
@@ -1320,7 +1330,24 @@ onUnmounted(() => {
   padding: 0.4rem 0.5rem;
   text-align: left;
   border-bottom: 1px solid var(--border-subtle);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
+
+/* Column widths for detail table */
+.avail-detail-table th:nth-child(1),
+.avail-detail-table td:nth-child(1) { width: 22%; }
+.avail-detail-table th:nth-child(2),
+.avail-detail-table td:nth-child(2) { width: 22%; }
+.avail-detail-table th:nth-child(3),
+.avail-detail-table td:nth-child(3) { width: 10%; }
+.avail-detail-table th:nth-child(4),
+.avail-detail-table td:nth-child(4) { width: 28%; }
+.avail-detail-table th:nth-child(5),
+.avail-detail-table td:nth-child(5) { width: 8%; }
+.avail-detail-table th:nth-child(6),
+.avail-detail-table td:nth-child(6) { width: 10%; }
 
 .avail-detail-table th {
   font-size: 0.7rem;
