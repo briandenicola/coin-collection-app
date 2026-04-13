@@ -1192,6 +1192,75 @@ curl "http://localhost:8080/api/admin/logs?level=error&limit=50" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
+### GET /api/admin/availability-runs
+
+List availability check run history (paginated).
+
+**Query Parameters:**
+
+| Param | Type | Default | Description |
+| ----- | ---- | ------- | ----------- |
+| `page` | int | `1` | Page number |
+| `limit` | int | `20` | Results per page |
+
+**Response:**
+
+```json
+{
+  "runs": [
+    {
+      "id": 1,
+      "userId": 1,
+      "triggerType": "manual",
+      "coinsChecked": 5,
+      "available": 3,
+      "unavailable": 1,
+      "unknown": 1,
+      "errors": 0,
+      "durationMs": 4200,
+      "startedAt": "2026-04-13T02:00:00Z",
+      "completedAt": "2026-04-13T02:00:04Z"
+    }
+  ],
+  "total": 1
+}
+```
+
+### GET /api/admin/availability-runs/:id
+
+Get details for a single availability check run, including per-coin results.
+
+**Response:** Same as above with an additional `results` array containing per-coin outcomes (coinId, coinName, url, status, reason, httpStatus, agentUsed).
+
+---
+
+### POST /api/wishlist/check-availability
+
+Trigger a manual availability check for the authenticated user's wishlist coins. Checks each coin's reference URL via HTTP + keyword heuristics, escalating ambiguous results to the AI agent.
+
+**Response:**
+
+```json
+{
+  "runId": 42,
+  "coinsChecked": 5,
+  "available": 3,
+  "unavailable": 1,
+  "unknown": 1,
+  "durationMs": 4200
+}
+```
+
+### PUT /api/coins/:id/listing-status
+
+Update a coin's listing status (e.g., to dismiss an unavailable flag).
+
+**Request Body:**
+
+```json
+{ "status": "" }
+```
+
 ---
 
 ## Static Resources
@@ -1242,3 +1311,70 @@ Errors return an appropriate HTTP status code with a JSON body:
 | `403` | Forbidden (insufficient permissions) |
 | `404` | Resource not found |
 | `500` | Internal server error |
+
+---
+
+## Auction Lots
+
+All auction lot endpoints require authentication. Lots are scoped to the authenticated user.
+
+### GET /api/auctions
+
+List auction lots with optional filtering.
+
+**Query Parameters:**
+
+| Param | Type | Description |
+|-------|------|-------------|
+| `status` | string | Filter by status: `watching`, `bidding`, `won`, `lost`, `passed` |
+| `search` | string | Full-text search across title, description, auction house |
+| `sort` | string | Sort field (default: `createdAt`) |
+| `order` | string | `asc` or `desc` (default: `desc`) |
+| `page` | int | Page number (default: 1) |
+| `limit` | int | Results per page (default: 50) |
+
+### GET /api/auctions/:id
+
+Get a single auction lot by ID.
+
+### POST /api/auctions
+
+Create a new auction lot.
+
+### PUT /api/auctions/:id
+
+Update an auction lot's fields.
+
+### PUT /api/auctions/:id/status
+
+Update a lot's status. Validates allowed transitions (e.g., only Bidding can become Won).
+
+**Body:** `{ "status": "won" }`
+
+### POST /api/auctions/:id/convert
+
+Convert a won lot into a coin in the user's collection. Only works when status is `won`. Returns the newly created coin.
+
+### DELETE /api/auctions/:id
+
+Delete an auction lot.
+
+### POST /api/auctions/import
+
+Import a lot from a NumisBids URL. Accepts scraped data from the frontend.
+
+**Body:** `{ "url": "https://www.numisbids.com/sale/123/lot/45", "title": "...", "imageUrl": "...", ... }`
+
+### POST /api/auctions/sync
+
+Sync the user's NumisBids watchlist. Requires NumisBids credentials configured in user settings. Logs into NumisBids, fetches the watchlist page, parses lots, and upserts them. Returns the number synced and the lot objects.
+
+**Response:** `{ "synced": 5, "lots": [...] }`
+
+### POST /api/auctions/validate-credentials
+
+Validate NumisBids credentials by attempting a login. Does not save anything.
+
+**Body:** `{ "username": "user@example.com", "password": "..." }`
+
+**Response:** `{ "valid": true }` or `{ "valid": false, "error": "Login failed. Check your credentials." }`

@@ -132,3 +132,17 @@ class PortfolioReviewRequest(BaseModel):
     def none_to_list(cls, v: list | None) -> list:
         """Go serializes nil slices as null — convert to empty list."""
         return v if v is not None else []
+
+
+class AvailabilityCheckItem(BaseModel):
+    """A single coin URL to check for availability."""
+
+    url: str
+    coin_name: str = ""
+
+
+class AvailabilityCheckRequest(BaseModel):
+    """Request to check listing availability for multiple URLs."""
+
+    llm: LLMConfig
+    items: list[AvailabilityCheckItem] = []

@@ -22,6 +22,8 @@ Track coins you'd like to acquire with an AI-powered search agent:
 - **AI Coin Search Agent** — Click "Find Coins" to open a chat drawer powered by Anthropic Claude with web search. Describe the coins you're looking for (e.g., "Roman silver denarii of Julius Caesar under $500") and the agent searches the web for real listings and references. Results appear as cards with images, metadata, estimated prices, and source links — each with an "Add to Wishlist" button for one-click import.
 - **Purchase** — Move a wishlist coin to your main collection when you acquire it. A styled purchase modal prompts for the purchase price and date, replacing the default browser confirm dialog.
 - **Wish List Gallery** — A separate page showing only wishlist items with sorting support.
+- **Availability Check** — Click "Check Availability" on the Wish List page to verify whether listed coins are still for sale. The system visits each coin's reference URL and uses HTTP status codes plus keyword heuristics (sold indicators, buy-now buttons) to determine listing status. Ambiguous results are escalated to the AI agent (Team 6) for deeper analysis. Results show as a summary banner (available / unavailable / unknown counts) and per-card status indicators (green dot, red "Unavailable" overlay, amber dot). Unavailable coins can be dismissed to clear the status.
+- **Scheduled Checks** — Admins can enable automatic availability checks with a configurable start time and repeat interval (e.g., starting at 2:00 AM, repeating every 120 minutes). Run history with per-coin drill-down is available in the Admin Availability tab.
 
 ## Sold Coins
 
@@ -31,6 +33,18 @@ Track coins you've sold with profit/loss visibility:
 - **Profit / Loss Tracking** — Sold coins display the sale price, original cost basis, and calculated profit or loss (green for profit, red for loss).
 - **Sold Gallery** — A dedicated gallery page showing all sold coins with their sale history, accessible from the navigation bar.
 - **Stats Integration** — Sold coins are excluded from active collection totals while their sold values are tracked separately.
+
+## Auction Tracking
+
+Track auction lots from NumisBids through a complete bidding lifecycle:
+
+- **Add Lots** — Manually add lots by pasting a NumisBids URL. The app scrapes the lot page for title, image, estimate, auction house, and sale name.
+- **NumisBids Watchlist Sync** — Connect your NumisBids account (username and password stored per-user, validated on save) and sync your watchlist with one click. Each synced lot gets a full-resolution image scraped from the lot page.
+- **Status Workflow** — Lots progress through statuses: Watching → Bidding → Won / Lost / Passed. Status transitions are validated (e.g., only Bidding lots can be marked Won).
+- **Filtered Views** — Filter the auctions page by status. Counts for each status appear as badges on filter buttons.
+- **Won → Collection** — When a lot is marked as Won, it is automatically converted into a coin in your collection (mapping title, category, auction house, sale date, bid price) and the edit page opens so you can add details. A manual "Add to Collection" button is also available.
+- **AI Auction Search** — Ask the AI agent to search NumisBids for coins matching a description. The agent (Team 5) searches, fetches lot details, and formats results.
+- **Credential Validation** — NumisBids credentials are validated against the live site before being saved. The Settings page shows connected/error/validating status indicators.
 
 ## Coin Details
 
@@ -139,6 +153,7 @@ The first registered user is the admin. Admins can access **Admin** to manage:
 - **AI Configuration** — Select your AI Provider: Anthropic (recommended) or Ollama. Configure Ollama (URL, vision model, timeout, analysis prompts), Anthropic (API key, model dropdown, editable agent prompt for the search agent), and SearXNG URL for Ollama web search.
 - **System** — Set the application log level (trace, debug, info, warn, error) and configure the Numista API key for catalog lookups.
 - **Logs** — View real-time application logs with level filtering, auto-refresh, and log export.
+- **Availability Checks** — Enable/disable automatic wishlist availability checking, configure the daily start time and repeat interval, and view paginated run history with per-coin drill-down results (URL, status, reason, HTTP code, whether the AI agent was used).
 
 ## Authentication
 

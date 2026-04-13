@@ -323,6 +323,35 @@ func (r *CoinRepository) GetCoinValueHistory(coinID uint, userID uint) ([]models
 	return entries, err
 }
 
+// GetWishlistWithURLs returns wishlist coins with a non-empty ReferenceURL for a user.
+func (r *CoinRepository) GetWishlistWithURLs(userID uint) ([]models.Coin, error) {
+	var coins []models.Coin
+	err := r.db.Scopes(OwnedBy(userID)).
+		Where("is_wishlist = ? AND reference_url != ''", true).
+		Preload("Images").
+		Find(&coins).Error
+	return coins, err
+}
+
+// GetAllWishlistWithURLs returns all users' wishlist coins with a non-empty ReferenceURL.
+func (r *CoinRepository) GetAllWishlistWithURLs() ([]models.Coin, error) {
+	var coins []models.Coin
+	err := r.db.Where("is_wishlist = ? AND reference_url != ''", true).
+		Preload("Images").
+		Find(&coins).Error
+	return coins, err
+}
+
+// UpdateListingStatus updates only the listing-check fields on a coin.
+func (r *CoinRepository) UpdateListingStatus(coinID uint, status, reason string, checkedAt time.Time) error {
+	return r.db.Model(&models.Coin{}).Where("id = ?", coinID).
+		Updates(map[string]interface{}{
+			"listing_status":       status,
+			"listing_checked_at":   checkedAt,
+			"listing_check_reason": reason,
+		}).Error
+}
+
 // CoinExists checks if a coin exists for the given user.
 func (r *CoinRepository) CoinExists(coinID uint, userID uint) (bool, error) {
 	var count int64
