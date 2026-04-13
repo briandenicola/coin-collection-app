@@ -405,7 +405,7 @@ func (h *AuctionLotHandler) SyncWatchlist(c *gin.Context) {
 
 	var synced []models.AuctionLot
 	for _, wl := range parsed {
-		// Scrape the lot page for image, auction house, sale name, current bid
+		// Scrape the lot page for image, auction house, sale name, current bid, lot number
 		if details, err := h.nbSvc.ScrapeLotPage(wl.URL); err == nil {
 			if details.ImageURL != "" {
 				wl.ImageURL = details.ImageURL
@@ -415,6 +415,9 @@ func (h *AuctionLotHandler) SyncWatchlist(c *gin.Context) {
 			wl.CurrentBid = details.CurrentBid
 			if details.Currency != "" {
 				wl.Currency = details.Currency
+			}
+			if details.LotNumber > 0 {
+				wl.LotNumber = details.LotNumber
 			}
 		} else {
 			log.Printf("Could not scrape lot page for %s: %v", wl.URL, err)

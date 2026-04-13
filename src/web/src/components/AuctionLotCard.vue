@@ -10,6 +10,7 @@
       <div class="lot-meta">
         <span v-if="lot.auctionHouse" class="meta-item">{{ lot.auctionHouse }}</span>
         <span v-if="lot.saleName" class="meta-item">{{ lot.saleName }}</span>
+        <span v-if="lot.lotNumber" class="meta-item lot-number">Lot {{ lot.lotNumber }}</span>
       </div>
       <div class="lot-details">
         <span v-if="lot.category" class="detail" :class="`category-${lot.category.toLowerCase()}`">{{ lot.category }}</span>
@@ -193,6 +194,11 @@ function formatCurrency(value: number, currency?: string) {
 .meta-item {
   font-size: 0.78rem;
   color: var(--text-secondary);
+}
+
+.lot-number {
+  font-weight: 600;
+  color: var(--accent-gold);
 }
 
 .lot-details {

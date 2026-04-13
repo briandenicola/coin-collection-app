@@ -129,6 +129,7 @@ func (r *AuctionLotRepository) Upsert(lot *models.AuctionLot) error {
 		"auction_house": lot.AuctionHouse,
 		"sale_name":     lot.SaleName,
 		"currency":      lot.Currency,
+		"lot_number":    lot.LotNumber,
 	}
 	return r.UpdateFields(existing, updates)
 }

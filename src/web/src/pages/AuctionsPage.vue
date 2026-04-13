@@ -68,6 +68,10 @@
             <span class="detail-label">Sale</span>
             <span>{{ selectedLot.saleName }}</span>
           </div>
+          <div class="detail-row" v-if="selectedLot.lotNumber">
+            <span class="detail-label">Lot #</span>
+            <span>{{ selectedLot.lotNumber }}</span>
+          </div>
           <div class="detail-row" v-if="selectedLot.saleDate">
             <span class="detail-label">Sale Date</span>
             <span>{{ formatDate(selectedLot.saleDate) }}</span>

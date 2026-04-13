@@ -3,7 +3,6 @@ package services
 import (
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
@@ -134,6 +133,7 @@ type LotPageDetails struct {
 	ImageURL     string
 	AuctionHouse string
 	SaleName     string
+	LotNumber    int
 	CurrentBid   *float64
 	Currency     string
 }
@@ -142,6 +142,7 @@ var (
 	houseNameRe  = regexp.MustCompile(`<span class="name">(.*?)</span>`)
 	saleNameRe   = regexp.MustCompile(`<span class="name">.*?</span>\s*(?:<br\s*/?>)\s*<b>(.*?)</b>`)
 	currentBidRe = regexp.MustCompile(`(?i)Current\s+bid:\s*([\d,]+(?:\.\d+)?\s*\w+)`)
+	lotNumberRe  = regexp.MustCompile(`(?i)<div class="left">Lot\s+(\d+)`)
 )
 
 // ScrapeLotImage fetches a NumisBids lot page and extracts the og:image URL.
@@ -207,6 +208,11 @@ func (s *NumisBidsService) ScrapeLotPage(lotURL string) (*LotPageDetails, error)
 		}
 	}
 
+	// Lot number from detail page: <div class="left">Lot 15<br>
+	if match := lotNumberRe.FindStringSubmatch(html); match != nil {
+		details.LotNumber, _ = strconv.Atoi(match[1])
+	}
+
 	return details, nil
 }
 
@@ -231,7 +237,6 @@ func (s *NumisBidsService) ParseWatchlist(rawHTML string) []WatchlistLot {
 			continue
 		}
 
-		log.Printf("[NumisBids] Matched lot link: full=%s saleID=%s lotNum=%s", linkMatch[1], linkMatch[2], linkMatch[3])
 		lotNum, _ := strconv.Atoi(linkMatch[3])
 		lot := WatchlistLot{
 			URL:       numisbidsBase + linkMatch[1],
