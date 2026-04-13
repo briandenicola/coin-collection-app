@@ -396,11 +396,19 @@ func (h *AuctionLotHandler) SyncWatchlist(c *gin.Context) {
 
 	var synced []models.AuctionLot
 	for _, wl := range parsed {
-		// Scrape the lot page for the full-resolution og:image
-		if imgURL, err := h.nbSvc.ScrapeLotImage(wl.URL); err == nil {
-			wl.ImageURL = imgURL
-		} else if wl.ImageURL == "" {
-			log.Printf("Could not scrape image for %s: %v", wl.URL, err)
+		// Scrape the lot page for image, auction house, sale name, current bid
+		if details, err := h.nbSvc.ScrapeLotPage(wl.URL); err == nil {
+			if details.ImageURL != "" {
+				wl.ImageURL = details.ImageURL
+			}
+			wl.AuctionHouse = details.AuctionHouse
+			wl.SaleName = details.SaleName
+			wl.CurrentBid = details.CurrentBid
+			if details.Currency != "" {
+				wl.Currency = details.Currency
+			}
+		} else {
+			log.Printf("Could not scrape lot page for %s: %v", wl.URL, err)
 		}
 
 		lot := models.AuctionLot{
@@ -410,7 +418,10 @@ func (h *AuctionLotHandler) SyncWatchlist(c *gin.Context) {
 			Title:        wl.Title,
 			ImageURL:     wl.ImageURL,
 			Estimate:     wl.Estimate,
+			CurrentBid:   wl.CurrentBid,
 			Currency:     wl.Currency,
+			AuctionHouse: wl.AuctionHouse,
+			SaleName:     wl.SaleName,
 			Status:       models.AuctionStatusWatching,
 			UserID:       userID,
 		}

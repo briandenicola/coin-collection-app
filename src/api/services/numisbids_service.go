@@ -32,13 +32,16 @@ var (
 
 // WatchlistLot represents a single lot parsed from a NumisBids watchlist page.
 type WatchlistLot struct {
-	URL       string   `json:"url"`
-	SaleID    string   `json:"saleId"`
-	LotNumber int      `json:"lotNumber"`
-	Title     string   `json:"title"`
-	ImageURL  string   `json:"imageUrl"`
-	Estimate  *float64 `json:"estimate"`
-	Currency  string   `json:"currency"`
+	URL          string   `json:"url"`
+	SaleID       string   `json:"saleId"`
+	LotNumber    int      `json:"lotNumber"`
+	Title        string   `json:"title"`
+	ImageURL     string   `json:"imageUrl"`
+	Estimate     *float64 `json:"estimate"`
+	CurrentBid   *float64 `json:"currentBid"`
+	Currency     string   `json:"currency"`
+	AuctionHouse string   `json:"auctionHouse"`
+	SaleName     string   `json:"saleName"`
 }
 
 // NumisBidsService handles HTTP interactions with numisbids.com.
@@ -125,33 +128,85 @@ func (s *NumisBidsService) FetchWatchlist(client *http.Client) (string, error) {
 	return string(body), nil
 }
 
+// LotPageDetails holds fields extracted from a NumisBids lot detail page.
+type LotPageDetails struct {
+	ImageURL     string
+	AuctionHouse string
+	SaleName     string
+	CurrentBid   *float64
+	Currency     string
+}
+
+var (
+	houseNameRe  = regexp.MustCompile(`<span class="name">(.*?)</span>`)
+	saleNameRe   = regexp.MustCompile(`<span class="name">.*?</span>\s*(?:<br\s*/?>)\s*<b>(.*?)</b>`)
+	currentBidRe = regexp.MustCompile(`(?i)Current\s+bid:\s*([\d,]+(?:\.\d+)?\s*\w+)`)
+)
+
 // ScrapeLotImage fetches a NumisBids lot page and extracts the og:image URL.
 func (s *NumisBidsService) ScrapeLotImage(lotURL string) (string, error) {
-	req, err := http.NewRequest("GET", lotURL, nil)
+	details, err := s.ScrapeLotPage(lotURL)
 	if err != nil {
 		return "", err
+	}
+	if details.ImageURL == "" {
+		return "", fmt.Errorf("no og:image found")
+	}
+	return details.ImageURL, nil
+}
+
+// ScrapeLotPage fetches a NumisBids lot page and extracts image, auction house,
+// sale name, and current bid.
+func (s *NumisBidsService) ScrapeLotPage(lotURL string) (*LotPageDetails, error) {
+	req, err := http.NewRequest("GET", lotURL, nil)
+	if err != nil {
+		return nil, err
 	}
 	req.Header.Set("User-Agent", numisbidsUserAgent)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("lot page returned HTTP %d", resp.StatusCode)
+		return nil, fmt.Errorf("lot page returned HTTP %d", resp.StatusCode)
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	if match := ogImageRe.FindSubmatch(body); match != nil {
-		return string(match[1]), nil
+	html := string(body)
+	details := &LotPageDetails{}
+
+	// og:image
+	if match := ogImageRe.FindStringSubmatch(html); match != nil {
+		details.ImageURL = match[1]
 	}
-	return "", fmt.Errorf("no og:image found")
+
+	// Auction house: <span class="name">...</span>
+	if match := houseNameRe.FindStringSubmatch(html); match != nil {
+		details.AuctionHouse = cleanHTML(match[1])
+	}
+
+	// Sale name: <b>...</b> after the house name span
+	if match := saleNameRe.FindStringSubmatch(html); match != nil {
+		details.SaleName = cleanHTML(match[1])
+	}
+
+	// Current bid
+	if match := currentBidRe.FindStringSubmatch(html); match != nil {
+		val, cur := parseCurrencyValue(match[1])
+		details.CurrentBid = val
+		if cur != "" {
+			details.Currency = cur
+		}
+	}
+
+	return details, nil
 }
 
 // ParseWatchlist extracts lot data from NumisBids watchlist HTML.

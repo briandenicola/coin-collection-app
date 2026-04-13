@@ -121,11 +121,14 @@ func (r *AuctionLotRepository) Upsert(lot *models.AuctionLot) error {
 	}
 	// Update fields that may have changed
 	updates := map[string]interface{}{
-		"current_bid": lot.CurrentBid,
-		"estimate":    lot.Estimate,
-		"title":       lot.Title,
-		"description": lot.Description,
-		"image_url":   lot.ImageURL,
+		"current_bid":   lot.CurrentBid,
+		"estimate":      lot.Estimate,
+		"title":         lot.Title,
+		"description":   lot.Description,
+		"image_url":     lot.ImageURL,
+		"auction_house": lot.AuctionHouse,
+		"sale_name":     lot.SaleName,
+		"currency":      lot.Currency,
 	}
 	return r.UpdateFields(existing, updates)
 }
