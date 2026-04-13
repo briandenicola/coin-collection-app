@@ -80,6 +80,10 @@
             <span class="detail-label">Current Bid</span>
             <span class="bid-value">{{ formatCurrency(selectedLot.currentBid, selectedLot.currency) }}</span>
           </div>
+          <div class="detail-row" v-if="selectedLot.maxBid">
+            <span class="detail-label">Max Bid</span>
+            <span class="max-bid-value">{{ formatCurrency(selectedLot.maxBid, selectedLot.currency) }}</span>
+          </div>
           <div class="detail-row">
             <span class="detail-label">Status</span>
             <span class="status-tag" :class="`status-${selectedLot.status}`">{{ selectedLot.status }}</span>
@@ -102,6 +106,17 @@
             <button class="btn btn-secondary" @click="changeStatus" :disabled="newStatus === selectedLot.status">
               Update Status
             </button>
+          </div>
+          <div v-if="newStatus === 'bidding'" class="action-row bid-input-row">
+            <label class="detail-label">Max Bid</label>
+            <input
+              v-model.number="maxBidInput"
+              type="number"
+              class="form-input bid-input"
+              :placeholder="selectedLot.currency || 'USD'"
+              min="0"
+              step="1"
+            />
           </div>
           <div class="action-row">
             <a :href="selectedLot.numisBidsUrl" class="btn btn-primary" target="_blank" rel="noopener noreferrer">
@@ -140,6 +155,7 @@ const loading = ref(true)
 const showImport = ref(false)
 const selectedLot = ref<AuctionLot | null>(null)
 const newStatus = ref<AuctionLotStatus>('watching')
+const maxBidInput = ref<number | null>(null)
 const activeStatus = ref('')
 const syncing = ref(false)
 const syncMessage = ref('')
@@ -199,6 +215,7 @@ async function handleRefresh() {
 function openLot(lot: AuctionLot) {
   selectedLot.value = lot
   newStatus.value = lot.status
+  maxBidInput.value = lot.maxBid ?? null
 }
 
 function handleImported() {
@@ -210,7 +227,8 @@ function handleImported() {
 async function changeStatus() {
   if (!selectedLot.value) return
   try {
-    const res = await updateAuctionLotStatus(selectedLot.value.id, newStatus.value)
+    const bid = newStatus.value === 'bidding' ? maxBidInput.value : undefined
+    const res = await updateAuctionLotStatus(selectedLot.value.id, newStatus.value, bid)
     selectedLot.value = res.data
 
     // When marked as Won, automatically convert to a coin and open edit page
@@ -420,6 +438,21 @@ fetchAllCounts()
 .bid-value {
   font-weight: 600;
   color: var(--accent-gold);
+}
+
+.max-bid-value {
+  font-weight: 600;
+  color: var(--accent-gold);
+  opacity: 0.8;
+}
+
+.bid-input-row {
+  align-items: center;
+}
+
+.bid-input {
+  flex: 1;
+  max-width: 140px;
 }
 
 .status-tag {

@@ -432,7 +432,7 @@ export const getAuctionLots = (params?: { status?: string; search?: string; sort
 export const getAuctionLot = (id: number) => api.get<AuctionLot>(`/auctions/${id}`)
 export const createAuctionLot = (lot: Partial<AuctionLot>) => api.post<AuctionLot>('/auctions', lot)
 export const updateAuctionLot = (id: number, lot: Partial<AuctionLot>) => api.put<AuctionLot>(`/auctions/${id}`, lot)
-export const updateAuctionLotStatus = (id: number, status: string) => api.put<AuctionLot>(`/auctions/${id}/status`, { status })
+export const updateAuctionLotStatus = (id: number, status: string, maxBid?: number | null) => api.put<AuctionLot>(`/auctions/${id}/status`, { status, ...(maxBid != null ? { maxBid } : {}) })
 export const convertAuctionLotToCoin = (id: number) => api.post<Coin>(`/auctions/${id}/convert`)
 export const deleteAuctionLot = (id: number) => api.delete(`/auctions/${id}`)
 export const importAuctionLot = (data: { url: string; title?: string; description?: string; auctionHouse?: string; saleName?: string; category?: string; imageUrl?: string; estimate?: number | null; currentBid?: number | null; currency?: string }) =>

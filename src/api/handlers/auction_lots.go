@@ -179,7 +179,8 @@ func (h *AuctionLotHandler) Update(c *gin.Context) {
 
 // UpdateStatusRequest holds the new status for an auction lot.
 type UpdateStatusRequest struct {
-	Status string `json:"status" binding:"required"`
+	Status string   `json:"status" binding:"required"`
+	MaxBid *float64 `json:"maxBid,omitempty"`
 }
 
 // UpdateStatus transitions an auction lot to a new status.
@@ -221,6 +222,14 @@ func (h *AuctionLotHandler) UpdateStatus(c *gin.Context) {
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update status"})
 		return
+	}
+
+	// Save max bid if provided (typically when transitioning to "bidding")
+	if req.MaxBid != nil {
+		lot, _ := h.repo.GetByID(uint(id), userID)
+		if lot != nil {
+			h.repo.UpdateFields(lot, map[string]interface{}{"max_bid": req.MaxBid})
+		}
 	}
 
 	lot, _ := h.repo.GetByID(uint(id), userID)

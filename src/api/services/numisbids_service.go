@@ -3,6 +3,7 @@ package services
 import (
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
@@ -230,6 +231,7 @@ func (s *NumisBidsService) ParseWatchlist(rawHTML string) []WatchlistLot {
 			continue
 		}
 
+		log.Printf("[NumisBids] Matched lot link: full=%s saleID=%s lotNum=%s", linkMatch[1], linkMatch[2], linkMatch[3])
 		lotNum, _ := strconv.Atoi(linkMatch[3])
 		lot := WatchlistLot{
 			URL:       numisbidsBase + linkMatch[1],
