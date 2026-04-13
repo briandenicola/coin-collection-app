@@ -359,7 +359,17 @@
             </label>
           </div>
           <div class="form-group">
-            <label class="form-label">Check Interval (minutes)</label>
+            <label class="form-label">Start Time (daily anchor)</label>
+            <input
+              v-model="settings.WishlistCheckStartTime"
+              class="form-input avail-interval-input"
+              type="time"
+              @change="saveSettings()"
+            />
+            <span class="form-hint">The first check runs at this time each day. Subsequent checks repeat at the interval below.</span>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Repeat Interval (minutes)</label>
             <input
               v-model="settings.WishlistCheckInterval"
               class="form-input avail-interval-input"
@@ -368,6 +378,7 @@
               step="5"
               @change="saveSettings()"
             />
+            <span class="form-hint">How often to repeat after the start time (e.g. 120 = every 2 hours).</span>
           </div>
         </div>
 
