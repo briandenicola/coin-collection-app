@@ -222,6 +222,16 @@ func (r *CoinRepository) Delete(id uint, userID uint) (int64, error) {
 		if err := tx.Where("coin_id = ?", id).Delete(&models.CoinValueHistory{}).Error; err != nil {
 			return err
 		}
+		if err := tx.Where("coin_id = ?", id).Delete(&models.CoinComment{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("coin_id = ?", id).Delete(&models.AvailabilityResult{}).Error; err != nil {
+			return err
+		}
+		// Nullify auction lot references (lot survives, just unlinked)
+		if err := tx.Model(&models.AuctionLot{}).Where("coin_id = ?", id).Update("coin_id", nil).Error; err != nil {
+			return err
+		}
 		return nil
 	})
 	return rowsAffected, err
