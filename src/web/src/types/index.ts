@@ -31,6 +31,9 @@ export interface Coin {
   soldDate: string | null
   soldTo: string
   isPrivate: boolean
+  listingStatus: string
+  listingCheckedAt: string | null
+  listingCheckReason: string
   userId: number
   images: CoinImage[]
   createdAt: string
@@ -336,4 +339,43 @@ export interface AuctionLot {
 export interface AuctionLotListResponse {
   lots: AuctionLot[]
   total: number
+}
+
+export interface AvailabilityRunSummary {
+  runId: number
+  coinsChecked: number
+  available: number
+  unavailable: number
+  unknown: number
+  durationMs: number
+}
+
+export interface AvailabilityResult {
+  id: number
+  runId: number
+  coinId: number
+  coinName: string
+  url: string
+  status: string
+  reason: string
+  httpStatus: number | null
+  agentUsed: boolean
+  checkedAt: string
+}
+
+export interface AvailabilityRun {
+  id: number
+  userId: number
+  triggerType: string
+  triggerUserId: number | null
+  coinsChecked: number
+  available: number
+  unavailable: number
+  unknown: number
+  errors: number
+  durationMs: number
+  startedAt: string
+  completedAt: string | null
+  results?: AvailabilityResult[]
+  createdAt: string
 }

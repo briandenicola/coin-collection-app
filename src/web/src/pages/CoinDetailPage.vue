@@ -250,6 +250,22 @@
               🔗 {{ coin.referenceText || 'Reference Link' }}
             </a>
           </div>
+
+          <div v-if="coin.listingStatus" class="listing-status-card">
+            <div class="listing-status-header">
+              <span
+                class="listing-status-badge"
+                :class="{
+                  'listing-available': coin.listingStatus === 'available',
+                  'listing-unavailable': coin.listingStatus === 'unavailable',
+                  'listing-unknown': coin.listingStatus === 'unknown',
+                }"
+              >{{ coin.listingStatus === 'available' ? 'Available' : coin.listingStatus === 'unavailable' ? 'Unavailable' : 'Unknown' }}</span>
+              <button class="btn btn-ghost btn-xs" @click="dismissListingStatus">Dismiss</button>
+            </div>
+            <p v-if="coin.listingCheckReason" class="listing-reason">{{ coin.listingCheckReason }}</p>
+            <p v-if="coin.listingCheckedAt" class="listing-checked-at">Last checked: {{ formatListingDate(coin.listingCheckedAt) }}</p>
+          </div>
         </div>
 
         <!-- AI Analysis -->
@@ -318,7 +334,7 @@ import { useCoinsStore } from '@/stores/coins'
 import ImageGallery from '@/components/ImageGallery.vue'
 import SellModal from '@/components/SellModal.vue'
 import PurchaseModal from '@/components/PurchaseModal.vue'
-import { uploadImage, proxyImage, analyzeCoin, deleteAnalysis, deleteCoin, deleteImage, purchaseCoin, sellCoin, getOllamaStatus, getJournalEntries, addJournalEntry, deleteJournalEntry, searchNumista, estimateCoinValue, updateCoin, getCoinValueHistory } from '@/api/client'
+import { uploadImage, proxyImage, analyzeCoin, deleteAnalysis, deleteCoin, deleteImage, purchaseCoin, sellCoin, getOllamaStatus, getJournalEntries, addJournalEntry, deleteJournalEntry, searchNumista, estimateCoinValue, updateCoin, getCoinValueHistory, updateListingStatus } from '@/api/client'
 import { removeBackground as removeBg } from '@imgly/background-removal'
 import type { CoinImage, CoinJournal, NumistaType, ValueEstimate, CoinValueHistory as CoinValueHistoryType } from '@/types'
 import MarkdownIt from 'markdown-it'
@@ -426,6 +442,22 @@ function formatJournalDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString(undefined, {
     month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit',
   })
+}
+
+function formatListingDate(dateStr: string) {
+  return new Date(dateStr).toLocaleDateString(undefined, {
+    month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  })
+}
+
+async function dismissListingStatus() {
+  if (!coin.value) return
+  try {
+    await updateListingStatus(coin.value.id, '')
+    store.fetchCoin(Number(route.params.id))
+  } catch {
+    // silently fail
+  }
 }
 
 async function handleNumistaSearch() {
@@ -780,6 +812,57 @@ function formatCurrency(value: number) {
 
 .reference-section {
   margin-top: 1rem;
+}
+
+/* Listing Status Card */
+.listing-status-card {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.listing-status-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.35rem;
+}
+
+.listing-status-badge {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.listing-available {
+  background: rgba(46, 204, 113, 0.15);
+  color: #2ecc71;
+}
+
+.listing-unavailable {
+  background: rgba(231, 76, 60, 0.15);
+  color: #e74c3c;
+}
+
+.listing-unknown {
+  background: rgba(241, 196, 15, 0.15);
+  color: #f1c40f;
+}
+
+.listing-reason {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  margin: 0.25rem 0;
+}
+
+.listing-checked-at {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin: 0;
 }
 
 /* Journal */

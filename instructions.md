@@ -46,6 +46,8 @@ src/
 │   └── services/
 │       ├── settings_service.go       # App settings with defaults
 │       ├── agent_proxy.go            # SSE proxy to Python agent service
+│       ├── availability_service.go   # Wishlist URL checking + agent escalation
+│       ├── availability_scheduler.go # Background scheduler for periodic checks
 │       ├── ollama_service.go         # Ollama status check
 │       └── logger.go                 # Structured logger with in-memory ring buffer
 │
@@ -54,7 +56,7 @@ src/
 │   │   ├── main.py                   # FastAPI entry point, /health, /logs
 │   │   ├── config.py                 # Service settings (env: AGENT_*)
 │   │   ├── logging_config.py         # Ring buffer logger matching Go's pattern
-│   │   ├── routes.py                 # 4 endpoints: coins, shows, analyze, portfolio
+│   │   ├── routes.py                 # 5 endpoints: coins, shows, analyze, portfolio, availability
 │   │   ├── supervisor.py             # Top-level intent router + team delegation
 │   │   ├── streaming.py              # SSE streaming from LangGraph events
 │   │   ├── models/                   # Pydantic request/response schemas
@@ -66,7 +68,8 @@ src/
 │   │       ├── coin_shows.py         # Team 2: Search → Date verify → Format
 │   │       ├── coin_analysis.py      # Team 3: Vision analysis → Format
 │   │       ├── portfolio_review.py   # Team 4: Read → Valuate → Analyze
-│   │       └── auction_search.py     # Team 5: Auction search → Fetch → Format
+│   │       ├── auction_search.py     # Team 5: Auction search → Fetch → Format
+│   │       └── availability_check.py # Team 6: Check URLs → Analyze results
 │   └── tests/                        # pytest tests
 │
 └── web/                              # Vue 3 SPA
@@ -179,6 +182,9 @@ CI builds and pushes both images. `docker-compose` only references images — no
 | `ReversePrompt`        | Custom prompt for reverse analysis                     |
 | `TextExtractionPrompt` | Custom prompt for OCR text extraction                  |
 | `LogLevel`             | Application log level                                  |
+| `WishlistCheckEnabled` | Enable automatic wishlist availability checks (`true`/`false`) |
+| `WishlistCheckStartTime` | Daily start time for scheduled checks (HH:MM, default `02:00`) |
+| `WishlistCheckInterval` | Repeat interval in minutes (default `120`)             |
 
 ## Running Locally
 

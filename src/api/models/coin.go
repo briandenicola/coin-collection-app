@@ -64,6 +64,9 @@ type Coin struct {
 	SoldPrice           *float64   `json:"soldPrice"`
 	SoldDate            *time.Time `json:"soldDate"`
 	SoldTo              string     `json:"soldTo"`
+	ListingStatus       string     `gorm:"type:varchar(20);default:''" json:"listingStatus"`
+	ListingCheckedAt    *time.Time `json:"listingCheckedAt"`
+	ListingCheckReason  string     `gorm:"type:text" json:"listingCheckReason"`
 	IsPrivate           bool       `gorm:"default:false" json:"isPrivate"`
 	UserID              uint       `gorm:"not null" json:"userId"`
 	User                User       `gorm:"foreignKey:UserID" json:"-"`

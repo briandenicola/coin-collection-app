@@ -4,7 +4,7 @@
 
 Ancient Coins is a full-stack web application for cataloging and managing your personal coin collection. Track details like denomination, ruler, era, mint, material, grade, inscriptions, RIC rarity ratings, photos, and more — with AI-powered coin analysis via Ollama vision models and an Anthropic-powered coin search agent. Every coin is scoped to your authenticated account using JWT-based authentication.
 
-It includes a **wish list** with an AI search agent for discovering coins, **auction lot tracking** with NumisBids watchlist sync, a **stats dashboard** with grade distribution charts and portfolio value tracking over time, per-coin **activity journals**, **Numista catalog lookups**, collection **export/import**, and **social features** — follow other collectors, accept or block followers, browse follower galleries, leave comments and star ratings on coins, and discover users with search and public profiles.
+It includes a **wish list** with an AI search agent for discovering coins and **automated availability checking** to detect when listings go off-market, **auction lot tracking** with NumisBids watchlist sync, a **stats dashboard** with grade distribution charts and portfolio value tracking over time, per-coin **activity journals**, **Numista catalog lookups**, collection **export/import**, and **social features** — follow other collectors, accept or block followers, browse follower galleries, leave comments and star ratings on coins, and discover users with search and public profiles.
 
 On first launch, the first user to register is automatically assigned as the admin and can configure application settings including AI integrations.
 

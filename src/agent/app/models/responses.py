@@ -49,3 +49,19 @@ class AgentResponse(BaseModel):
     shows: list[CoinShow] = []
     estimate: ValueEstimate | None = None
     analysis: str = ""
+
+
+class AvailabilityVerdict(BaseModel):
+    """AI-determined availability verdict for a single URL."""
+
+    url: str
+    coin_name: str = ""
+    status: str  # "available", "unavailable", "unknown"
+    reason: str = ""
+    confidence: str = "medium"  # "low", "medium", "high"
+
+
+class AvailabilityCheckResponse(BaseModel):
+    """Response from the availability check endpoint."""
+
+    results: list[AvailabilityVerdict] = []

@@ -137,11 +137,13 @@ func main() {
 
 	// Protected routes
 	agentProxy := services.NewAgentProxy(cfg.AgentServiceURL)
+	availRepo := repository.NewAvailabilityRepository(database.DB)
+	coinRepo := repository.NewCoinRepository(database.DB)
+	availSvc := services.NewAvailabilityService(coinRepo, availRepo, agentProxy)
 
 	protected := api.Group("")
 	protected.Use(middleware.AuthRequired(cfg.JWTSecret, database.DB))
 	{
-		coinRepo := repository.NewCoinRepository(database.DB)
 		coinSvc := services.NewCoinService(coinRepo)
 		coinHandler := handlers.NewCoinHandler(coinRepo, coinSvc)
 		protected.GET("/coins", coinHandler.List)
@@ -197,6 +199,11 @@ func main() {
 		protected.POST("/auctions/import", auctionLotHandler.ImportFromURL)
 		protected.POST("/auctions/sync", auctionLotHandler.SyncWatchlist)
 		protected.POST("/auctions/validate-credentials", auctionLotHandler.ValidateNumisBids)
+
+		// Wishlist availability checking
+		availHandler := handlers.NewAvailabilityHandler(availSvc, availRepo, coinRepo)
+		protected.POST("/wishlist/check-availability", availHandler.CheckAvailability)
+		protected.PUT("/coins/:id/listing-status", availHandler.UpdateListingStatus)
 
 		agentRepo := repository.NewAgentRepository(database.DB)
 		userRepo := repository.NewUserRepository(database.DB)
@@ -279,6 +286,11 @@ func main() {
 		admin.GET("/logs", adminHandler.GetLogs)
 		admin.GET("/test-anthropic", adminHandler.TestAnthropicConnection)
 		admin.GET("/test-searxng", adminHandler.TestSearXNGConnection)
+
+		// Availability check run history (reuse availRepo from outer scope)
+		adminAvailHandler := handlers.NewAvailabilityHandler(nil, availRepo, nil)
+		admin.GET("/availability-runs", adminAvailHandler.ListRuns)
+		admin.GET("/availability-runs/:id", adminAvailHandler.GetRunDetail)
 	}
 
 	log.Printf("Starting server on :%s", cfg.Port)
@@ -297,6 +309,10 @@ func main() {
 			logger.Warn("startup", "Ollama: %s — AI features will be unavailable until resolved", msg)
 		}
 	}()
+
+	// Start wishlist availability scheduler
+	scheduler := services.NewAvailabilityScheduler(availSvc, coinRepo)
+	go scheduler.Start()
 
 	logger.Info("startup", "Application ready")
 	log.Println("Application ready")

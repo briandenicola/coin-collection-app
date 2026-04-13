@@ -341,6 +341,120 @@
         </div>
       </section>
 
+      <!-- Availability Tab -->
+      <section v-if="activeTab === 'availability'" class="admin-section card">
+        <h2>Availability Check</h2>
+
+        <div class="avail-settings">
+          <h3 class="subsection-title">Settings</h3>
+          <div class="form-group avail-toggle-row">
+            <label class="form-label">Enable Automatic Checks</label>
+            <label class="toggle-switch">
+              <input
+                type="checkbox"
+                :checked="settings.WishlistCheckEnabled === 'true'"
+                @change="settings.WishlistCheckEnabled = ($event.target as HTMLInputElement).checked ? 'true' : 'false'; saveSettings()"
+              />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Start Time (daily anchor)</label>
+            <input
+              v-model="settings.WishlistCheckStartTime"
+              class="form-input avail-interval-input"
+              type="time"
+              @change="saveSettings()"
+            />
+            <span class="form-hint">The first check runs at this time each day. Subsequent checks repeat at the interval below.</span>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Repeat Interval (minutes)</label>
+            <input
+              v-model="settings.WishlistCheckInterval"
+              class="form-input avail-interval-input"
+              type="number"
+              min="5"
+              step="5"
+              @change="saveSettings()"
+            />
+            <span class="form-hint">How often to repeat after the start time (e.g. 120 = every 2 hours).</span>
+          </div>
+        </div>
+
+        <hr class="section-divider" />
+        <h3 class="subsection-title">Run History</h3>
+
+        <div v-if="availLoading" class="loading-overlay"><div class="spinner"></div></div>
+        <div v-else-if="availRuns.length === 0" class="logs-empty">No availability runs recorded yet.</div>
+        <template v-else>
+          <table class="users-table avail-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Trigger</th>
+                <th>Checked</th>
+                <th>Avail</th>
+                <th>Unavail</th>
+                <th>Unknown</th>
+                <th>Errors</th>
+                <th>Duration</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template v-for="run in availRuns" :key="run.id">
+                <tr class="avail-row" :class="{ 'avail-row-expanded': expandedRunId === run.id }" @click="toggleRunDetail(run.id)">
+                  <td class="date-cell">{{ formatDate(run.startedAt) }}</td>
+                  <td>{{ run.triggerType }}</td>
+                  <td>{{ run.coinsChecked }}</td>
+                  <td class="avail-count-available">{{ run.available }}</td>
+                  <td class="avail-count-unavailable">{{ run.unavailable }}</td>
+                  <td class="avail-count-unknown">{{ run.unknown }}</td>
+                  <td>{{ run.errors }}</td>
+                  <td>{{ formatDuration(run.durationMs) }}</td>
+                </tr>
+                <tr v-if="expandedRunId === run.id && expandedResults" class="avail-detail-row">
+                  <td colspan="8">
+                    <div v-if="expandedLoading" class="loading-overlay"><div class="spinner"></div></div>
+                    <table v-else-if="expandedResults.length" class="avail-detail-table">
+                      <thead>
+                        <tr>
+                          <th>Coin</th>
+                          <th>URL</th>
+                          <th>Status</th>
+                          <th>Reason</th>
+                          <th>HTTP</th>
+                          <th>Agent</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr v-for="r in expandedResults" :key="r.id">
+                          <td>{{ r.coinName }}</td>
+                          <td><a v-if="r.url" :href="r.url" target="_blank" rel="noopener" class="avail-link" @click.stop>{{ truncateUrl(r.url) }}</a><span v-else class="text-muted">--</span></td>
+                          <td>
+                            <span class="listing-status-badge" :class="'listing-' + r.status">{{ r.status }}</span>
+                          </td>
+                          <td class="avail-reason">{{ r.reason || '--' }}</td>
+                          <td>{{ r.httpStatus ?? '--' }}</td>
+                          <td>{{ r.agentUsed ? 'Yes' : 'No' }}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                    <p v-else class="logs-empty">No results for this run.</p>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+
+          <div v-if="availTotal > availRuns.length" class="avail-pagination">
+            <button class="btn btn-secondary btn-sm" :disabled="availPage <= 1" @click="availPage--; loadAvailRuns()">Prev</button>
+            <span class="avail-page-info">Page {{ availPage }}</span>
+            <button class="btn btn-secondary btn-sm" :disabled="availRuns.length < 20" @click="availPage++; loadAvailRuns()">Next</button>
+          </div>
+        </template>
+      </section>
+
       <!-- Reset Password Modal -->
       <div v-if="resetTarget" class="modal-overlay" @click.self="resetTarget = null">
         <div class="modal card">
@@ -372,13 +486,14 @@ import {
   getAppSettings, getAppSettingDefaults, updateAppSettings, getAdminLogs, getOllamaStatus,
   getAnthropicModels, getCoinSearchPrompt, getCoinShowsPrompt, getValuationPrompt,
   testAnthropicConnection, testSearXNGConnection,
+  getAvailabilityRuns, getAvailabilityRunDetail,
 } from '@/api/client'
 import type { AnthropicModel } from '@/api/client'
 import { LOG_LEVELS } from '@/types'
-import type { UserInfo, AppSettings, LogEntry } from '@/types'
-import { Users, Cpu, Wrench, ScrollText, Download } from 'lucide-vue-next'
+import type { UserInfo, AppSettings, LogEntry, AvailabilityRun } from '@/types'
+import { Users, Cpu, Wrench, ScrollText, Download, ShieldCheck } from 'lucide-vue-next'
 
-const tabIcons: Record<string, Component> = { users: Users, ai: Cpu, system: Wrench, logs: ScrollText }
+const tabIcons: Record<string, Component> = { users: Users, ai: Cpu, system: Wrench, logs: ScrollText, availability: ShieldCheck }
 
 const auth = useAuthStore()
 
@@ -402,6 +517,7 @@ const tabs = [
   { id: 'ai', icon: 'cpu', label: 'AI' },
   { id: 'system', icon: 'wrench', label: 'System' },
   { id: 'logs', icon: 'scroll-text', label: 'Logs' },
+  { id: 'availability', icon: 'shield-check', label: 'Availability' },
 ]
 const activeTab = ref('users')
 
@@ -664,9 +780,59 @@ function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString()
 }
 
+// Availability
+const availRuns = ref<AvailabilityRun[]>([])
+const availTotal = ref(0)
+const availPage = ref(1)
+const availLoading = ref(false)
+const expandedRunId = ref<number | null>(null)
+const expandedResults = ref<AvailabilityRun['results']>(undefined)
+const expandedLoading = ref(false)
+
+async function loadAvailRuns() {
+  availLoading.value = true
+  try {
+    const res = await getAvailabilityRuns(availPage.value, 20)
+    availRuns.value = res.data.runs ?? []
+    availTotal.value = res.data.total ?? 0
+  } catch { /* ignore */ } finally {
+    availLoading.value = false
+  }
+}
+
+async function toggleRunDetail(runId: number) {
+  if (expandedRunId.value === runId) {
+    expandedRunId.value = null
+    expandedResults.value = undefined
+    return
+  }
+  expandedRunId.value = runId
+  expandedResults.value = []
+  expandedLoading.value = true
+  try {
+    const res = await getAvailabilityRunDetail(runId)
+    expandedResults.value = res.data.results ?? []
+  } catch {
+    expandedResults.value = []
+  } finally {
+    expandedLoading.value = false
+  }
+}
+
+function formatDuration(ms: number) {
+  if (ms < 1000) return `${ms}ms`
+  return `${(ms / 1000).toFixed(1)}s`
+}
+
+function truncateUrl(url: string) {
+  if (url.length <= 50) return url
+  return url.substring(0, 47) + '...'
+}
+
 onMounted(() => {
   loadUsers()
   loadSettings()
+  loadAvailRuns()
 })
 
 onUnmounted(() => {
@@ -1055,5 +1221,165 @@ onUnmounted(() => {
 
 .version-date {
   margin-left: 0.25rem;
+}
+
+/* Availability */
+.avail-settings {
+  margin-bottom: 1rem;
+}
+
+.avail-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 42px;
+  height: 22px;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 22px;
+  transition: background 0.2s;
+}
+
+.toggle-slider::before {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  left: 2px;
+  bottom: 2px;
+  background: var(--text-secondary);
+  border-radius: 50%;
+  transition: transform 0.2s;
+}
+
+.toggle-switch input:checked + .toggle-slider {
+  background: var(--accent-gold-dim);
+  border-color: var(--accent-gold);
+}
+
+.toggle-switch input:checked + .toggle-slider::before {
+  transform: translateX(20px);
+  background: var(--accent-gold);
+}
+
+.avail-interval-input {
+  max-width: 120px;
+}
+
+.avail-table {
+  font-size: 0.82rem;
+}
+
+.avail-row {
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.avail-row:hover {
+  background: var(--bg-primary);
+}
+
+.avail-row-expanded {
+  background: var(--bg-primary);
+}
+
+.avail-count-available { color: #2ecc71; font-weight: 600; }
+.avail-count-unavailable { color: #e74c3c; font-weight: 600; }
+.avail-count-unknown { color: #f1c40f; font-weight: 600; }
+
+.avail-detail-row td {
+  padding: 0.5rem;
+  background: var(--bg-body);
+}
+
+.avail-detail-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+
+.avail-detail-table th,
+.avail-detail-table td {
+  padding: 0.4rem 0.5rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.avail-detail-table th {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.avail-link {
+  color: var(--accent-gold);
+  text-decoration: none;
+  font-size: 0.75rem;
+}
+
+.avail-link:hover {
+  text-decoration: underline;
+}
+
+.avail-reason {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.listing-status-badge {
+  display: inline-block;
+  padding: 0.15rem 0.4rem;
+  border-radius: var(--radius-full);
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.listing-available {
+  background: rgba(46, 204, 113, 0.15);
+  color: #2ecc71;
+}
+
+.listing-unavailable {
+  background: rgba(231, 76, 60, 0.15);
+  color: #e74c3c;
+}
+
+.listing-unknown {
+  background: rgba(241, 196, 15, 0.15);
+  color: #f1c40f;
+}
+
+.avail-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.avail-page-info {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
 }
 </style>

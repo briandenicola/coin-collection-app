@@ -1192,6 +1192,75 @@ curl "http://localhost:8080/api/admin/logs?level=error&limit=50" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
+### GET /api/admin/availability-runs
+
+List availability check run history (paginated).
+
+**Query Parameters:**
+
+| Param | Type | Default | Description |
+| ----- | ---- | ------- | ----------- |
+| `page` | int | `1` | Page number |
+| `limit` | int | `20` | Results per page |
+
+**Response:**
+
+```json
+{
+  "runs": [
+    {
+      "id": 1,
+      "userId": 1,
+      "triggerType": "manual",
+      "coinsChecked": 5,
+      "available": 3,
+      "unavailable": 1,
+      "unknown": 1,
+      "errors": 0,
+      "durationMs": 4200,
+      "startedAt": "2026-04-13T02:00:00Z",
+      "completedAt": "2026-04-13T02:00:04Z"
+    }
+  ],
+  "total": 1
+}
+```
+
+### GET /api/admin/availability-runs/:id
+
+Get details for a single availability check run, including per-coin results.
+
+**Response:** Same as above with an additional `results` array containing per-coin outcomes (coinId, coinName, url, status, reason, httpStatus, agentUsed).
+
+---
+
+### POST /api/wishlist/check-availability
+
+Trigger a manual availability check for the authenticated user's wishlist coins. Checks each coin's reference URL via HTTP + keyword heuristics, escalating ambiguous results to the AI agent.
+
+**Response:**
+
+```json
+{
+  "runId": 42,
+  "coinsChecked": 5,
+  "available": 3,
+  "unavailable": 1,
+  "unknown": 1,
+  "durationMs": 4200
+}
+```
+
+### PUT /api/coins/:id/listing-status
+
+Update a coin's listing status (e.g., to dismiss an unavailable flag).
+
+**Request Body:**
+
+```json
+{ "status": "" }
+```
+
 ---
 
 ## Static Resources

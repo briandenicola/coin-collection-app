@@ -113,6 +113,32 @@ type AnalyzeProxyResponse struct {
 	Analysis string `json:"analysis"`
 }
 
+// AvailabilityCheckProxyItem represents a single coin URL to check.
+type AvailabilityCheckProxyItem struct {
+	URL      string `json:"url"`
+	CoinName string `json:"coin_name"`
+}
+
+// AvailabilityCheckProxyRequest is sent to the Python agent.
+type AvailabilityCheckProxyRequest struct {
+	LLM   LLMConfig                    `json:"llm"`
+	Items []AvailabilityCheckProxyItem `json:"items"`
+}
+
+// AvailabilityVerdictProxy is a single verdict from the Python agent.
+type AvailabilityVerdictProxy struct {
+	URL        string `json:"url"`
+	CoinName   string `json:"coin_name"`
+	Status     string `json:"status"`
+	Reason     string `json:"reason"`
+	Confidence string `json:"confidence"`
+}
+
+// AvailabilityCheckProxyResponse is the response from the Python agent.
+type AvailabilityCheckProxyResponse struct {
+	Results []AvailabilityVerdictProxy `json:"results"`
+}
+
 // StreamChat POSTs to the Python agent's /api/search/coins endpoint and
 // transparently proxies the SSE stream back to the caller.
 func (p *AgentProxy) StreamChat(ctx context.Context, w http.ResponseWriter, req AgentChatProxyRequest) error {
@@ -170,7 +196,45 @@ func (p *AgentProxy) AnalyzeCoin(ctx context.Context, req AnalyzeProxyRequest) (
 	return result.Analysis, nil
 }
 
-// CheckHealth GETs the Python service /health endpoint.
+// CheckAvailability POSTs to the Python agent's /api/check-availability endpoint.
+func (p *AgentProxy) CheckAvailability(ctx context.Context, req AvailabilityCheckProxyRequest) (*AvailabilityCheckProxyResponse, error) {
+	logger := AppLogger
+
+	body, err := json.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("marshal availability check request: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", p.baseURL+"/api/check-availability", bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("create availability check request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := p.requestClient.Do(httpReq)
+	if err != nil {
+		logger.Error("agent-proxy", "Availability check request failed: %v", err)
+		return nil, fmt.Errorf("agent service unreachable: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(resp.Body)
+
+	if resp.StatusCode != http.StatusOK {
+		errMsg := string(respBody)
+		if len(errMsg) > 200 {
+			errMsg = errMsg[:200] + "... (truncated)"
+		}
+		logger.Error("agent-proxy", "Availability check returned %d: %s", resp.StatusCode, errMsg)
+		return nil, fmt.Errorf("agent service returned HTTP %d", resp.StatusCode)
+	}
+
+	var result AvailabilityCheckProxyResponse
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("parse availability check response: %w", err)
+	}
+	return &result, nil
+}
 func (p *AgentProxy) CheckHealth(ctx context.Context) error {
 	httpReq, err := http.NewRequestWithContext(ctx, "GET", p.baseURL+"/health", nil)
 	if err != nil {

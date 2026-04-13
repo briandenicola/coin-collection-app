@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Coin, CoinListResponse, CoinImage, AuthResponse, StatsResponse, UserInfo, AppSettings, LogEntry, ApiKey, WebAuthnCredentialInfo, ValueSnapshot, CoinJournal, NumistaSearchResponse, AgentChatMessage, AgentChatResponse, CoinSuggestion, FollowUser, PublicProfile, CoinComment, CoinRating, LimitedCoin, ValueEstimate, CoinValueHistory, PortfolioSummary, AuctionLot, AuctionLotListResponse } from '@/types'
+import type { Coin, CoinListResponse, CoinImage, AuthResponse, StatsResponse, UserInfo, AppSettings, LogEntry, ApiKey, WebAuthnCredentialInfo, ValueSnapshot, CoinJournal, NumistaSearchResponse, AgentChatMessage, AgentChatResponse, CoinSuggestion, FollowUser, PublicProfile, CoinComment, CoinRating, LimitedCoin, ValueEstimate, CoinValueHistory, PortfolioSummary, AuctionLot, AuctionLotListResponse, AvailabilityRunSummary, AvailabilityRun } from '@/types'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
@@ -441,5 +441,15 @@ export const syncNumisBidsWatchlist = () =>
   api.post<{ synced: number; lots: AuctionLot[] }>('/auctions/sync')
 export const validateNumisBidsCredentials = (username: string, password: string) =>
   api.post<{ valid: boolean; error?: string }>('/auctions/validate-credentials', { username, password })
+
+// Availability checks
+export const checkWishlistAvailability = () =>
+  api.post<AvailabilityRunSummary>('/wishlist/check-availability')
+export const updateListingStatus = (coinId: number, status: string) =>
+  api.put(`/coins/${coinId}/listing-status`, { status })
+export const getAvailabilityRuns = (page = 1, limit = 20) =>
+  api.get<{ runs: AvailabilityRun[]; total: number }>('/admin/availability-runs', { params: { page, limit } })
+export const getAvailabilityRunDetail = (runId: number) =>
+  api.get<AvailabilityRun>(`/admin/availability-runs/${runId}`)
 
 export default api

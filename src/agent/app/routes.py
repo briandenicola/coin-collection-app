@@ -7,13 +7,15 @@ from fastapi.responses import StreamingResponse
 
 from app.models.requests import (
     AnalyzeRequest,
+    AvailabilityCheckRequest,
     CoinSearchRequest,
     CoinShowSearchRequest,
     PortfolioReviewRequest,
 )
-from app.models.responses import AgentResponse
+from app.models.responses import AgentResponse, AvailabilityCheckResponse, AvailabilityVerdict
 from app.streaming import stream_graph_events
 from app.supervisor import create_supervisor
+from app.teams.availability_check import create_availability_check_team, parse_verdicts
 from app.teams.coin_analysis import create_coin_analysis_team
 
 logger = logging.getLogger(__name__)
@@ -146,4 +148,58 @@ async def review_portfolio(request: PortfolioReviewRequest):
             yield chunk
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
+@router.post("/check-availability", response_model=AvailabilityCheckResponse)
+async def check_availability(request: AvailabilityCheckRequest):
+    """Check listing availability for multiple coin URLs. Returns structured verdicts."""
+    logger.info(
+        "POST /check-availability — provider=%s, model=%s, items=%d",
+        request.llm.provider, request.llm.model, len(request.items),
+    )
+
+    if not request.items:
+        return AvailabilityCheckResponse(results=[])
+
+    graph = create_availability_check_team(request.llm)
+    items_data = [{"url": item.url, "coin_name": item.coin_name} for item in request.items]
+
+    try:
+        result = await graph.ainvoke({
+            "messages": [],
+            "items": items_data,
+            "raw_checks": "",
+            "verdicts": "",
+        })
+    except Exception:
+        logger.exception("Availability check graph execution failed")
+        return AvailabilityCheckResponse(
+            results=[
+                AvailabilityVerdict(
+                    url=item.url,
+                    coin_name=item.coin_name,
+                    status="unknown",
+                    reason="Agent check failed",
+                    confidence="low",
+                )
+                for item in request.items
+            ]
+        )
+
+    verdicts_raw = result.get("verdicts", "")
+    verdicts = parse_verdicts(verdicts_raw)
+
+    if not verdicts:
+        verdicts = [
+            AvailabilityVerdict(
+                url=item.url,
+                coin_name=item.coin_name,
+                status="unknown",
+                reason="Could not parse agent response",
+                confidence="low",
+            )
+            for item in request.items
+        ]
+
+    return AvailabilityCheckResponse(results=verdicts)
 
