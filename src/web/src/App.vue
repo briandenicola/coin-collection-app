@@ -1,19 +1,93 @@
 <template>
   <div class="app">
-    <nav v-if="auth.isAuthenticated" class="nav-bar" :class="{ 'pwa-mode': isPwa }">
+    <!-- Desktop nav bar (non-PWA) -->
+    <nav v-if="auth.isAuthenticated && !isPwa" class="nav-bar">
       <div class="nav-content">
-        <component :is="isPwa ? 'router-link' : 'router-link'" to="/" class="nav-brand">
+        <button class="nav-brand" @click="sidebarOpen = !sidebarOpen">
           <img src="/coin-logo.jpg" alt="Ancient Coins" class="nav-logo" />
           <span class="nav-title">Coin Collection</span>
-        </component>
+          <Menu :size="18" class="nav-menu-icon" />
+        </button>
+      </div>
+    </nav>
+
+    <!-- Desktop sidebar overlay -->
+    <Transition name="sidebar-fade">
+      <div v-if="sidebarOpen && !isPwa" class="sidebar-overlay" @click="sidebarOpen = false"></div>
+    </Transition>
+
+    <!-- Desktop slide-in sidebar -->
+    <Transition name="sidebar-slide">
+      <aside v-if="sidebarOpen && !isPwa" class="sidebar">
+        <div class="sidebar-header">
+          <img src="/coin-logo.jpg" alt="Ancient Coins" class="sidebar-logo" />
+          <span class="sidebar-title">Coin Collection</span>
+          <button class="sidebar-close" @click="sidebarOpen = false">
+            <X :size="20" />
+          </button>
+        </div>
+        <nav class="sidebar-nav">
+          <router-link to="/" class="sidebar-link" active-class="active" @click="sidebarOpen = false">
+            <Landmark :size="20" />
+            <span>Collection</span>
+          </router-link>
+          <router-link to="/wishlist" class="sidebar-link" active-class="active" @click="sidebarOpen = false">
+            <Bookmark :size="20" />
+            <span>Wishlist</span>
+          </router-link>
+          <router-link to="/sold" class="sidebar-link" active-class="active" @click="sidebarOpen = false">
+            <BadgeDollarSign :size="20" />
+            <span>Sold</span>
+          </router-link>
+          <router-link to="/auctions" class="sidebar-link" active-class="active" @click="sidebarOpen = false">
+            <Gavel :size="20" />
+            <span>Auctions</span>
+          </router-link>
+          <router-link to="/followers" class="sidebar-link" active-class="active" @click="sidebarOpen = false">
+            <UsersIcon :size="20" />
+            <span>Followers</span>
+          </router-link>
+          <a href="#" class="sidebar-link" @click.prevent="showChat = true; sidebarOpen = false">
+            <Bot :size="20" />
+            <span>Agent</span>
+          </a>
+          <router-link to="/stats" class="sidebar-link" active-class="active" @click="sidebarOpen = false">
+            <BarChart3 :size="20" />
+            <span>Stats</span>
+          </router-link>
+          <router-link to="/timeline" class="sidebar-link" active-class="active" @click="sidebarOpen = false">
+            <Clock :size="20" />
+            <span>Timeline</span>
+          </router-link>
+        </nav>
+        <div class="sidebar-footer">
+          <router-link to="/settings" class="sidebar-link" active-class="active" @click="sidebarOpen = false">
+            <Settings :size="20" />
+            <span>Settings</span>
+          </router-link>
+          <router-link v-if="auth.isAdmin" to="/admin" class="sidebar-link" active-class="active" @click="sidebarOpen = false">
+            <ShieldCheck :size="20" />
+            <span>Admin</span>
+          </router-link>
+          <button class="sidebar-link sidebar-logout" @click="handleLogout">
+            <LogOut :size="20" />
+            <span>Logout</span>
+          </button>
+        </div>
+      </aside>
+    </Transition>
+
+    <!-- PWA bottom nav bar -->
+    <nav v-if="auth.isAuthenticated && isPwa" class="nav-bar pwa-mode">
+      <div class="nav-content">
+        <router-link to="/" class="nav-brand">
+          <img src="/coin-logo.jpg" alt="Ancient Coins" class="nav-logo" />
+          <span class="nav-title">Coin Collection</span>
+        </router-link>
         <div class="nav-links">
-          <router-link v-if="isPwa" to="/add" class="nav-link add-link" active-class="active">
+          <router-link to="/add" class="nav-link add-link" active-class="active">
             <CirclePlus :size="18" />
             <span class="nav-label">Add</span>
-          </router-link>
-          <router-link v-if="!isPwa" to="/" class="nav-link" active-class="active">
-            <Landmark :size="18" />
-            <span class="nav-label">Collection</span>
           </router-link>
           <router-link to="/wishlist" class="nav-link" active-class="active">
             <Bookmark :size="18" />
@@ -31,10 +105,6 @@
             <UsersIcon :size="18" />
             <span class="nav-label">Followers</span>
           </router-link>
-          <a v-if="!isPwa" href="#" class="nav-link" @click.prevent="showChat = true">
-            <Bot :size="18" />
-            <span class="nav-label">Agent</span>
-          </a>
           <router-link to="/stats" class="nav-link" active-class="active">
             <BarChart3 :size="18" />
             <span class="nav-label">Stats</span>
@@ -49,16 +119,10 @@
             <Settings :size="18" />
             <span class="nav-label">Settings</span>
           </router-link>
-          <router-link v-if="auth.isAdmin && !isPwa" to="/admin" class="nav-link" active-class="active">
-            <ShieldCheck :size="18" />
-            <span class="nav-label">Admin</span>
-          </router-link>
-          <button v-if="!isPwa" class="btn-logout" @click="handleLogout">
-            <LogOut :size="16" />
-          </button>
         </div>
       </div>
     </nav>
+
     <main class="main-content" :class="{ 'with-nav': auth.isAuthenticated }">
       <router-view />
     </main>
@@ -99,7 +163,7 @@
 import { ref, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
-import { Landmark, Bookmark, BadgeDollarSign, BarChart3, CirclePlus, Settings, ShieldCheck, LogOut, Users as UsersIcon, Clock, Bot, Gavel } from 'lucide-vue-next'
+import { Landmark, Bookmark, BadgeDollarSign, BarChart3, CirclePlus, Settings, ShieldCheck, LogOut, Users as UsersIcon, Clock, Bot, Gavel, Menu, X } from 'lucide-vue-next'
 import { updateProfile, getMe } from '@/api/client'
 import CoinSearchChat from '@/components/CoinSearchChat.vue'
 import AppDialog from '@/components/AppDialog.vue'
@@ -110,6 +174,7 @@ const isPwa = window.matchMedia('(display-mode: standalone)').matches
   || (window.navigator as any).standalone === true
 
 const showChat = ref(false)
+const sidebarOpen = ref(false)
 const showEmailPrompt = ref(false)
 const promptEmail = ref('')
 
@@ -152,6 +217,7 @@ function handleLogout() {
   min-height: 100vh;
 }
 
+/* ── Top nav bar (shared structure) ── */
 .nav-bar {
   position: fixed;
   top: 0;
@@ -182,8 +248,14 @@ function handleLogout() {
   background: none;
   border: none;
   cursor: pointer;
-  padding: 0;
+  padding: 0.4rem 0.6rem;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
   flex-shrink: 0;
+}
+
+.nav-brand:hover {
+  background: var(--accent-gold-glow);
 }
 
 .nav-logo {
@@ -202,6 +274,145 @@ function handleLogout() {
   white-space: nowrap;
 }
 
+.nav-menu-icon {
+  color: var(--text-secondary);
+  margin-left: 0.25rem;
+  transition: color var(--transition-fast);
+}
+
+.nav-brand:hover .nav-menu-icon {
+  color: var(--accent-gold);
+}
+
+/* ── Sidebar ── */
+.sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 199;
+}
+
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 280px;
+  background: var(--bg-card);
+  border-right: 1px solid var(--border-subtle);
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1.25rem 1.25rem 1rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.sidebar-logo {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--accent-gold-dim);
+}
+
+.sidebar-title {
+  font-family: 'Cinzel', serif;
+  font-size: 1.05rem;
+  color: var(--accent-gold);
+  font-weight: 600;
+  flex: 1;
+}
+
+.sidebar-close {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0.3rem;
+  border-radius: var(--radius-sm);
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.sidebar-close:hover {
+  color: var(--text-primary);
+  background: var(--accent-gold-glow);
+}
+
+.sidebar-nav {
+  flex: 1;
+  padding: 0.75rem 0;
+}
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem 1.25rem;
+  color: var(--text-secondary);
+  font-size: 0.92rem;
+  text-decoration: none;
+  transition: all var(--transition-fast);
+  border: none;
+  background: none;
+  width: 100%;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.sidebar-link:hover {
+  color: var(--accent-gold);
+  background: var(--accent-gold-glow);
+}
+
+.sidebar-link.active {
+  color: var(--accent-gold);
+  background: var(--accent-gold-glow);
+  border-right: 3px solid var(--accent-gold);
+}
+
+.sidebar-footer {
+  border-top: 1px solid var(--border-subtle);
+  padding: 0.5rem 0;
+}
+
+.sidebar-logout {
+  color: var(--text-secondary);
+}
+
+.sidebar-logout:hover {
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.1);
+}
+
+/* Sidebar transitions */
+.sidebar-slide-enter-active,
+.sidebar-slide-leave-active {
+  transition: transform 0.25s ease;
+}
+
+.sidebar-slide-enter-from,
+.sidebar-slide-leave-to {
+  transform: translateX(-100%);
+}
+
+.sidebar-fade-enter-active,
+.sidebar-fade-leave-active {
+  transition: opacity 0.25s ease;
+}
+
+.sidebar-fade-enter-from,
+.sidebar-fade-leave-to {
+  opacity: 0;
+}
+
+/* ── PWA nav links (unchanged) ── */
 .nav-links {
   display: flex;
   gap: 0.25rem;
@@ -245,22 +456,6 @@ function handleLogout() {
   align-items: center;
   gap: 0.25rem;
   flex-shrink: 0;
-}
-
-.btn-logout {
-  padding: 0.4rem 0.8rem;
-  background: transparent;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  color: var(--text-secondary);
-  font-size: 0.8rem;
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.btn-logout:hover {
-  border-color: var(--border-accent);
-  color: var(--text-primary);
 }
 
 .main-content {
