@@ -1,7 +1,7 @@
 <template>
   <div class="app">
-    <!-- Desktop nav bar (non-PWA) -->
-    <nav v-if="auth.isAuthenticated && !isPwa" class="nav-bar">
+    <!-- Nav bar — brand + hamburger for both desktop and PWA -->
+    <nav v-if="auth.isAuthenticated" class="nav-bar" :class="{ 'pwa-mode': isPwa }">
       <div class="nav-content">
         <button class="nav-brand" @click="sidebarOpen = !sidebarOpen">
           <img src="/coin-logo.jpg" alt="Ancient Coins" class="nav-logo" />
@@ -11,14 +11,14 @@
       </div>
     </nav>
 
-    <!-- Desktop sidebar overlay -->
+    <!-- Sidebar overlay -->
     <Transition name="sidebar-fade">
-      <div v-if="sidebarOpen && !isPwa" class="sidebar-overlay" @click="sidebarOpen = false"></div>
+      <div v-if="sidebarOpen" class="sidebar-overlay" @click="sidebarOpen = false"></div>
     </Transition>
 
-    <!-- Desktop slide-in sidebar -->
+    <!-- Slide-in sidebar -->
     <Transition name="sidebar-slide">
-      <aside v-if="sidebarOpen && !isPwa" class="sidebar">
+      <aside v-if="sidebarOpen" class="sidebar">
         <div class="sidebar-header">
           <img src="/coin-logo.jpg" alt="Ancient Coins" class="sidebar-logo" />
           <span class="sidebar-title">Coin Collection</span>
@@ -30,6 +30,10 @@
           <router-link to="/" class="sidebar-link" active-class="active" @click="sidebarOpen = false">
             <Landmark :size="20" />
             <span>Collection</span>
+          </router-link>
+          <router-link v-if="isPwa" to="/add" class="sidebar-link" active-class="active" @click="sidebarOpen = false">
+            <CirclePlus :size="20" />
+            <span>Add Coin</span>
           </router-link>
           <router-link to="/wishlist" class="sidebar-link" active-class="active" @click="sidebarOpen = false">
             <Bookmark :size="20" />
@@ -76,52 +80,6 @@
         </div>
       </aside>
     </Transition>
-
-    <!-- PWA bottom nav bar -->
-    <nav v-if="auth.isAuthenticated && isPwa" class="nav-bar pwa-mode">
-      <div class="nav-content">
-        <router-link to="/" class="nav-brand">
-          <img src="/coin-logo.jpg" alt="Ancient Coins" class="nav-logo" />
-          <span class="nav-title">Coin Collection</span>
-        </router-link>
-        <div class="nav-links">
-          <router-link to="/add" class="nav-link add-link" active-class="active">
-            <CirclePlus :size="18" />
-            <span class="nav-label">Add</span>
-          </router-link>
-          <router-link to="/wishlist" class="nav-link" active-class="active">
-            <Bookmark :size="18" />
-            <span class="nav-label">Wishlist</span>
-          </router-link>
-          <router-link to="/sold" class="nav-link" active-class="active">
-            <BadgeDollarSign :size="18" />
-            <span class="nav-label">Sold</span>
-          </router-link>
-          <router-link to="/auctions" class="nav-link" active-class="active">
-            <Gavel :size="18" />
-            <span class="nav-label">Auctions</span>
-          </router-link>
-          <router-link to="/followers" class="nav-link" active-class="active">
-            <UsersIcon :size="18" />
-            <span class="nav-label">Followers</span>
-          </router-link>
-          <router-link to="/stats" class="nav-link" active-class="active">
-            <BarChart3 :size="18" />
-            <span class="nav-label">Stats</span>
-          </router-link>
-          <router-link to="/timeline" class="nav-link" active-class="active">
-            <Clock :size="18" />
-            <span class="nav-label">Timeline</span>
-          </router-link>
-        </div>
-        <div class="nav-right">
-          <router-link to="/settings" class="nav-link" active-class="active">
-            <Settings :size="18" />
-            <span class="nav-label">Settings</span>
-          </router-link>
-        </div>
-      </div>
-    </nav>
 
     <main class="main-content" :class="{ 'with-nav': auth.isAuthenticated }">
       <router-view />
@@ -414,79 +372,12 @@ function handleLogout() {
   opacity: 0;
 }
 
-/* ── PWA nav links (unchanged) ── */
-.nav-links {
-  display: flex;
-  gap: 0.25rem;
-  flex: 1;
-  min-width: 0;
-  overflow-x: auto;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-.nav-links::-webkit-scrollbar {
-  display: none;
-}
-
-.nav-link {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.5rem 0.8rem;
-  border-radius: var(--radius-sm);
-  color: var(--text-secondary);
-  font-size: 0.85rem;
-  transition: all var(--transition-fast);
-  text-decoration: none;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.nav-link:hover,
-.nav-link.active {
-  color: var(--accent-gold);
-  background: var(--accent-gold-glow);
-}
-
-.add-link {
-  color: var(--accent-gold);
-}
-
-.nav-right {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  flex-shrink: 0;
-}
-
 .main-content {
   min-height: 100vh;
 }
 
 .main-content.with-nav {
   padding-top: 76px;
-}
-
-@media (max-width: 900px) {
-  .nav-title { display: none; }
-  .nav-label { display: none; }
-  .nav-link { padding: 0.5rem; }
-  .nav-icon { font-size: 1.2rem; }
-}
-
-.pwa-mode .nav-links {
-  flex: 1;
-  justify-content: space-evenly;
-  gap: 0;
-}
-
-.pwa-mode .nav-right {
-  gap: 0;
-}
-
-.pwa-mode .nav-content {
-  gap: 0.5rem;
 }
 
 .modal-overlay {
