@@ -156,6 +156,7 @@
     </div>
 
     <AppDialog />
+    <PwaInstallPrompt />
   </div>
 </template>
 
@@ -167,6 +168,7 @@ import { Landmark, Bookmark, BadgeDollarSign, BarChart3, CirclePlus, Settings, S
 import { updateProfile, getMe } from '@/api/client'
 import CoinSearchChat from '@/components/CoinSearchChat.vue'
 import AppDialog from '@/components/AppDialog.vue'
+import PwaInstallPrompt from '@/components/PwaInstallPrompt.vue'
 
 const auth = useAuthStore()
 const router = useRouter()
