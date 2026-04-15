@@ -7,8 +7,18 @@
         </div>
         <div class="install-text">
           <h4>Install Coin Collection</h4>
-          <p v-if="platform === 'ios'">
+          <p v-if="platform === 'ios-safari'">
             Tap the <strong>Share</strong> button
+            <Share :size="14" class="inline-icon" />
+            then <strong>"Add to Home Screen"</strong>
+          </p>
+          <p v-else-if="platform === 'ios-edge'">
+            Tap the <strong>menu</strong> button
+            <MoreHorizontal :size="14" class="inline-icon" />
+            then <strong>"Add to Phone"</strong>
+          </p>
+          <p v-else-if="platform === 'ios-other'">
+            For the best experience, open in <strong>Safari</strong>, tap
             <Share :size="14" class="inline-icon" />
             then <strong>"Add to Home Screen"</strong>
           </p>
@@ -31,21 +41,23 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { Download, X, Share, MoreVertical } from 'lucide-vue-next'
+import { Download, X, Share, MoreVertical, MoreHorizontal } from 'lucide-vue-next'
 
 const DISMISS_KEY = 'pwa-install-dismissed'
 
 const visible = ref(false)
-const platform = ref<'ios' | 'android' | 'other'>('other')
+const platform = ref<'ios-safari' | 'ios-edge' | 'ios-other' | 'android' | 'other'>('other')
 
-function detectPlatform(): 'ios' | 'android' | 'other' {
+function detectPlatform(): typeof platform.value {
   const ua = navigator.userAgent || ''
-  if (/iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) {
-    return 'ios'
+  const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  if (isIOS) {
+    if (/EdgiOS|Edg/i.test(ua)) return 'ios-edge'
+    if (/CriOS/i.test(ua)) return 'ios-other'
+    if (/FxiOS/i.test(ua)) return 'ios-other'
+    return 'ios-safari'
   }
-  if (/Android/i.test(ua)) {
-    return 'android'
-  }
+  if (/Android/i.test(ua)) return 'android'
   return 'other'
 }
 
