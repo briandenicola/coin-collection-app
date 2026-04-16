@@ -319,6 +319,7 @@ func main() {
 		calendarHandler := handlers.NewCalendarHandler(eventRepo, auctionLotRepo)
 		protected.GET("/calendar", calendarHandler.GetCalendar)
 		protected.GET("/calendar/events", calendarHandler.ListEvents)
+		protected.GET("/calendar/events/:id", calendarHandler.GetEvent)
 		protected.POST("/calendar/events", calendarHandler.CreateEvent)
 		protected.PUT("/calendar/events/:id", calendarHandler.UpdateEvent)
 		protected.DELETE("/calendar/events/:id", calendarHandler.DeleteEvent)

@@ -172,3 +172,11 @@ func (r *AuctionLotRepository) MarkPastAuctionsAsPassed(userID uint, now time.Ti
 			userID, models.AuctionStatusWatching, now).
 		Update("status", string(models.AuctionStatusPassed))
 }
+
+// ListByEventID returns all auction lots linked to a specific calendar event.
+func (r *AuctionLotRepository) ListByEventID(eventID, userID uint) ([]models.AuctionLot, error) {
+	var lots []models.AuctionLot
+	err := r.db.Where("event_id = ? AND user_id = ?", eventID, userID).
+		Order("lot_number ASC").Find(&lots).Error
+	return lots, err
+}

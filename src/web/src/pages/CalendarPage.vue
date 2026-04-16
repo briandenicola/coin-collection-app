@@ -2,9 +2,14 @@
   <div class="container">
     <div class="page-header">
       <h1>Auction Calendar</h1>
-      <button class="btn btn-primary" @click="showAddEvent = true">
-        <Plus :size="16" /> Add Event
-      </button>
+      <div class="header-actions">
+        <a href="https://www.numisbids.com/sales.php?type=calendar" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">
+          <ExternalLink :size="16" /> NumisBids Calendar
+        </a>
+        <button class="btn btn-primary" @click="showAddEvent = true">
+          <Plus :size="16" /> Add Event
+        </button>
+      </div>
     </div>
 
     <!-- Month Navigation -->
@@ -79,7 +84,7 @@
         <!-- Manual Events -->
         <div v-if="events.length" class="event-group">
           <h3 class="group-title event-accent">Events</h3>
-          <div v-for="ev in events" :key="'ev-' + ev.id" class="card event-card">
+          <div v-for="ev in events" :key="'ev-' + ev.id" class="card event-card event-card-clickable" @click="openEvent(ev.id)">
             <div class="event-card-body">
               <div class="event-info">
                 <h4>{{ ev.title }}</h4>
@@ -92,11 +97,11 @@
                   </span>
                 </div>
                 <p v-if="ev.notes" class="event-notes">{{ ev.notes }}</p>
-                <a v-if="ev.url" :href="ev.url" target="_blank" rel="noopener" class="lot-link">
+                <a v-if="ev.url" :href="ev.url" target="_blank" rel="noopener" class="lot-link" @click.stop>
                   <ExternalLink :size="13" /> Visit
                 </a>
               </div>
-              <button class="btn-remove" @click="handleDeleteEvent(ev.id)" title="Delete event">
+              <button class="btn-remove" @click.stop="handleDeleteEvent(ev.id)" title="Delete event">
                 <Trash2 :size="16" />
               </button>
             </div>
@@ -109,6 +114,74 @@
           <p>Auction lots and manually added events will appear here.</p>
         </div>
       </template>
+    </div>
+
+    <!-- Event Detail Drawer -->
+    <div v-if="selectedEvent" class="modal-overlay" @click.self="selectedEvent = null">
+      <div class="modal card event-detail-modal">
+        <div class="modal-header">
+          <h2>Edit Event</h2>
+          <button class="btn-close" @click="selectedEvent = null"><X :size="18" /></button>
+        </div>
+        <form @submit.prevent="handleUpdateEvent">
+          <div class="form-group">
+            <label for="edit-title">Title</label>
+            <input id="edit-title" v-model="editEvent.title" type="text" required />
+          </div>
+          <div class="form-group">
+            <label for="edit-house">Auction House</label>
+            <input id="edit-house" v-model="editEvent.auctionHouse" type="text" />
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="edit-start">Start Date</label>
+              <input id="edit-start" v-model="editEvent.startDate" type="date" />
+            </div>
+            <div class="form-group">
+              <label for="edit-end">End Date</label>
+              <input id="edit-end" v-model="editEvent.endDate" type="date" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="edit-url">URL</label>
+            <input id="edit-url" v-model="editEvent.url" type="url" />
+          </div>
+          <div class="form-group">
+            <label for="edit-notes">Notes</label>
+            <textarea id="edit-notes" v-model="editEvent.notes" rows="3"></textarea>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" @click="selectedEvent = null">Cancel</button>
+            <button type="submit" class="btn btn-primary" :disabled="savingEvent">
+              {{ savingEvent ? 'Saving...' : 'Save' }}
+            </button>
+          </div>
+        </form>
+
+        <!-- Linked Auction Lots -->
+        <div class="linked-lots-section">
+          <h3 class="linked-lots-title">Linked Auction Lots <span v-if="linkedLots.length" class="linked-count">{{ linkedLots.length }}</span></h3>
+          <div v-if="linkedLots.length" class="linked-lots-list">
+            <div v-for="lot in linkedLots" :key="lot.id" class="linked-lot-item">
+              <div v-if="lot.imageUrl" class="lot-thumb-container">
+                <img :src="proxiedUrl(lot.imageUrl)" class="lot-thumb" alt="" />
+              </div>
+              <div class="linked-lot-info">
+                <span class="linked-lot-title">{{ lot.title }}</span>
+                <span class="linked-lot-meta">
+                  <template v-if="lot.lotNumber">Lot {{ lot.lotNumber }}</template>
+                  <template v-if="lot.lotNumber && lot.status"> · </template>
+                  <span class="status-tag" :class="`status-${lot.status}`">{{ lot.status }}</span>
+                </span>
+              </div>
+              <a v-if="lot.numisBidsUrl" :href="lot.numisBidsUrl" target="_blank" rel="noopener" class="lot-ext-link" @click.stop>
+                <ExternalLink :size="13" />
+              </a>
+            </div>
+          </div>
+          <p v-else class="no-linked-lots">No auction lots linked to this event. Link lots from the Auctions page.</p>
+        </div>
+      </div>
     </div>
 
     <!-- Add Event Modal -->
@@ -163,9 +236,10 @@ import {
   Plus, ChevronLeft, ChevronRight, X, Trash2,
   ExternalLink, Building, Calendar as CalendarIcon
 } from 'lucide-vue-next'
-import { getCalendar, createCalendarEvent, deleteCalendarEvent } from '@/api/client'
+import { getCalendar, getCalendarEvent, createCalendarEvent, updateCalendarEvent, deleteCalendarEvent } from '@/api/client'
+import type { AuctionLot } from '@/types'
 
-interface AuctionLot {
+interface CalendarLot {
   id: number
   type: string
   title: string
@@ -195,7 +269,7 @@ interface CalendarCell {
   currentMonth: boolean
   isToday: boolean
   dateStr: string
-  lots?: AuctionLot[]
+  lots?: CalendarLot[]
   events?: CalendarEvent[]
 }
 
@@ -205,10 +279,14 @@ const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'Jul
 const loading = ref(true)
 const currentYear = ref(new Date().getFullYear())
 const currentMonth = ref(new Date().getMonth())
-const lots = ref<AuctionLot[]>([])
+const lots = ref<CalendarLot[]>([])
 const events = ref<CalendarEvent[]>([])
 const showAddEvent = ref(false)
 const creatingEvent = ref(false)
+const selectedEvent = ref<CalendarEvent | null>(null)
+const linkedLots = ref<AuctionLot[]>([])
+const savingEvent = ref(false)
+const editEvent = ref({ title: '', auctionHouse: '', startDate: '', endDate: '', url: '', notes: '' })
 
 const newEvent = ref({
   title: '',
@@ -243,7 +321,7 @@ const calendarCells = computed<CalendarCell[]>(() => {
   const cells: CalendarCell[] = []
 
   // Build a map of date string -> lots/events
-  const lotsByDate = new Map<string, AuctionLot[]>()
+  const lotsByDate = new Map<string, CalendarLot[]>()
   const eventsByDate = new Map<string, CalendarEvent[]>()
 
   for (const lot of lots.value) {
@@ -364,6 +442,56 @@ async function handleDeleteEvent(id: number) {
   }
 }
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
+
+function proxiedUrl(imageUrl: string) {
+  const token = localStorage.getItem('token') ?? ''
+  return `${API_BASE}/api/proxy-image?url=${encodeURIComponent(imageUrl)}&token=${encodeURIComponent(token)}`
+}
+
+function toDateInput(dateStr?: string | null): string {
+  if (!dateStr) return ''
+  return dateStr.split('T')?.[0] ?? ''
+}
+
+async function openEvent(eventId: number) {
+  try {
+    const res = await getCalendarEvent(eventId)
+    const ev = res.data?.event
+    if (!ev) return
+    selectedEvent.value = { id: ev.id, type: 'event', title: ev.title, auctionHouse: ev.auctionHouse, startDate: ev.startDate ?? undefined, endDate: ev.endDate ?? undefined, url: ev.url, notes: ev.notes }
+    linkedLots.value = res.data?.lots ?? []
+    editEvent.value = {
+      title: ev.title,
+      auctionHouse: ev.auctionHouse ?? '',
+      startDate: toDateInput(ev.startDate),
+      endDate: toDateInput(ev.endDate),
+      url: ev.url ?? '',
+      notes: ev.notes ?? ''
+    }
+  } catch { /* ignore */ }
+}
+
+async function handleUpdateEvent() {
+  if (!selectedEvent.value) return
+  savingEvent.value = true
+  try {
+    const data: Record<string, unknown> = {
+      title: editEvent.value.title.trim(),
+      auctionHouse: editEvent.value.auctionHouse.trim(),
+      startDate: editEvent.value.startDate ? editEvent.value.startDate + 'T00:00:00Z' : null,
+      endDate: editEvent.value.endDate ? editEvent.value.endDate + 'T00:00:00Z' : null,
+      url: editEvent.value.url.trim(),
+      notes: editEvent.value.notes.trim()
+    }
+    await updateCalendarEvent(selectedEvent.value.id, data)
+    selectedEvent.value = null
+    await loadCalendar()
+  } finally {
+    savingEvent.value = false
+  }
+}
+
 watch([currentYear, currentMonth], () => loadCalendar())
 
 onMounted(loadCalendar)
@@ -373,6 +501,7 @@ onMounted(loadCalendar)
 .container { max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
 .page-header h1 { font-size: 1.75rem; color: var(--text-primary); }
+.header-actions { display: flex; gap: 0.75rem; align-items: center; }
 .btn { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.5rem 1rem; border-radius: 8px; border: none; cursor: pointer; font-weight: 500; font-size: 0.875rem; }
 .btn-primary { background: var(--accent-gold); color: #1e1e1e; }
 .btn-secondary { background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border-subtle); }
@@ -421,9 +550,12 @@ onMounted(loadCalendar)
 .btn-remove { background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 0.25rem; flex-shrink: 0; border-radius: 4px; }
 .btn-remove:hover { color: #dc3545; }
 
+.event-card-clickable { cursor: pointer; transition: border-color var(--transition-fast); }
+.event-card-clickable:hover { border-color: var(--accent-gold-dim); }
+
 /* Modal */
-.modal-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6); display: flex; align-items: center; justify-content: center; z-index: 100; }
-.modal { width: 90%; max-width: 520px; padding: 1.5rem; }
+.modal-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 1rem; }
+.modal { width: 90%; max-width: 520px; padding: 1.5rem; max-height: 90vh; overflow-y: auto; }
 .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
 .modal-header h2 { margin: 0; color: var(--text-primary); }
 .btn-close { background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 0.25rem; }
@@ -434,4 +566,42 @@ onMounted(loadCalendar)
 .form-group select { width: 100%; background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 0.5rem 0.75rem; font-size: 0.875rem; box-sizing: border-box; }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1.25rem; }
+
+/* Linked Lots in Event Detail */
+.linked-lots-section { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-subtle); }
+.linked-lots-title { font-size: 0.95rem; color: var(--text-primary); margin: 0 0 0.75rem; display: flex; align-items: center; gap: 0.5rem; }
+.linked-count { background: var(--accent-gold-glow); color: var(--accent-gold); font-size: 0.75rem; padding: 0.1rem 0.5rem; border-radius: var(--radius-full); font-weight: 600; }
+
+.linked-lots-list { display: flex; flex-direction: column; gap: 0.5rem; }
+
+.linked-lot-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+}
+
+.linked-lot-item .lot-thumb-container { width: 40px; height: 40px; border-radius: 6px; overflow: hidden; flex-shrink: 0; }
+.linked-lot-item .lot-thumb { width: 100%; height: 100%; object-fit: cover; }
+
+.linked-lot-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.15rem; }
+.linked-lot-title { font-size: 0.85rem; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.linked-lot-meta { font-size: 0.75rem; color: var(--text-secondary); display: flex; align-items: center; gap: 0.35rem; }
+
+.lot-ext-link { color: var(--text-secondary); padding: 0.25rem; flex-shrink: 0; }
+.lot-ext-link:hover { color: var(--accent-gold); }
+
+.no-linked-lots { font-size: 0.85rem; color: var(--text-secondary); margin: 0; }
+
+.status-tag { padding: 0.1rem 0.4rem; border-radius: var(--radius-full); font-size: 0.7rem; font-weight: 600; text-transform: uppercase; }
+.status-watching { background: rgba(100, 150, 255, 0.2); color: #6496ff; }
+.status-bidding { background: var(--accent-gold-glow); color: var(--accent-gold); }
+.status-won { background: rgba(74, 222, 128, 0.15); color: #4ade80; }
+.status-lost { background: rgba(248, 113, 113, 0.15); color: #f87171; }
+.status-passed { background: rgba(120, 120, 120, 0.15); color: #999; }
+
+.btn-secondary { text-decoration: none; }
 </style>

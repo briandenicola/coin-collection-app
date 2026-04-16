@@ -201,6 +201,29 @@ func (h *CalendarHandler) UpdateEvent(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Event updated"})
 }
 
+// GetEvent returns a single event with its linked auction lots.
+func (h *CalendarHandler) GetEvent(c *gin.Context) {
+	userID := c.GetUint("userId")
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid event ID"})
+		return
+	}
+
+	event, err := h.eventRepo.GetByID(uint(id), userID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Event not found"})
+		return
+	}
+
+	lots, _ := h.auctionRepo.ListByEventID(uint(id), userID)
+
+	c.JSON(http.StatusOK, gin.H{
+		"event": event,
+		"lots":  lots,
+	})
+}
+
 // DeleteEvent deletes an auction event.
 func (h *CalendarHandler) DeleteEvent(c *gin.Context) {
 	userID := c.GetUint("userId")

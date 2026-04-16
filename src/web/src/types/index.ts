@@ -350,6 +350,18 @@ export interface AuctionLotListResponse {
   total: number
 }
 
+export interface CalendarEventDetail {
+  id: number
+  title: string
+  auctionHouse: string
+  startDate: string | null
+  endDate: string | null
+  url: string
+  notes: string
+  createdAt: string
+  updatedAt: string
+}
+
 export interface AvailabilityRunSummary {
   runId: number
   coinsChecked: number
