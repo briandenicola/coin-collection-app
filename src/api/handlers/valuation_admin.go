@@ -87,10 +87,10 @@ func (h *ValuationAdminHandler) GetRunDetail(c *gin.Context) {
 // TriggerValuation manually triggers a valuation run for the admin user.
 //
 //	@Summary		Trigger manual valuation
-//	@Description	Manually triggers a collection valuation for all users.
+//	@Description	Manually triggers a collection valuation for all users. Runs asynchronously.
 //	@Tags			Admin
 //	@Produce		json
-//	@Success		200	{object}	map[string]interface{}
+//	@Success		202	{object}	map[string]interface{}
 //	@Failure		401	{object}	ErrorResponse
 //	@Failure		403	{object}	ErrorResponse
 //	@Failure		500	{object}	ErrorResponse
@@ -111,21 +111,15 @@ func (h *ValuationAdminHandler) TriggerValuation(c *gin.Context) {
 		return
 	}
 
-	// Run valuation for first user (in background for subsequent ones)
-	var lastRun interface{}
-	for _, userID := range userIDs {
-		run, err := h.valSvc.ValuateCollectionForUser(userID, "manual", &triggerUserID)
-		if err != nil {
-			services.AppLogger.Error("valuation", "Manual valuation failed for user %d: %s", userID, err)
-			continue
+	// Run valuation asynchronously — return immediately
+	go func() {
+		for _, userID := range userIDs {
+			_, err := h.valSvc.ValuateCollectionForUser(userID, "manual", &triggerUserID)
+			if err != nil {
+				services.AppLogger.Error("valuation", "Manual valuation failed for user %d: %s", userID, err)
+			}
 		}
-		lastRun = run
-	}
+	}()
 
-	if lastRun == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "All valuation runs failed"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "Valuation triggered", "users": len(userIDs)})
+	c.JSON(http.StatusAccepted, gin.H{"message": "Valuation started", "users": len(userIDs)})
 }

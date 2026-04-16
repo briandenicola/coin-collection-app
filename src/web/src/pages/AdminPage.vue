@@ -511,7 +511,7 @@
               {{ settingsSaving ? 'Saving...' : 'Save Valuation Settings' }}
             </button>
             <button class="btn btn-secondary btn-sm" :disabled="valTriggerLoading" @click="triggerManualValuation()">
-              {{ valTriggerLoading ? 'Running...' : 'Run Now' }}
+              {{ valTriggerLoading ? 'Starting...' : 'Run Now' }}
             </button>
             <span v-if="valSettingsMsg" class="avail-save-msg" :class="{ 'avail-save-error': valSettingsError }">{{ valSettingsMsg }}</span>
           </div>
@@ -1023,10 +1023,12 @@ async function triggerManualValuation() {
   valSettingsError.value = false
   try {
     await triggerValuation()
-    valSettingsMsg.value = 'Valuation triggered'
-    setTimeout(() => { valSettingsMsg.value = '' }, 5000)
-    // Reload run history after a delay to show the new run
-    setTimeout(() => { loadValRuns() }, 2000)
+    valSettingsMsg.value = 'Valuation started — check run history for progress'
+    setTimeout(() => { valSettingsMsg.value = '' }, 10000)
+    // Poll run history to show progress
+    setTimeout(() => { loadValRuns() }, 3000)
+    setTimeout(() => { loadValRuns() }, 10000)
+    setTimeout(() => { loadValRuns() }, 30000)
   } catch {
     valSettingsMsg.value = 'Failed to trigger valuation'
     valSettingsError.value = true
