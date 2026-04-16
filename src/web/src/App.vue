@@ -103,7 +103,7 @@
 
     <!-- PWA floating agent button -->
     <button
-      v-if="isPwa && auth.isAuthenticated && !showChat"
+      v-if="isPwa && auth.isAuthenticated && !showChat && !bulkSelectActive"
       class="agent-fab"
       @click="showChat = true"
       aria-label="Open AI Agent"
@@ -141,6 +141,7 @@ import { useRouter } from 'vue-router'
 import { Landmark, Bookmark, BadgeDollarSign, BarChart3, CirclePlus, Settings, ShieldCheck, LogOut, Users as UsersIcon, Clock, Bot, Gavel, X, Bell, CalendarDays, Share2 } from 'lucide-vue-next'
 import { updateProfile, getMe } from '@/api/client'
 import { useNotifications } from '@/composables/useNotifications'
+import { useBulkSelect } from '@/composables/useBulkSelect'
 import CoinSearchChat from '@/components/CoinSearchChat.vue'
 import AppDialog from '@/components/AppDialog.vue'
 import PwaInstallPrompt from '@/components/PwaInstallPrompt.vue'
@@ -155,6 +156,7 @@ const sidebarOpen = ref(false)
 const showEmailPrompt = ref(false)
 const promptEmail = ref('')
 const { unreadCount, startPolling, stopPolling } = useNotifications()
+const { bulkSelectActive } = useBulkSelect()
 
 onMounted(async () => {
   if (auth.isAuthenticated) {

@@ -190,6 +190,7 @@ import { useRouter } from 'vue-router'
 import type { ImageType, Tag } from '@/types'
 import { getTags, bulkAction } from '@/api/client'
 import { usePullToRefresh } from '@/composables/usePullToRefresh'
+import { useBulkSelect } from '@/composables/useBulkSelect'
 import CoinCard from '@/components/CoinCard.vue'
 import SwipeGallery from '@/components/SwipeGallery.vue'
 import CategoryFilter from '@/components/CategoryFilter.vue'
@@ -286,9 +287,11 @@ loadCoins()
 const selectMode = ref(false)
 const selectedCoinIds = ref(new Set<number>())
 const showTagPicker = ref(false)
+const { bulkSelectActive } = useBulkSelect()
 
 function toggleSelectMode() {
   selectMode.value = !selectMode.value
+  bulkSelectActive.value = selectMode.value
   if (!selectMode.value) {
     selectedCoinIds.value = new Set()
     showTagPicker.value = false
@@ -320,6 +323,7 @@ async function bulkDelete() {
     await bulkAction([...selectedCoinIds.value], 'delete')
     selectedCoinIds.value = new Set()
     selectMode.value = false
+    bulkSelectActive.value = false
     loadCoins()
   } catch {
     alert('Failed to delete coins')
@@ -333,6 +337,7 @@ async function bulkSell() {
     await bulkAction([...selectedCoinIds.value], 'sell')
     selectedCoinIds.value = new Set()
     selectMode.value = false
+    bulkSelectActive.value = false
     loadCoins()
   } catch {
     alert('Failed to mark coins as sold')
@@ -345,6 +350,7 @@ async function bulkTag(tagId: number) {
     showTagPicker.value = false
     selectedCoinIds.value = new Set()
     selectMode.value = false
+    bulkSelectActive.value = false
     loadCoins()
   } catch {
     alert('Failed to apply tag')
