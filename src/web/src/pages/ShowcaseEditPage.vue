@@ -256,7 +256,7 @@ async function loadData() {
     const id = Number(route.params.id)
     const [scRes, coinsRes] = await Promise.all([
       getShowcase(id),
-      getCoins({ limit: 500 })
+      getCoins({ limit: 500, wishlist: 'false', sold: 'false' })
     ])
     showcase.value = scRes.data?.showcase ?? null
     const showcaseCoins: Coin[] = scRes.data?.coins ?? []
