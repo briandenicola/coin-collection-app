@@ -12,9 +12,13 @@ import (
 )
 
 const (
-	valuationRateDelay    = 2 * time.Second
+	valuationBaseDelay    = 3 * time.Second  // minimum delay between AI calls
+	valuationBatchSize    = 10               // pause after this many coins
+	valuationBatchPause   = 30 * time.Second // cool-down between batches
 	valuationStaleTimeout = 1 * time.Hour
 	valuationMinFields    = 3
+	valuationMaxRetries   = 2
+	valuationRetryDelay   = 60 * time.Second // back off on rate-limit / 5xx errors
 )
 
 // ValuationService orchestrates bulk AI-powered coin valuation.
@@ -226,6 +230,7 @@ func (s *ValuationService) ValuateCollectionForUser(
 	s.logger.Info("valuation", "Starting bulk valuation for user %d: %d coins (max %d)", userID, len(coins), maxCoins)
 
 	var checked, updated, skipped, errCount int
+	batchCount := 0
 
 	for i, coin := range coins {
 		// Skip coins with insufficient metadata
@@ -244,6 +249,7 @@ func (s *ValuationService) ValuateCollectionForUser(
 		}
 
 		checked++
+		batchCount++
 		description := BuildCoinDescription(&coin)
 		userMessage := fmt.Sprintf("Estimate the current market value of this coin:\n\n%s\n\n"+
 			"Return ONLY the JSON block as specified in your instructions. No preamble or extra text.", description)
@@ -258,20 +264,39 @@ func (s *ValuationService) ValuateCollectionForUser(
 			ValuationPrompt: valuationPrompt,
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
-		aiText, err := s.agentProxy.CollectPortfolioReview(ctx, proxyReq)
-		cancel()
+		// Retry loop with exponential backoff for transient/rate-limit errors
+		var aiText string
+		var callErr error
+		for attempt := 0; attempt <= valuationMaxRetries; attempt++ {
+			if attempt > 0 {
+				backoff := valuationRetryDelay * time.Duration(attempt)
+				s.logger.Warn("valuation", "Coin %d (%s): retry %d after %s", coin.ID, coin.Name, attempt, backoff)
+				time.Sleep(backoff)
+			}
 
-		if err != nil {
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+			aiText, callErr = s.agentProxy.CollectPortfolioReview(ctx, proxyReq)
+			cancel()
+
+			if callErr == nil {
+				break
+			}
+			// Only retry on rate-limit or server errors
+			if !isRetryableError(callErr) {
+				break
+			}
+		}
+
+		if callErr != nil {
 			errCount++
-			s.logger.Warn("valuation", "Coin %d (%s) failed: %v", coin.ID, coin.Name, err)
+			s.logger.Warn("valuation", "Coin %d (%s) failed: %v", coin.ID, coin.Name, callErr)
 			s.valRepo.AddResult(&models.ValuationResult{
 				RunID:         run.ID,
 				CoinID:        coin.ID,
 				CoinName:      coin.Name,
 				PreviousValue: coin.CurrentValue,
 				Status:        "error",
-				ErrorMessage:  err.Error(),
+				ErrorMessage:  callErr.Error(),
 				CheckedAt:     time.Now(),
 			})
 			continue
@@ -292,7 +317,6 @@ func (s *ValuationService) ValuateCollectionForUser(
 		}
 
 		if estimate.EstimatedValue > 0 {
-			// Update coin's current value and record history
 			s.updateCoinValuation(&coin, userID, &estimate)
 			updated++
 		}
@@ -302,9 +326,15 @@ func (s *ValuationService) ValuateCollectionForUser(
 		s.logger.Debug("valuation", "Coin %d (%s): $%.2f (%s confidence)",
 			coin.ID, coin.Name, estimate.EstimatedValue, estimate.Confidence)
 
-		// Rate-limit between AI calls
+		// Rate limiting: pause between each call, with a longer batch cool-down
 		if i < len(coins)-1 {
-			time.Sleep(valuationRateDelay)
+			if batchCount >= valuationBatchSize {
+				s.logger.Debug("valuation", "Batch of %d complete, pausing %s before next batch", batchCount, valuationBatchPause)
+				time.Sleep(valuationBatchPause)
+				batchCount = 0
+			} else {
+				time.Sleep(valuationBaseDelay)
+			}
 		}
 	}
 
@@ -358,4 +388,21 @@ func (s *ValuationService) updateCoinValuation(coin *models.Coin, userID uint, e
 		UserID: userID,
 		Entry:  journalText,
 	})
+}
+
+// isRetryableError returns true for rate-limit (429) and server (5xx) errors
+// that are worth retrying after a backoff.
+func isRetryableError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "429") ||
+		strings.Contains(msg, "rate") ||
+		strings.Contains(msg, "overloaded") ||
+		strings.Contains(msg, "529") ||
+		strings.Contains(msg, "500") ||
+		strings.Contains(msg, "502") ||
+		strings.Contains(msg, "503") ||
+		strings.Contains(msg, "504")
 }
