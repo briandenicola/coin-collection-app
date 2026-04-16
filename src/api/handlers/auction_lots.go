@@ -303,6 +303,46 @@ func (h *AuctionLotHandler) LinkEvent(c *gin.Context) {
 	c.JSON(http.StatusOK, updated)
 }
 
+// BulkLinkEventRequest holds lot IDs and the target event ID.
+type BulkLinkEventRequest struct {
+	LotIDs  []uint `json:"lotIds" binding:"required"`
+	EventID *uint  `json:"eventId"`
+}
+
+// BulkLinkEvent associates or disassociates multiple auction lots with a calendar event.
+//
+//	@Summary		Bulk link lots to calendar event
+//	@Description	Sets or clears the calendar event for multiple auction lots at once.
+//	@Tags			Auctions
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		BulkLinkEventRequest	true	"Lot IDs and event ID"
+//	@Success		200		{object}	map[string]int
+//	@Failure		400		{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/auctions/bulk-link-event [put]
+func (h *AuctionLotHandler) BulkLinkEvent(c *gin.Context) {
+	userID := c.GetUint("userId")
+
+	var req BulkLinkEventRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+
+	updated := 0
+	for _, lotID := range req.LotIDs {
+		lot, err := h.repo.GetByID(lotID, userID)
+		if err != nil {
+			continue
+		}
+		h.repo.UpdateFields(lot, map[string]interface{}{"event_id": req.EventID})
+		updated++
+	}
+
+	c.JSON(http.StatusOK, gin.H{"updated": updated})
+}
+
 // ConvertToCoin creates an owned Coin from a won auction lot.
 //
 //	@Summary		Convert won lot to coin

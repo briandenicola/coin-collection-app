@@ -8,6 +8,9 @@
           <RefreshCw :size="16" :class="{ spinning: syncing }" />
           {{ syncing ? 'Syncing...' : 'Sync Watchlist' }}
         </button>
+        <button class="btn" :class="selectMode ? 'btn-primary' : 'btn-secondary'" @click="toggleSelectMode">
+          <CheckSquare :size="16" /> {{ selectMode ? 'Cancel' : 'Select' }}
+        </button>
         <button class="btn btn-primary" @click="showImport = true"><Import :size="16" /> Add Lot</button>
       </div>
     </div>
@@ -29,12 +32,26 @@
       </div>
     </div>
 
+    <div v-if="selectMode" class="select-controls">
+      <button class="btn btn-sm btn-secondary" @click="selectAllLots">Select All</button>
+      <button class="btn btn-sm btn-secondary" @click="deselectAllLots">Deselect All</button>
+      <span class="select-count">{{ selectedLotIds.size }} selected</span>
+    </div>
+
     <div v-if="loading" class="loading-overlay">
       <div class="spinner"></div>
     </div>
 
     <div v-else-if="lots.length" class="lots-grid">
-      <AuctionLotCard v-for="lot in lots" :key="lot.id" :lot="lot" @select="openLot" />
+      <AuctionLotCard
+        v-for="lot in lots"
+        :key="lot.id"
+        :lot="lot"
+        :selectable="selectMode"
+        :selected="selectedLotIds.has(lot.id)"
+        @select="openLot"
+        @toggle-select="toggleLotSelect"
+      />
     </div>
 
     <div v-else class="empty-state">
@@ -154,6 +171,24 @@
         </div>
       </div>
     </div>
+
+    <!-- Floating bulk action bar -->
+    <Transition name="bar-slide">
+      <div v-if="selectMode && selectedLotIds.size > 0" class="bulk-action-bar">
+        <span class="bulk-count">{{ selectedLotIds.size }} lot{{ selectedLotIds.size === 1 ? '' : 's' }} selected</span>
+        <div class="bulk-actions">
+          <select v-model="bulkEventId" class="form-input bulk-event-select">
+            <option value="">Unlink Event</option>
+            <option v-for="evt in calendarEvents" :key="evt.id" :value="evt.id">
+              {{ evt.title }}
+            </option>
+          </select>
+          <button class="bulk-btn bulk-btn-link" @click="bulkLinkEvent">
+            <CalendarDays :size="16" /> {{ bulkEventId === '' ? 'Unlink' : 'Link' }}
+          </button>
+        </div>
+      </div>
+    </Transition>
   </div>
   </PullToRefresh>
 </template>
@@ -161,12 +196,12 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { getAuctionLots, getAuctionLotCounts, updateAuctionLotStatus, convertAuctionLotToCoin, deleteAuctionLot, syncNumisBidsWatchlist, listCalendarEvents, linkAuctionLotEvent } from '@/api/client'
+import { getAuctionLots, getAuctionLotCounts, updateAuctionLotStatus, convertAuctionLotToCoin, deleteAuctionLot, syncNumisBidsWatchlist, listCalendarEvents, linkAuctionLotEvent, bulkLinkAuctionLotEvent } from '@/api/client'
 import type { AuctionLot, AuctionLotStatus } from '@/types'
 import AuctionLotCard from '@/components/AuctionLotCard.vue'
 import ImportLotModal from '@/components/ImportLotModal.vue'
 import PullToRefresh from '@/components/PullToRefresh.vue'
-import { Import, X, ExternalLink, ArrowRightCircle, Trash2, RefreshCw, CalendarDays } from 'lucide-vue-next'
+import { Import, X, ExternalLink, ArrowRightCircle, Trash2, RefreshCw, CalendarDays, CheckSquare } from 'lucide-vue-next'
 
 const router = useRouter()
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
@@ -183,6 +218,48 @@ const syncing = ref(false)
 const syncMessage = ref('')
 const calendarEvents = ref<Array<{ id: number; title: string; auctionHouse: string; startDate: string | null }>>([])
 const selectedEventId = ref<number | string>('')
+
+const selectMode = ref(false)
+const selectedLotIds = ref(new Set<number>())
+const bulkEventId = ref<number | string>('')
+
+function toggleSelectMode() {
+  selectMode.value = !selectMode.value
+  if (!selectMode.value) {
+    selectedLotIds.value = new Set()
+  } else {
+    fetchCalendarEvents()
+  }
+}
+
+function toggleLotSelect(lotId: number) {
+  const next = new Set(selectedLotIds.value)
+  if (next.has(lotId)) {
+    next.delete(lotId)
+  } else {
+    next.add(lotId)
+  }
+  selectedLotIds.value = next
+}
+
+function selectAllLots() {
+  selectedLotIds.value = new Set(lots.value.map(l => l.id))
+}
+
+function deselectAllLots() {
+  selectedLotIds.value = new Set()
+}
+
+async function bulkLinkEvent() {
+  const eventId = bulkEventId.value === '' ? null : Number(bulkEventId.value)
+  try {
+    await bulkLinkAuctionLotEvent([...selectedLotIds.value], eventId)
+    selectedLotIds.value = new Set()
+    selectMode.value = false
+    bulkEventId.value = ''
+    fetchLots()
+  } catch { /* ignore */ }
+}
 
 async function fetchCalendarEvents() {
   try {
@@ -606,5 +683,85 @@ fetchAllCounts()
 .btn-sm {
   padding: 0.35rem 0.7rem;
   font-size: 0.8rem;
+}
+
+/* Select controls */
+.select-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.select-count {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* Floating bulk action bar */
+.bulk-action-bar {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: var(--bg-card);
+  border: 1px solid var(--accent-gold-dim);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1.25rem;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+  z-index: 200;
+  white-space: nowrap;
+}
+
+.bulk-count {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.bulk-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.bulk-event-select {
+  min-width: 160px;
+  font-size: 0.82rem;
+}
+
+.bulk-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.bulk-btn:hover {
+  border-color: var(--accent-gold);
+  color: var(--accent-gold);
+}
+
+/* Bar slide transition */
+.bar-slide-enter-active,
+.bar-slide-leave-active {
+  transition: transform 0.25s ease, opacity 0.25s ease;
+}
+
+.bar-slide-enter-from,
+.bar-slide-leave-to {
+  transform: translateX(-50%) translateY(20px);
+  opacity: 0;
 }
 </style>

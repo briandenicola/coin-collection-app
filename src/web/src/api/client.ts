@@ -476,6 +476,7 @@ export const updateAuctionLotStatus = (id: number, status: string, maxBid?: numb
 export const convertAuctionLotToCoin = (id: number) => api.post<Coin>(`/auctions/${id}/convert`)
 export const deleteAuctionLot = (id: number) => api.delete(`/auctions/${id}`)
 export const linkAuctionLotEvent = (id: number, eventId: number | null) => api.put<AuctionLot>(`/auctions/${id}/event`, { eventId })
+export const bulkLinkAuctionLotEvent = (lotIds: number[], eventId: number | null) => api.put<{ updated: number }>('/auctions/bulk-link-event', { lotIds, eventId })
 export const importAuctionLot = (data: { url: string; title?: string; description?: string; auctionHouse?: string; saleName?: string; category?: string; imageUrl?: string; estimate?: number | null; currentBid?: number | null; currency?: string }) =>
   api.post<AuctionLot>('/auctions/import', data)
 export const syncNumisBidsWatchlist = () =>

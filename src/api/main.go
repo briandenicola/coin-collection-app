@@ -215,6 +215,7 @@ func main() {
 		auctionLotHandler := handlers.NewAuctionLotHandler(auctionLotRepo, auctionLotSvc, auctionUserRepo, nbSvc)
 		protected.GET("/auctions", auctionLotHandler.List)
 		protected.GET("/auctions/counts", auctionLotHandler.Counts)
+		protected.PUT("/auctions/bulk-link-event", auctionLotHandler.BulkLinkEvent)
 		protected.GET("/auctions/:id", auctionLotHandler.Get)
 		protected.POST("/auctions", auctionLotHandler.Create)
 		protected.PUT("/auctions/:id", auctionLotHandler.Update)
