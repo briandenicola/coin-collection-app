@@ -199,27 +199,6 @@
       </section>
 
       <!-- Blocked Users Tab -->
-      <section v-if="activeTab === 'blocked'" class="settings-section card">
-        <h2>Blocked Users</h2>
-        <p class="setting-desc" style="margin-bottom: 0.75rem">
-          Blocked users cannot send you follow requests or view your collection.
-        </p>
-        <div v-if="blockedUsers.length" class="apikey-list">
-          <div v-for="user in blockedUsers" :key="user.id" class="apikey-item">
-            <div class="apikey-item-info" style="display: flex; align-items: center; gap: 0.5rem;">
-              <img
-                :src="user.avatarPath ? `/uploads/${user.avatarPath}` : '/coin-logo.jpg'"
-                :alt="user.username"
-                style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border-subtle);"
-              />
-              <span class="apikey-item-name">{{ user.username }}</span>
-            </div>
-            <button class="btn btn-secondary btn-sm" :disabled="blockedLoading" @click="handleUnblock(user)">Unblock</button>
-          </div>
-        </div>
-        <p v-else class="setting-desc" style="margin-top: 0.5rem">No blocked users.</p>
-      </section>
-
       <!-- Appearance Tab -->
       <section v-if="activeTab === 'appearance'" class="settings-section card">
         <h2>Appearance</h2>
@@ -284,63 +263,6 @@
             <option value="current_value_asc">Price: Low → High</option>
           </select>
         </div>
-      </section>
-
-      <!-- Tags Tab -->
-      <section v-if="activeTab === 'tags'" class="settings-section card">
-        <h2>Tag Manager</h2>
-        <p class="setting-desc">Create custom tags to organize and filter your coins.</p>
-
-        <div class="tag-create-form">
-          <input
-            v-model="newTagName"
-            type="text"
-            class="form-input"
-            placeholder="New tag name..."
-            maxlength="50"
-            @keydown.enter="handleCreateTag"
-          />
-          <div class="tag-color-picker">
-            <button
-              v-for="c in TAG_COLORS"
-              :key="c"
-              class="color-swatch"
-              :class="{ active: newTagColor === c }"
-              :style="{ backgroundColor: c }"
-              @click="newTagColor = c"
-            ></button>
-          </div>
-          <button class="btn btn-primary btn-sm" @click="handleCreateTag" :disabled="!newTagName.trim()">Create Tag</button>
-        </div>
-        <p v-if="tagError" class="tag-error">{{ tagError }}</p>
-
-        <div v-if="tagList.length" class="tag-list">
-          <div v-for="tag in tagList" :key="tag.id" class="tag-list-item">
-            <template v-if="editingTag?.id === tag.id">
-              <input v-model="editTagName" class="form-input tag-edit-input" maxlength="50" @keydown.enter="handleSaveTag" />
-              <div class="tag-color-picker">
-                <button
-                  v-for="c in TAG_COLORS"
-                  :key="c"
-                  class="color-swatch sm"
-                  :class="{ active: editTagColor === c }"
-                  :style="{ backgroundColor: c }"
-                  @click="editTagColor = c"
-                ></button>
-              </div>
-              <button class="btn btn-primary btn-sm" @click="handleSaveTag">Save</button>
-              <button class="btn btn-secondary btn-sm" @click="editingTag = null">Cancel</button>
-            </template>
-            <template v-else>
-              <span class="tag-preview" :style="{ backgroundColor: tag.color + '22', color: tag.color, borderColor: tag.color + '44' }">{{ tag.name }}</span>
-              <div class="tag-actions">
-                <button class="btn btn-secondary btn-sm" @click="startEditTag(tag)">Edit</button>
-                <button class="btn btn-danger btn-sm" @click="handleDeleteTag(tag)">Delete</button>
-              </div>
-            </template>
-          </div>
-        </div>
-        <p v-else class="empty-tags">No tags created yet. Create your first tag above.</p>
       </section>
 
       <!-- Data Tab -->
@@ -438,15 +360,88 @@
           </div>
         </div>
         <p v-else-if="!generatingKey" class="setting-desc" style="margin-top: 0.5rem">No API keys yet.</p>
+
+        <h3 style="margin-top: 2rem">Tags</h3>
+        <p class="setting-desc">Create custom tags to organize and filter your coins.</p>
+
+        <div class="tag-create-form">
+          <input
+            v-model="newTagName"
+            type="text"
+            class="form-input"
+            placeholder="New tag name..."
+            maxlength="50"
+            @keydown.enter="handleCreateTag"
+          />
+          <div class="tag-color-picker">
+            <button
+              v-for="c in TAG_COLORS"
+              :key="c"
+              class="color-swatch"
+              :class="{ active: newTagColor === c }"
+              :style="{ backgroundColor: c }"
+              @click="newTagColor = c"
+            ></button>
+          </div>
+          <button class="btn btn-primary btn-sm" @click="handleCreateTag" :disabled="!newTagName.trim()">Create Tag</button>
+        </div>
+        <p v-if="tagError" class="tag-error">{{ tagError }}</p>
+
+        <div v-if="tagList.length" class="tag-list">
+          <div v-for="tag in tagList" :key="tag.id" class="tag-list-item">
+            <template v-if="editingTag?.id === tag.id">
+              <input v-model="editTagName" class="form-input tag-edit-input" maxlength="50" @keydown.enter="handleSaveTag" />
+              <div class="tag-color-picker">
+                <button
+                  v-for="c in TAG_COLORS"
+                  :key="c"
+                  class="color-swatch sm"
+                  :class="{ active: editTagColor === c }"
+                  :style="{ backgroundColor: c }"
+                  @click="editTagColor = c"
+                ></button>
+              </div>
+              <button class="btn btn-primary btn-sm" @click="handleSaveTag">Save</button>
+              <button class="btn btn-secondary btn-sm" @click="editingTag = null">Cancel</button>
+            </template>
+            <template v-else>
+              <span class="tag-preview" :style="{ backgroundColor: tag.color + '22', color: tag.color, borderColor: tag.color + '44' }">{{ tag.name }}</span>
+              <div class="tag-actions">
+                <button class="btn btn-secondary btn-sm" @click="startEditTag(tag)">Edit</button>
+                <button class="btn btn-danger btn-sm" @click="handleDeleteTag(tag)">Delete</button>
+              </div>
+            </template>
+          </div>
+        </div>
+        <p v-else class="empty-tags">No tags created yet. Create your first tag above.</p>
       </section>
 
-      <!-- Process Tab -->
-      <section v-if="activeTab === 'process'" class="settings-section card">
+      <!-- Tools Tab -->
+      <section v-if="activeTab === 'tools'" class="settings-section card">
         <h2>Image Processor</h2>
         <p class="setting-desc" style="margin-bottom: 1rem">
           Remove backgrounds and crop coin images for your collection.
         </p>
         <ImageProcessor @saved="handleProcessSaved" />
+
+        <h3 style="margin-top: 2rem">Blocked Users</h3>
+        <p class="setting-desc" style="margin-bottom: 0.75rem">
+          Blocked users cannot send you follow requests or view your collection.
+        </p>
+        <div v-if="blockedUsers.length" class="apikey-list">
+          <div v-for="user in blockedUsers" :key="user.id" class="apikey-item">
+            <div class="apikey-item-info" style="display: flex; align-items: center; gap: 0.5rem;">
+              <img
+                :src="user.avatarPath ? `/uploads/${user.avatarPath}` : '/coin-logo.jpg'"
+                :alt="user.username"
+                style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border-subtle);"
+              />
+              <span class="apikey-item-name">{{ user.username }}</span>
+            </div>
+            <button class="btn btn-secondary btn-sm" :disabled="blockedLoading" @click="handleUnblock(user)">Unblock</button>
+          </div>
+        </div>
+        <p v-else class="setting-desc" style="margin-top: 0.5rem">No blocked users.</p>
       </section>
 
       <!-- Conversations Tab -->
@@ -798,15 +793,13 @@ import { useDialog } from '@/composables/useDialog'
 import type { Coin, Theme, ApiKey, WebAuthnCredentialInfo, Tag } from '@/types'
 import CoinSearchChat from '@/components/CoinSearchChat.vue'
 import ImageProcessor from '@/components/ImageProcessor.vue'
-import { User, Palette, Database, MessageSquare, HelpCircle, Scissors, Menu, ShieldOff, ShieldCheck, Tags } from 'lucide-vue-next'
+import { User, Palette, Database, MessageSquare, HelpCircle, Wrench, Menu, ShieldCheck, Tags } from 'lucide-vue-next'
 
 const tabIcons: Record<string, Component> = {
   account: User,
-  blocked: ShieldOff,
   appearance: Palette,
-  tags: Tags,
   data: Database,
-  process: Scissors,
+  tools: Wrench,
   conversations: MessageSquare,
   help: HelpCircle,
   admin: ShieldCheck,
@@ -825,11 +818,9 @@ const auth = useAuthStore()
 const baseTabs = [
   { id: 'account', label: 'Account' },
   { id: 'appearance', label: 'Appearance' },
-  { id: 'tags', label: 'Tags' },
   { id: 'data', label: 'Data' },
-  { id: 'process', label: 'Process' },
+  { id: 'tools', label: 'Tools' },
   { id: 'conversations', label: 'Conversations' },
-  { id: 'blocked', label: 'Blocked' },
   { id: 'help', label: 'Help' },
 ]
 const tabs = computed(() => {
@@ -838,11 +829,9 @@ const tabs = computed(() => {
       { id: 'account', label: 'Account' },
       { id: 'admin', label: 'Admin' },
       { id: 'appearance', label: 'Appearance' },
-      { id: 'tags', label: 'Tags' },
       { id: 'data', label: 'Data' },
-      { id: 'process', label: 'Process' },
+      { id: 'tools', label: 'Tools' },
       { id: 'conversations', label: 'Conversations' },
-      { id: 'blocked', label: 'Blocked' },
       { id: 'help', label: 'Help' },
     ]
   }
@@ -1823,6 +1812,11 @@ onMounted(() => {
 }
 
 /* Help Section */
+.help-section {
+  overflow: hidden;
+  min-width: 0;
+}
+
 .help-section h2 {
   margin-bottom: 0.5rem;
 }
@@ -1935,8 +1929,7 @@ onMounted(() => {
   border-collapse: collapse;
   margin: 0.75rem 0;
   font-size: 0.85rem;
-  display: block;
-  overflow-x: auto;
+  table-layout: fixed;
 }
 
 .help-table th,
@@ -1944,7 +1937,8 @@ onMounted(() => {
   padding: 0.5rem 0.65rem;
   text-align: left;
   border-bottom: 1px solid var(--border-subtle);
-  word-break: break-word;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .help-table th {

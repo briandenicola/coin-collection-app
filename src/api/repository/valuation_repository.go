@@ -24,7 +24,7 @@ func (r *ValuationRepository) CreateRun(run *models.ValuationRun) error {
 
 // CompleteRun updates a run's stats and completion timestamp.
 func (r *ValuationRepository) CompleteRun(run *models.ValuationRun) error {
-	return r.db.Model(run).Updates(map[string]interface{}{
+	err := r.db.Model(run).Updates(map[string]interface{}{
 		"status":         run.Status,
 		"coins_checked":  run.CoinsChecked,
 		"coins_updated":  run.CoinsUpdated,
@@ -34,6 +34,10 @@ func (r *ValuationRepository) CompleteRun(run *models.ValuationRun) error {
 		"completed_at":   run.CompletedAt,
 		"error_message":  run.ErrorMessage,
 	}).Error
+	if err == nil {
+		r.PruneOldRuns(100)
+	}
+	return err
 }
 
 // AddResult inserts a single valuation result.
@@ -114,4 +118,24 @@ func (r *ValuationRepository) GetUsersWithOwnedCoins() ([]uint, error) {
 		Distinct("user_id").
 		Pluck("user_id", &userIDs).Error
 	return userIDs, err
+}
+
+// PruneOldRuns keeps only the most recent `keep` runs, deleting older runs and their results.
+func (r *ValuationRepository) PruneOldRuns(keep int) {
+	var count int64
+	r.db.Model(&models.ValuationRun{}).Count(&count)
+	if count <= int64(keep) {
+		return
+	}
+
+	var cutoffRun models.ValuationRun
+	if err := r.db.Order("started_at DESC").Offset(keep).Limit(1).First(&cutoffRun).Error; err != nil {
+		return
+	}
+
+	// Delete results for old runs, then the runs themselves
+	r.db.Where("run_id IN (?)",
+		r.db.Model(&models.ValuationRun{}).Select("id").Where("started_at <= ?", cutoffRun.StartedAt),
+	).Delete(&models.ValuationResult{})
+	r.db.Where("started_at <= ?", cutoffRun.StartedAt).Delete(&models.ValuationRun{})
 }

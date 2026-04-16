@@ -22,7 +22,7 @@ func (r *AvailabilityRepository) CreateRun(run *models.AvailabilityRun) error {
 
 // CompleteRun updates a run's stats and completion timestamp.
 func (r *AvailabilityRepository) CompleteRun(run *models.AvailabilityRun) error {
-	return r.db.Model(run).Updates(map[string]interface{}{
+	err := r.db.Model(run).Updates(map[string]interface{}{
 		"coins_checked": run.CoinsChecked,
 		"available":     run.Available,
 		"unavailable":   run.Unavailable,
@@ -31,6 +31,10 @@ func (r *AvailabilityRepository) CompleteRun(run *models.AvailabilityRun) error 
 		"duration_ms":   run.DurationMs,
 		"completed_at":  run.CompletedAt,
 	}).Error
+	if err == nil {
+		r.PruneOldRuns(100)
+	}
+	return err
 }
 
 // CreateResult inserts a single availability check result.
@@ -79,4 +83,24 @@ func (r *AvailabilityRepository) GetRunWithResults(runID uint) (*models.Availabi
 		return nil, err
 	}
 	return &run, nil
+}
+
+// PruneOldRuns keeps only the most recent `keep` runs, deleting older runs and their results.
+func (r *AvailabilityRepository) PruneOldRuns(keep int) {
+	var count int64
+	r.db.Model(&models.AvailabilityRun{}).Count(&count)
+	if count <= int64(keep) {
+		return
+	}
+
+	var cutoffRun models.AvailabilityRun
+	if err := r.db.Order("started_at DESC").Offset(keep).Limit(1).First(&cutoffRun).Error; err != nil {
+		return
+	}
+
+	// Delete results for old runs, then the runs themselves
+	r.db.Where("run_id IN (?)",
+		r.db.Model(&models.AvailabilityRun{}).Select("id").Where("started_at <= ?", cutoffRun.StartedAt),
+	).Delete(&models.AvailabilityResult{})
+	r.db.Where("started_at <= ?", cutoffRun.StartedAt).Delete(&models.AvailabilityRun{})
 }
