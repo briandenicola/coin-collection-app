@@ -341,8 +341,8 @@ async function handleCreateEvent() {
     const data: Record<string, string | undefined> = {
       title: newEvent.value.title.trim(),
       auctionHouse: newEvent.value.auctionHouse.trim() || undefined,
-      startDate: newEvent.value.startDate || undefined,
-      endDate: newEvent.value.endDate || undefined,
+      startDate: newEvent.value.startDate ? newEvent.value.startDate + 'T00:00:00Z' : undefined,
+      endDate: newEvent.value.endDate ? newEvent.value.endDate + 'T00:00:00Z' : undefined,
       url: newEvent.value.url.trim() || undefined,
       notes: newEvent.value.notes.trim() || undefined
     }
