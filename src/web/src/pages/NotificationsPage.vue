@@ -69,9 +69,11 @@ import {
   markAllNotificationsRead,
   deleteNotification,
 } from '@/api/client'
+import { useNotifications } from '@/composables/useNotifications'
 import type { Notification } from '@/types'
 
 const router = useRouter()
+const { refresh: refreshBadge } = useNotifications()
 const notifications = ref<Notification[]>([])
 const total = ref(0)
 const page = ref(1)
@@ -105,6 +107,7 @@ async function handleClick(n: Notification) {
   if (!n.isRead) {
     await markNotificationRead(n.id)
     n.isRead = true
+    refreshBadge()
   }
 
   if (n.type === 'wishlist_unavailable' && n.referenceId) {
@@ -117,12 +120,14 @@ async function handleClick(n: Notification) {
 async function handleMarkAllRead() {
   await markAllNotificationsRead()
   notifications.value.forEach((n) => (n.isRead = true))
+  refreshBadge()
 }
 
 async function handleDelete(id: number) {
   await deleteNotification(id)
   notifications.value = notifications.value.filter((n) => n.id !== id)
   total.value = Math.max(0, total.value - 1)
+  refreshBadge()
 }
 
 function formatTime(iso: string): string {

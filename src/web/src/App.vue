@@ -139,7 +139,8 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
 import { Landmark, Bookmark, BadgeDollarSign, BarChart3, CirclePlus, Settings, ShieldCheck, LogOut, Users as UsersIcon, Clock, Bot, Gavel, X, Bell, CalendarDays, Share2 } from 'lucide-vue-next'
-import { updateProfile, getMe, getUnreadNotificationCount } from '@/api/client'
+import { updateProfile, getMe } from '@/api/client'
+import { useNotifications } from '@/composables/useNotifications'
 import CoinSearchChat from '@/components/CoinSearchChat.vue'
 import AppDialog from '@/components/AppDialog.vue'
 import PwaInstallPrompt from '@/components/PwaInstallPrompt.vue'
@@ -153,23 +154,11 @@ const showChat = ref(false)
 const sidebarOpen = ref(false)
 const showEmailPrompt = ref(false)
 const promptEmail = ref('')
-const unreadCount = ref(0)
-let notifPollTimer: ReturnType<typeof setInterval> | null = null
-
-async function pollUnreadCount() {
-  if (!auth.isAuthenticated) return
-  try {
-    const res = await getUnreadNotificationCount()
-    unreadCount.value = res.data.count
-  } catch {
-    // Silently ignore — poll will retry
-  }
-}
+const { unreadCount, startPolling, stopPolling } = useNotifications()
 
 onMounted(async () => {
   if (auth.isAuthenticated) {
-    pollUnreadCount()
-    notifPollTimer = setInterval(pollUnreadCount, 60_000)
+    startPolling()
     try {
       const res = await getMe()
       if (res.data.emailMissing) {
@@ -197,13 +186,13 @@ async function savePromptEmail() {
 }
 
 function handleLogout() {
-  if (notifPollTimer) clearInterval(notifPollTimer)
+  stopPolling()
   auth.logout()
   router.push('/login')
 }
 
 onUnmounted(() => {
-  if (notifPollTimer) clearInterval(notifPollTimer)
+  stopPolling()
 })
 </script>
 
