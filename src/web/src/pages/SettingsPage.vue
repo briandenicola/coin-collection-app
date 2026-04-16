@@ -945,7 +945,7 @@ async function handleSaveTag() {
 }
 
 async function handleDeleteTag(tag: Tag) {
-  const confirmed = await showConfirm(`Delete tag "${tag.name}"? It will be removed from all coins.`, 'Delete Tag')
+  const confirmed = await showConfirm(`Delete tag "${tag.name}"? It will be removed from all coins.`, { title: 'Delete Tag', variant: 'danger' })
   if (!confirmed) return
   try {
     await deleteTag(tag.id)
