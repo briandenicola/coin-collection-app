@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/briandenicola/ancient-coins-api/models"
 	"github.com/briandenicola/ancient-coins-api/repository"
@@ -255,6 +256,53 @@ func (h *AuctionLotHandler) UpdateStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, lot)
 }
 
+// LinkEventRequest holds the event ID to associate with a lot.
+type LinkEventRequest struct {
+	EventID *uint `json:"eventId"`
+}
+
+// LinkEvent associates or disassociates an auction lot with a calendar event.
+//
+//	@Summary		Link lot to calendar event
+//	@Description	Sets or clears the calendar event association for an auction lot.
+//	@Tags			Auctions
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		int					true	"Auction lot ID"
+//	@Param			body	body		LinkEventRequest	true	"Event ID (null to unlink)"
+//	@Success		200		{object}	models.AuctionLot
+//	@Failure		400		{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/auctions/{id}/event [put]
+func (h *AuctionLotHandler) LinkEvent(c *gin.Context) {
+	userID := c.GetUint("userId")
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
+		return
+	}
+
+	lot, err := h.repo.GetByID(uint(id), userID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Auction lot not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get auction lot"})
+		return
+	}
+
+	var req LinkEventRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+
+	h.repo.UpdateFields(lot, map[string]interface{}{"event_id": req.EventID})
+	updated, _ := h.repo.GetByID(uint(id), userID)
+	c.JSON(http.StatusOK, updated)
+}
+
 // ConvertToCoin creates an owned Coin from a won auction lot.
 //
 //	@Summary		Convert won lot to coin
@@ -423,14 +471,18 @@ func (h *AuctionLotHandler) SyncWatchlist(c *gin.Context) {
 	parsed := h.nbSvc.ParseWatchlist(rawHTML)
 
 	var synced []models.AuctionLot
+	now := time.Now()
+
 	for _, wl := range parsed {
-		// Scrape the lot page for image, auction house, sale name, current bid, lot number
+		// Scrape the lot page for image, auction house, sale name, current bid, lot number, description, sale date
 		if details, err := h.nbSvc.ScrapeLotPage(wl.URL); err == nil {
 			if details.ImageURL != "" {
 				wl.ImageURL = details.ImageURL
 			}
 			wl.AuctionHouse = details.AuctionHouse
 			wl.SaleName = details.SaleName
+			wl.SaleDate = details.SaleDate
+			wl.Description = details.Description
 			wl.CurrentBid = details.CurrentBid
 			if details.Currency != "" {
 				wl.Currency = details.Currency
@@ -442,18 +494,30 @@ func (h *AuctionLotHandler) SyncWatchlist(c *gin.Context) {
 			log.Printf("Could not scrape lot page for %s: %v", wl.URL, err)
 		}
 
+		// Determine status: mark as passed if sale date is in the past
+		status := models.AuctionStatusWatching
+		var saleDate *time.Time
+		if wl.SaleDate != "" {
+			saleDate = services.ParseSaleDate(wl.SaleDate)
+			if saleDate != nil && saleDate.Before(now) {
+				status = models.AuctionStatusPassed
+			}
+		}
+
 		lot := models.AuctionLot{
 			NumisBidsURL: wl.URL,
 			SaleID:       wl.SaleID,
 			LotNumber:    wl.LotNumber,
 			Title:        wl.Title,
+			Description:  wl.Description,
 			ImageURL:     wl.ImageURL,
 			Estimate:     wl.Estimate,
 			CurrentBid:   wl.CurrentBid,
 			Currency:     wl.Currency,
 			AuctionHouse: wl.AuctionHouse,
 			SaleName:     wl.SaleName,
-			Status:       models.AuctionStatusWatching,
+			SaleDate:     saleDate,
+			Status:       status,
 			UserID:       userID,
 		}
 		if lot.Currency == "" {
@@ -469,6 +533,9 @@ func (h *AuctionLotHandler) SyncWatchlist(c *gin.Context) {
 			synced = append(synced, *upserted)
 		}
 	}
+
+	// Also mark any existing watching lots whose sale date has passed
+	h.repo.MarkPastAuctionsAsPassed(userID, now)
 
 	c.JSON(http.StatusOK, gin.H{"synced": len(synced), "lots": synced})
 }

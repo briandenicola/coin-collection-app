@@ -429,6 +429,7 @@ export const getCalendar = (start?: string, end?: string) => {
   if (end) params.end = end
   return api.get('/calendar', { params })
 }
+export const listCalendarEvents = () => api.get<{ events: Array<{ id: number; title: string; auctionHouse: string; startDate: string | null }> }>('/calendar/events')
 export const createCalendarEvent = (data: { title: string; auctionHouse?: string; startDate?: string; endDate?: string; url?: string; notes?: string }) => api.post('/calendar/events', data)
 export const updateCalendarEvent = (id: number, data: Record<string, unknown>) => api.put(`/calendar/events/${id}`, data)
 export const deleteCalendarEvent = (id: number) => api.delete(`/calendar/events/${id}`)
@@ -474,6 +475,7 @@ export const getAuctionLotCounts = () =>
 export const updateAuctionLotStatus = (id: number, status: string, maxBid?: number | null) => api.put<AuctionLot>(`/auctions/${id}/status`, { status, ...(maxBid != null ? { maxBid } : {}) })
 export const convertAuctionLotToCoin = (id: number) => api.post<Coin>(`/auctions/${id}/convert`)
 export const deleteAuctionLot = (id: number) => api.delete(`/auctions/${id}`)
+export const linkAuctionLotEvent = (id: number, eventId: number | null) => api.put<AuctionLot>(`/auctions/${id}/event`, { eventId })
 export const importAuctionLot = (data: { url: string; title?: string; description?: string; auctionHouse?: string; saleName?: string; category?: string; imageUrl?: string; estimate?: number | null; currentBid?: number | null; currency?: string }) =>
   api.post<AuctionLot>('/auctions/import', data)
 export const syncNumisBidsWatchlist = () =>

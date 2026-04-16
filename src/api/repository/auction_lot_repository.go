@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"time"
+
 	"github.com/briandenicola/ancient-coins-api/models"
 	"gorm.io/gorm"
 )
@@ -152,8 +154,21 @@ func (r *AuctionLotRepository) Upsert(lot *models.AuctionLot) error {
 		"image_url":     lot.ImageURL,
 		"auction_house": lot.AuctionHouse,
 		"sale_name":     lot.SaleName,
+		"sale_date":     lot.SaleDate,
 		"currency":      lot.Currency,
 		"lot_number":    lot.LotNumber,
 	}
+	// Only update status if the lot is being marked as passed (don't overwrite bidding/won/lost)
+	if lot.Status == models.AuctionStatusPassed && existing.Status == models.AuctionStatusWatching {
+		updates["status"] = string(models.AuctionStatusPassed)
+	}
 	return r.UpdateFields(existing, updates)
+}
+
+// MarkPastAuctionsAsPassed updates all "watching" lots for a user where sale_date is before now.
+func (r *AuctionLotRepository) MarkPastAuctionsAsPassed(userID uint, now time.Time) {
+	r.db.Model(&models.AuctionLot{}).
+		Where("user_id = ? AND status = ? AND sale_date IS NOT NULL AND sale_date < ?",
+			userID, models.AuctionStatusWatching, now).
+		Update("status", string(models.AuctionStatusPassed))
 }

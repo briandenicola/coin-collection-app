@@ -122,6 +122,24 @@
               step="1"
             />
           </div>
+          <div class="action-row event-link-row">
+            <label class="detail-label"><CalendarDays :size="14" /> Calendar Event</label>
+            <div class="event-link-controls">
+              <select v-model="selectedEventId" class="form-input event-select">
+                <option value="">None</option>
+                <option v-for="evt in calendarEvents" :key="evt.id" :value="evt.id">
+                  {{ evt.title }}
+                </option>
+              </select>
+              <button
+                class="btn btn-secondary btn-sm"
+                @click="linkEvent"
+                :disabled="(selectedEventId === '' ? null : Number(selectedEventId)) === (selectedLot?.eventId ?? null)"
+              >
+                Link
+              </button>
+            </div>
+          </div>
           <div class="action-row">
             <a :href="selectedLot.numisBidsUrl" class="btn btn-primary" target="_blank" rel="noopener noreferrer">
               <ExternalLink :size="14" /> View on NumisBids
@@ -143,12 +161,12 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { getAuctionLots, getAuctionLotCounts, updateAuctionLotStatus, convertAuctionLotToCoin, deleteAuctionLot, syncNumisBidsWatchlist } from '@/api/client'
+import { getAuctionLots, getAuctionLotCounts, updateAuctionLotStatus, convertAuctionLotToCoin, deleteAuctionLot, syncNumisBidsWatchlist, listCalendarEvents, linkAuctionLotEvent } from '@/api/client'
 import type { AuctionLot, AuctionLotStatus } from '@/types'
 import AuctionLotCard from '@/components/AuctionLotCard.vue'
 import ImportLotModal from '@/components/ImportLotModal.vue'
 import PullToRefresh from '@/components/PullToRefresh.vue'
-import { Import, X, ExternalLink, ArrowRightCircle, Trash2, RefreshCw } from 'lucide-vue-next'
+import { Import, X, ExternalLink, ArrowRightCircle, Trash2, RefreshCw, CalendarDays } from 'lucide-vue-next'
 
 const router = useRouter()
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
@@ -160,9 +178,28 @@ const showImport = ref(false)
 const selectedLot = ref<AuctionLot | null>(null)
 const newStatus = ref<AuctionLotStatus>('watching')
 const maxBidInput = ref<number | null>(null)
-const activeStatus = ref('')
+const activeStatus = ref('bidding')
 const syncing = ref(false)
 const syncMessage = ref('')
+const calendarEvents = ref<Array<{ id: number; title: string; auctionHouse: string; startDate: string | null }>>([])
+const selectedEventId = ref<number | string>('')
+
+async function fetchCalendarEvents() {
+  try {
+    const res = await listCalendarEvents()
+    calendarEvents.value = res.data?.events ?? []
+  } catch { /* ignore */ }
+}
+
+async function linkEvent() {
+  if (!selectedLot.value) return
+  const eventId = selectedEventId.value === '' ? null : Number(selectedEventId.value)
+  try {
+    const res = await linkAuctionLotEvent(selectedLot.value.id, eventId)
+    selectedLot.value = res.data
+    fetchLots()
+  } catch { /* ignore */ }
+}
 
 const proxiedDetailImageUrl = computed(() => {
   if (!selectedLot.value?.imageUrl) return ''
@@ -211,6 +248,8 @@ function openLot(lot: AuctionLot) {
   selectedLot.value = lot
   newStatus.value = lot.status
   maxBidInput.value = lot.maxBid ?? null
+  selectedEventId.value = lot.eventId ?? ''
+  fetchCalendarEvents()
 }
 
 function handleImported() {
@@ -540,5 +579,32 @@ fetchAllCounts()
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(-4px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+.event-link-row {
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.event-link-row .detail-label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.event-link-controls {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.event-select {
+  flex: 1;
+  min-width: 160px;
+}
+
+.btn-sm {
+  padding: 0.35rem 0.7rem;
+  font-size: 0.8rem;
 }
 </style>

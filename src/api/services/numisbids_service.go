@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"golang.org/x/net/html"
 )
@@ -42,6 +43,8 @@ type WatchlistLot struct {
 	Currency     string   `json:"currency"`
 	AuctionHouse string   `json:"auctionHouse"`
 	SaleName     string   `json:"saleName"`
+	SaleDate     string   `json:"saleDate"`
+	Description  string   `json:"description"`
 }
 
 // NumisBidsService handles HTTP interactions with numisbids.com.
@@ -133,16 +136,21 @@ type LotPageDetails struct {
 	ImageURL     string
 	AuctionHouse string
 	SaleName     string
+	SaleDate     string // raw date text, e.g. "20-21 Apr 2026"
 	LotNumber    int
 	CurrentBid   *float64
 	Currency     string
+	Description  string
 }
 
 var (
 	houseNameRe  = regexp.MustCompile(`<span class="name">(.*?)</span>`)
 	saleNameRe   = regexp.MustCompile(`<span class="name">.*?</span>\s*(?:<br\s*/?>)\s*<b>(.*?)</b>`)
+	saleDateRe   = regexp.MustCompile(`</b>\s*(?:&nbsp;)+\s*(\d{1,2}(?:-\d{1,2})?\s+\w+\s+\d{4})`)
 	currentBidRe = regexp.MustCompile(`(?i)Current\s+bid:\s*([\d,]+(?:\.\d+)?\s*\w+)`)
 	lotNumberRe  = regexp.MustCompile(`(?i)<div class="left">Lot\s+(\d+)`)
+	// Matches the coin description div — the one after the watchnote div, containing the actual lot text
+	descriptionRe = regexp.MustCompile(`(?s)<div class="description"><b>(.*?)</b>(.*?)</div>`)
 )
 
 // ScrapeLotImage fetches a NumisBids lot page and extracts the og:image URL.
@@ -199,6 +207,11 @@ func (s *NumisBidsService) ScrapeLotPage(lotURL string) (*LotPageDetails, error)
 		details.SaleName = cleanHTML(match[1])
 	}
 
+	// Sale date: appears after </b>&nbsp;&nbsp;20-21 Apr 2026
+	if match := saleDateRe.FindStringSubmatch(html); match != nil {
+		details.SaleDate = strings.TrimSpace(match[1])
+	}
+
 	// Current bid
 	if match := currentBidRe.FindStringSubmatch(html); match != nil {
 		val, cur := parseCurrencyValue(match[1])
@@ -211,6 +224,18 @@ func (s *NumisBidsService) ScrapeLotPage(lotURL string) (*LotPageDetails, error)
 	// Lot number from detail page: <div class="left">Lot 15<br>
 	if match := lotNumberRe.FindStringSubmatch(html); match != nil {
 		details.LotNumber, _ = strconv.Atoi(match[1])
+	}
+
+	// Description: find all <div class="description"><b>...</b>...</div> blocks,
+	// use the last one (earlier matches are postbid/watchnote containers)
+	if matches := descriptionRe.FindAllStringSubmatch(html, -1); len(matches) > 0 {
+		last := matches[len(matches)-1]
+		desc := cleanHTML(last[1] + last[2])
+		desc = strings.TrimSpace(desc)
+		if len(desc) > 2000 {
+			desc = desc[:2000]
+		}
+		details.Description = desc
 	}
 
 	return details, nil
@@ -348,4 +373,34 @@ func cleanHTML(s string) string {
 	text := result.String()
 	text = strings.Join(strings.Fields(text), " ")
 	return strings.TrimSpace(text)
+}
+
+// ParseSaleDate attempts to parse a NumisBids sale date string like
+// "20-21 Apr 2026" or "5 May 2026" into a time.Time (using the last date if a range).
+func ParseSaleDate(raw string) *time.Time {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil
+	}
+
+	// If it's a range like "20-21 Apr 2026", take the end date
+	parts := strings.SplitN(raw, " ", 2)
+	if len(parts) < 2 {
+		return nil
+	}
+	dayPart := parts[0]
+	rest := parts[1] // "Apr 2026"
+
+	// Handle range: take the last day number
+	if idx := strings.LastIndex(dayPart, "-"); idx >= 0 {
+		dayPart = dayPart[idx+1:]
+	}
+
+	dateStr := dayPart + " " + rest
+	for _, layout := range []string{"2 Jan 2006", "2 January 2006"} {
+		if t, err := time.Parse(layout, dateStr); err == nil {
+			return &t
+		}
+	}
+	return nil
 }

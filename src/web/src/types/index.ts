@@ -339,6 +339,7 @@ export interface AuctionLot {
   imageUrl: string
   coinId: number | null
   coin?: Coin
+  eventId: number | null
   userId: number
   createdAt: string
   updatedAt: string

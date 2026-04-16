@@ -32,6 +32,8 @@ type AuctionLot struct {
 	ImageURL     string           `json:"imageUrl"`
 	CoinID       *uint            `json:"coinId"`
 	Coin         *Coin            `gorm:"foreignKey:CoinID" json:"coin,omitempty"`
+	EventID      *uint            `json:"eventId"`
+	Event        *AuctionEvent    `gorm:"foreignKey:EventID" json:"event,omitempty"`
 	UserID       uint             `gorm:"not null" json:"userId"`
 	User         User             `gorm:"foreignKey:UserID" json:"-"`
 	CreatedAt    time.Time        `json:"createdAt"`

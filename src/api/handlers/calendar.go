@@ -100,6 +100,17 @@ func (h *CalendarHandler) GetCalendar(c *gin.Context) {
 	})
 }
 
+// ListEvents returns all calendar events for the authenticated user.
+func (h *CalendarHandler) ListEvents(c *gin.Context) {
+	userID := c.GetUint("userId")
+	events, err := h.eventRepo.ListByUser(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to list events"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"events": events})
+}
+
 // CreateEvent creates a new auction event.
 func (h *CalendarHandler) CreateEvent(c *gin.Context) {
 	userID := c.GetUint("userId")
