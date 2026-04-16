@@ -52,6 +52,7 @@ type AvailabilityService struct {
 	coinRepo   *repository.CoinRepository
 	availRepo  *repository.AvailabilityRepository
 	agentProxy *AgentProxy
+	notifSvc   *NotificationService
 	logger     *Logger
 }
 
@@ -60,11 +61,13 @@ func NewAvailabilityService(
 	coinRepo *repository.CoinRepository,
 	availRepo *repository.AvailabilityRepository,
 	agentProxy *AgentProxy,
+	notifSvc *NotificationService,
 ) *AvailabilityService {
 	return &AvailabilityService{
 		coinRepo:   coinRepo,
 		availRepo:  availRepo,
 		agentProxy: agentProxy,
+		notifSvc:   notifSvc,
 		logger:     AppLogger,
 	}
 }
@@ -233,6 +236,11 @@ func (s *AvailabilityService) CheckWishlistForUser(
 		// Update coin's listing status
 		if err := s.coinRepo.UpdateListingStatus(cr.coin.ID, cr.dbResult.Status, cr.dbResult.Reason, time.Now()); err != nil {
 			s.logger.Error("availability", "Failed to update listing status for coin %d: %s", cr.coin.ID, err)
+		}
+
+		// Notify user when a coin newly becomes unavailable
+		if cr.dbResult.Status == "unavailable" && cr.coin.ListingStatus != "unavailable" && s.notifSvc != nil {
+			s.notifSvc.NotifyWishlistUnavailable(userID, cr.coin, cr.dbResult.Reason)
 		}
 	}
 

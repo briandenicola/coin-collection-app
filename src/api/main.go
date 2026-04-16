@@ -139,12 +139,15 @@ func main() {
 	agentProxy := services.NewAgentProxy(cfg.AgentServiceURL)
 	availRepo := repository.NewAvailabilityRepository(database.DB)
 	coinRepo := repository.NewCoinRepository(database.DB)
-	availSvc := services.NewAvailabilityService(coinRepo, availRepo, agentProxy)
+	socialRepo := repository.NewSocialRepository(database.DB)
+	notifRepo := repository.NewNotificationRepository(database.DB)
+	notifSvc := services.NewNotificationService(notifRepo, socialRepo)
+	availSvc := services.NewAvailabilityService(coinRepo, availRepo, agentProxy, notifSvc)
 
 	protected := api.Group("")
 	protected.Use(middleware.AuthRequired(cfg.JWTSecret, database.DB))
 	{
-		coinSvc := services.NewCoinService(coinRepo)
+		coinSvc := services.NewCoinService(coinRepo, notifSvc)
 		coinHandler := handlers.NewCoinHandler(coinRepo, coinSvc)
 		protected.GET("/coins", coinHandler.List)
 		protected.GET("/coins/:id", coinHandler.Get)
@@ -235,7 +238,6 @@ func main() {
 		protected.POST("/user/import", userHandler.ImportCollection)
 
 		// Social routes
-		socialRepo := repository.NewSocialRepository(database.DB)
 		socialSvc := services.NewSocialService(socialRepo)
 		socialHandler := handlers.NewSocialHandler(socialRepo, socialSvc)
 		protected.POST("/social/follow/:userId", socialHandler.FollowUser)
@@ -255,6 +257,14 @@ func main() {
 		protected.DELETE("/social/coins/:coinId/comments/:commentId", socialHandler.DeleteComment)
 		protected.PUT("/social/coins/:coinId/rating", socialHandler.RateCoin)
 		protected.GET("/social/coins/:coinId/rating", socialHandler.GetCoinRating)
+
+		// Notification routes
+		notifHandler := handlers.NewNotificationHandler(notifRepo)
+		protected.GET("/notifications", notifHandler.List)
+		protected.GET("/notifications/unread-count", notifHandler.UnreadCount)
+		protected.PUT("/notifications/:id/read", notifHandler.MarkRead)
+		protected.PUT("/notifications/read-all", notifHandler.MarkAllRead)
+		protected.DELETE("/notifications/:id", notifHandler.Delete)
 
 		// API key management
 		apiKeyRepo := repository.NewApiKeyRepository(database.DB)

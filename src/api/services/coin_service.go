@@ -10,12 +10,13 @@ import (
 
 // CoinService handles coin business logic and orchestrates repository calls.
 type CoinService struct {
-	repo *repository.CoinRepository
+	repo     *repository.CoinRepository
+	notifSvc *NotificationService
 }
 
 // NewCoinService creates a new CoinService.
-func NewCoinService(repo *repository.CoinRepository) *CoinService {
-	return &CoinService{repo: repo}
+func NewCoinService(repo *repository.CoinRepository, notifSvc *NotificationService) *CoinService {
+	return &CoinService{repo: repo, notifSvc: notifSvc}
 }
 
 // CreateCoin creates a coin and records a value snapshot.
@@ -24,6 +25,12 @@ func (s *CoinService) CreateCoin(coin *models.Coin) error {
 		return err
 	}
 	s.repo.RecordValueSnapshot(coin.UserID)
+
+	// Notify followers about the new coin (async to avoid slowing the response)
+	if s.notifSvc != nil {
+		go s.notifSvc.NotifyNewCoin(coin.UserID, *coin)
+	}
+
 	return nil
 }
 

@@ -379,3 +379,22 @@ export interface AvailabilityRun {
   results?: AvailabilityResult[]
   createdAt: string
 }
+
+export interface Notification {
+  id: number
+  userId: number
+  type: 'wishlist_unavailable' | 'friend_new_coin'
+  title: string
+  message: string
+  referenceId: number
+  referenceUrl?: string
+  isRead: boolean
+  createdAt: string
+}
+
+export interface NotificationListResponse {
+  notifications: Notification[]
+  total: number
+  page: number
+  limit: number
+}

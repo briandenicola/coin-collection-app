@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Coin, CoinListResponse, CoinImage, AuthResponse, StatsResponse, UserInfo, AppSettings, LogEntry, ApiKey, WebAuthnCredentialInfo, ValueSnapshot, CoinJournal, NumistaSearchResponse, AgentChatMessage, AgentChatResponse, CoinSuggestion, FollowUser, PublicProfile, CoinComment, CoinRating, LimitedCoin, ValueEstimate, CoinValueHistory, PortfolioSummary, AuctionLot, AuctionLotListResponse, AvailabilityRunSummary, AvailabilityRun } from '@/types'
+import type { Coin, CoinListResponse, CoinImage, AuthResponse, StatsResponse, UserInfo, AppSettings, LogEntry, ApiKey, WebAuthnCredentialInfo, ValueSnapshot, CoinJournal, NumistaSearchResponse, AgentChatMessage, AgentChatResponse, CoinSuggestion, FollowUser, PublicProfile, CoinComment, CoinRating, LimitedCoin, ValueEstimate, CoinValueHistory, PortfolioSummary, AuctionLot, AuctionLotListResponse, AvailabilityRunSummary, AvailabilityRun, Notification, NotificationListResponse } from '@/types'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
@@ -443,5 +443,17 @@ export const getAvailabilityRuns = (page = 1, limit = 20) =>
   api.get<{ runs: AvailabilityRun[]; total: number }>('/admin/availability-runs', { params: { page, limit } })
 export const getAvailabilityRunDetail = (runId: number) =>
   api.get<AvailabilityRun>(`/admin/availability-runs/${runId}`)
+
+// Notifications
+export const getNotifications = (page = 1, limit = 20) =>
+  api.get<NotificationListResponse>('/notifications', { params: { page, limit } })
+export const getUnreadNotificationCount = () =>
+  api.get<{ count: number }>('/notifications/unread-count')
+export const markNotificationRead = (id: number) =>
+  api.put(`/notifications/${id}/read`)
+export const markAllNotificationsRead = () =>
+  api.put('/notifications/read-all')
+export const deleteNotification = (id: number) =>
+  api.delete(`/notifications/${id}`)
 
 export default api

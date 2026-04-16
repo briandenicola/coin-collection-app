@@ -7,6 +7,10 @@
           <img src="/coin-logo.jpg" alt="Ancient Coins" class="nav-logo" />
           <span class="nav-title">Coin Collection</span>
         </button>
+        <router-link to="/notifications" class="nav-bell" aria-label="Notifications">
+          <Bell :size="20" />
+          <span v-if="unreadCount > 0" class="nav-bell-badge">{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
+        </router-link>
       </div>
     </nav>
 
@@ -61,6 +65,11 @@
           <router-link to="/timeline" class="sidebar-link" active-class="active" @click="sidebarOpen = false">
             <Clock :size="20" />
             <span>Timeline</span>
+          </router-link>
+          <router-link to="/notifications" class="sidebar-link" active-class="active" @click="sidebarOpen = false">
+            <Bell :size="20" />
+            <span>Notifications</span>
+            <span v-if="unreadCount > 0" class="sidebar-badge">{{ unreadCount }}</span>
           </router-link>
         </nav>
         <div class="sidebar-footer">
@@ -118,11 +127,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
-import { Landmark, Bookmark, BadgeDollarSign, BarChart3, CirclePlus, Settings, ShieldCheck, LogOut, Users as UsersIcon, Clock, Bot, Gavel, X } from 'lucide-vue-next'
-import { updateProfile, getMe } from '@/api/client'
+import { Landmark, Bookmark, BadgeDollarSign, BarChart3, CirclePlus, Settings, ShieldCheck, LogOut, Users as UsersIcon, Clock, Bot, Gavel, X, Bell } from 'lucide-vue-next'
+import { updateProfile, getMe, getUnreadNotificationCount } from '@/api/client'
 import CoinSearchChat from '@/components/CoinSearchChat.vue'
 import AppDialog from '@/components/AppDialog.vue'
 import PwaInstallPrompt from '@/components/PwaInstallPrompt.vue'
@@ -136,9 +145,23 @@ const showChat = ref(false)
 const sidebarOpen = ref(false)
 const showEmailPrompt = ref(false)
 const promptEmail = ref('')
+const unreadCount = ref(0)
+let notifPollTimer: ReturnType<typeof setInterval> | null = null
+
+async function pollUnreadCount() {
+  if (!auth.isAuthenticated) return
+  try {
+    const res = await getUnreadNotificationCount()
+    unreadCount.value = res.data.count
+  } catch {
+    // Silently ignore — poll will retry
+  }
+}
 
 onMounted(async () => {
   if (auth.isAuthenticated) {
+    pollUnreadCount()
+    notifPollTimer = setInterval(pollUnreadCount, 60_000)
     try {
       const res = await getMe()
       if (res.data.emailMissing) {
@@ -166,9 +189,14 @@ async function savePromptEmail() {
 }
 
 function handleLogout() {
+  if (notifPollTimer) clearInterval(notifPollTimer)
   auth.logout()
   router.push('/login')
 }
+
+onUnmounted(() => {
+  if (notifPollTimer) clearInterval(notifPollTimer)
+})
 </script>
 
 <style scoped>
@@ -231,6 +259,41 @@ function handleLogout() {
   color: var(--accent-gold);
   font-weight: 600;
   white-space: nowrap;
+}
+
+.nav-bell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  padding: 0.4rem;
+  border-radius: var(--radius-sm);
+  transition: color var(--transition-fast), background var(--transition-fast);
+  text-decoration: none;
+}
+
+.nav-bell:hover {
+  color: var(--accent-gold);
+  background: var(--accent-gold-glow);
+}
+
+.nav-bell-badge {
+  position: absolute;
+  top: 0;
+  right: -2px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--accent-gold);
+  color: var(--bg-primary);
+  font-size: 0.65rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }
 
 /* ── Sidebar ── */
@@ -324,6 +387,21 @@ function handleLogout() {
   color: var(--accent-gold);
   background: var(--accent-gold-glow);
   border-right: 3px solid var(--accent-gold);
+}
+
+.sidebar-badge {
+  margin-left: auto;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: var(--accent-gold);
+  color: var(--bg-primary);
+  font-size: 0.7rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .sidebar-footer {
