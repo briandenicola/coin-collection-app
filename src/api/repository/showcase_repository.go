@@ -80,10 +80,12 @@ func (r *ShowcaseRepository) SetCoins(showcaseID uint, userID uint, coinIDs []ui
 		}
 
 		// Verify all coins belong to user
-		var coinCount int64
-		tx.Model(&models.Coin{}).Where("id IN ? AND user_id = ?", coinIDs, userID).Count(&coinCount)
-		if int(coinCount) != len(coinIDs) {
-			return fmt.Errorf("one or more coins not found")
+		if len(coinIDs) > 0 {
+			var coinCount int64
+			tx.Model(&models.Coin{}).Where("id IN ? AND user_id = ?", coinIDs, userID).Count(&coinCount)
+			if int(coinCount) != len(coinIDs) {
+				return fmt.Errorf("one or more coins not found")
+			}
 		}
 
 		// Remove existing coins

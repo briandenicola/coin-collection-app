@@ -182,11 +182,14 @@ func (h *ShowcaseHandler) SetShowcaseCoins(c *gin.Context) {
 	}
 
 	var req struct {
-		CoinIDs []uint `json:"coinIds" binding:"required"`
+		CoinIDs []uint `json:"coinIds"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "coinIds is required"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
 		return
+	}
+	if req.CoinIDs == nil {
+		req.CoinIDs = []uint{}
 	}
 
 	if err := h.repo.SetCoins(uint(id), userID, req.CoinIDs); err != nil {
