@@ -19,7 +19,7 @@ func NewShowcaseHandler(repo *repository.ShowcaseRepository) *ShowcaseHandler {
 
 // ListShowcases returns all showcases for the current user.
 func (h *ShowcaseHandler) ListShowcases(c *gin.Context) {
-	userID := c.GetUint("userID")
+	userID := c.GetUint("userId")
 	showcases, err := h.repo.ListByUser(userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to list showcases"})
@@ -45,7 +45,7 @@ func (h *ShowcaseHandler) ListShowcases(c *gin.Context) {
 
 // GetShowcase returns a single showcase with its coins for the current user.
 func (h *ShowcaseHandler) GetShowcase(c *gin.Context) {
-	userID := c.GetUint("userID")
+	userID := c.GetUint("userId")
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid showcase ID"})
@@ -83,7 +83,7 @@ func (h *ShowcaseHandler) GetShowcase(c *gin.Context) {
 
 // CreateShowcase creates a new showcase.
 func (h *ShowcaseHandler) CreateShowcase(c *gin.Context) {
-	userID := c.GetUint("userID")
+	userID := c.GetUint("userId")
 
 	var req struct {
 		Title       string `json:"title" binding:"required"`
@@ -114,7 +114,7 @@ func (h *ShowcaseHandler) CreateShowcase(c *gin.Context) {
 
 // UpdateShowcase updates a showcase's metadata.
 func (h *ShowcaseHandler) UpdateShowcase(c *gin.Context) {
-	userID := c.GetUint("userID")
+	userID := c.GetUint("userId")
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid showcase ID"})
@@ -157,7 +157,7 @@ func (h *ShowcaseHandler) UpdateShowcase(c *gin.Context) {
 
 // DeleteShowcase deletes a showcase.
 func (h *ShowcaseHandler) DeleteShowcase(c *gin.Context) {
-	userID := c.GetUint("userID")
+	userID := c.GetUint("userId")
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid showcase ID"})
@@ -174,7 +174,7 @@ func (h *ShowcaseHandler) DeleteShowcase(c *gin.Context) {
 
 // SetShowcaseCoins sets the coins in a showcase (replaces all).
 func (h *ShowcaseHandler) SetShowcaseCoins(c *gin.Context) {
-	userID := c.GetUint("userID")
+	userID := c.GetUint("userId")
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid showcase ID"})

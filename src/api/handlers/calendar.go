@@ -21,7 +21,7 @@ func NewCalendarHandler(eventRepo *repository.AuctionEventRepository, auctionRep
 
 // GetCalendar returns auction lots and events in a date range.
 func (h *CalendarHandler) GetCalendar(c *gin.Context) {
-	userID := c.GetUint("userID")
+	userID := c.GetUint("userId")
 
 	startStr := c.Query("start")
 	endStr := c.Query("end")
@@ -102,7 +102,7 @@ func (h *CalendarHandler) GetCalendar(c *gin.Context) {
 
 // CreateEvent creates a new auction event.
 func (h *CalendarHandler) CreateEvent(c *gin.Context) {
-	userID := c.GetUint("userID")
+	userID := c.GetUint("userId")
 
 	var req struct {
 		Title        string     `json:"title" binding:"required"`
@@ -137,7 +137,7 @@ func (h *CalendarHandler) CreateEvent(c *gin.Context) {
 
 // UpdateEvent updates an auction event.
 func (h *CalendarHandler) UpdateEvent(c *gin.Context) {
-	userID := c.GetUint("userID")
+	userID := c.GetUint("userId")
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid event ID"})
@@ -192,7 +192,7 @@ func (h *CalendarHandler) UpdateEvent(c *gin.Context) {
 
 // DeleteEvent deletes an auction event.
 func (h *CalendarHandler) DeleteEvent(c *gin.Context) {
-	userID := c.GetUint("userID")
+	userID := c.GetUint("userId")
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid event ID"})

@@ -20,7 +20,7 @@ func NewAlertHandler(alertRepo *repository.PriceAlertRepository, reminderRepo *r
 
 // ListAlerts returns all price alerts for the current user.
 func (h *AlertHandler) ListAlerts(c *gin.Context) {
-	userID := c.GetUint("userID")
+	userID := c.GetUint("userId")
 	alerts, err := h.alertRepo.ListByUser(userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to list alerts"})
@@ -45,7 +45,7 @@ func (h *AlertHandler) ListAlerts(c *gin.Context) {
 
 // CreateAlert creates a new price alert.
 func (h *AlertHandler) CreateAlert(c *gin.Context) {
-	userID := c.GetUint("userID")
+	userID := c.GetUint("userId")
 
 	var req struct {
 		AuctionLotID uint    `json:"auctionLotId" binding:"required"`
@@ -79,7 +79,7 @@ func (h *AlertHandler) CreateAlert(c *gin.Context) {
 
 // DeleteAlert deletes a price alert.
 func (h *AlertHandler) DeleteAlert(c *gin.Context) {
-	userID := c.GetUint("userID")
+	userID := c.GetUint("userId")
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid alert ID"})
@@ -94,7 +94,7 @@ func (h *AlertHandler) DeleteAlert(c *gin.Context) {
 
 // ListReminders returns all bid reminders for the current user.
 func (h *AlertHandler) ListReminders(c *gin.Context) {
-	userID := c.GetUint("userID")
+	userID := c.GetUint("userId")
 	reminders, err := h.reminderRepo.ListByUser(userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to list reminders"})
@@ -118,7 +118,7 @@ func (h *AlertHandler) ListReminders(c *gin.Context) {
 
 // CreateReminder creates a new bid reminder.
 func (h *AlertHandler) CreateReminder(c *gin.Context) {
-	userID := c.GetUint("userID")
+	userID := c.GetUint("userId")
 
 	var req struct {
 		AuctionLotID  uint `json:"auctionLotId" binding:"required"`
@@ -150,7 +150,7 @@ func (h *AlertHandler) CreateReminder(c *gin.Context) {
 
 // DeleteReminder deletes a bid reminder.
 func (h *AlertHandler) DeleteReminder(c *gin.Context) {
-	userID := c.GetUint("userID")
+	userID := c.GetUint("userId")
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid reminder ID"})
