@@ -188,6 +188,7 @@ func (s *ValuationService) ValuateCollectionForUser(
 		TriggerType:   triggerType,
 		TriggerUserID: triggerUserID,
 		Status:        "running",
+		TotalCoins:    len(coins),
 		StartedAt:     startedAt,
 	}
 	if err := s.valRepo.CreateRun(run); err != nil {
@@ -232,6 +233,15 @@ func (s *ValuationService) ValuateCollectionForUser(
 	var checked, updated, skipped, errCount int
 	batchCount := 0
 
+	// updateProgress syncs in-memory counters to the DB so the frontend can poll
+	updateProgress := func() {
+		run.CoinsChecked = checked
+		run.CoinsUpdated = updated
+		run.CoinsSkipped = skipped
+		run.Errors = errCount
+		s.valRepo.UpdateRunProgress(run)
+	}
+
 	for i, coin := range coins {
 		// Skip coins with insufficient metadata
 		if !coinHasEnoughMetadata(&coin) {
@@ -245,6 +255,7 @@ func (s *ValuationService) ValuateCollectionForUser(
 				ErrorMessage:  "insufficient metadata for valuation",
 				CheckedAt:     time.Now(),
 			})
+			updateProgress()
 			continue
 		}
 
@@ -299,6 +310,7 @@ func (s *ValuationService) ValuateCollectionForUser(
 				ErrorMessage:  callErr.Error(),
 				CheckedAt:     time.Now(),
 			})
+			updateProgress()
 			continue
 		}
 
@@ -322,6 +334,7 @@ func (s *ValuationService) ValuateCollectionForUser(
 		}
 
 		s.valRepo.AddResult(result)
+		updateProgress()
 
 		s.logger.Debug("valuation", "Coin %d (%s): $%.2f (%s confidence)",
 			coin.ID, coin.Name, estimate.EstimatedValue, estimate.Confidence)

@@ -543,6 +543,9 @@
                   <td>{{ run.triggerType }}</td>
                   <td>
                     <span class="val-status-badge" :class="'val-status-' + run.status">{{ run.status }}</span>
+                    <span v-if="run.status === 'running' && run.totalCoins > 0" class="val-progress">
+                      {{ run.coinsChecked + run.coinsSkipped + run.errors }} / {{ run.totalCoins }}
+                    </span>
                   </td>
                   <td>{{ run.coinsChecked }}</td>
                   <td class="avail-count-available">{{ run.coinsUpdated }}</td>
@@ -986,6 +989,7 @@ const valTriggerLoading = ref(false)
 const valExpandedRunId = ref<number | null>(null)
 const valExpandedResults = ref<ValuationRun['results']>(undefined)
 const valExpandedLoading = ref(false)
+let valPollTimer: ReturnType<typeof setInterval> | null = null
 
 async function loadValRuns() {
   valLoading.value = true
@@ -993,6 +997,15 @@ async function loadValRuns() {
     const res = await getValuationRuns(valPage.value, 20)
     valRuns.value = res.data.runs ?? []
     valTotal.value = res.data.total ?? 0
+
+    // Auto-poll while any run is still "running"
+    const hasRunning = valRuns.value.some(r => r.status === 'running')
+    if (hasRunning && !valPollTimer) {
+      valPollTimer = setInterval(() => { loadValRuns() }, 5000)
+    } else if (!hasRunning && valPollTimer) {
+      clearInterval(valPollTimer)
+      valPollTimer = null
+    }
   } catch { /* ignore */ } finally {
     valLoading.value = false
   }
@@ -1023,12 +1036,10 @@ async function triggerManualValuation() {
   valSettingsError.value = false
   try {
     await triggerValuation()
-    valSettingsMsg.value = 'Valuation started — check run history for progress'
+    valSettingsMsg.value = 'Valuation started — progress updates below'
     setTimeout(() => { valSettingsMsg.value = '' }, 10000)
-    // Poll run history to show progress
-    setTimeout(() => { loadValRuns() }, 3000)
-    setTimeout(() => { loadValRuns() }, 10000)
-    setTimeout(() => { loadValRuns() }, 30000)
+    // Kick off initial reload; auto-poll will continue while run is active
+    setTimeout(() => { loadValRuns() }, 2000)
   } catch {
     valSettingsMsg.value = 'Failed to trigger valuation'
     valSettingsError.value = true
@@ -1062,6 +1073,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   if (logsInterval) clearInterval(logsInterval)
+  if (valPollTimer) clearInterval(valPollTimer)
 })
 </script>
 
@@ -1657,6 +1669,13 @@ onUnmounted(() => {
 .val-status-running {
   background: rgba(52, 152, 219, 0.15);
   color: #3498db;
+}
+
+.val-progress {
+  margin-left: 0.35rem;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  font-weight: 500;
 }
 
 .val-status-completed {

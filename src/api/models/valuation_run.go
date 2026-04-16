@@ -10,6 +10,7 @@ type ValuationRun struct {
 	TriggerType   string            `gorm:"type:varchar(20);not null" json:"triggerType"`
 	TriggerUserID *uint             `json:"triggerUserId"`
 	Status        string            `gorm:"type:varchar(20);not null;default:'running'" json:"status"`
+	TotalCoins    int               `json:"totalCoins"`
 	CoinsChecked  int               `json:"coinsChecked"`
 	CoinsUpdated  int               `json:"coinsUpdated"`
 	CoinsSkipped  int               `json:"coinsSkipped"`

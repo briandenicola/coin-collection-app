@@ -45,6 +45,17 @@ func (r *ValuationRepository) AddResult(result *models.ValuationResult) error {
 	return r.db.Create(result).Error
 }
 
+// UpdateRunProgress updates the in-progress counters on a running valuation run.
+func (r *ValuationRepository) UpdateRunProgress(run *models.ValuationRun) error {
+	return r.db.Model(run).Updates(map[string]interface{}{
+		"total_coins":   run.TotalCoins,
+		"coins_checked": run.CoinsChecked,
+		"coins_updated": run.CoinsUpdated,
+		"coins_skipped": run.CoinsSkipped,
+		"errors":        run.Errors,
+	}).Error
+}
+
 // HasActiveRun returns true if there is a running valuation for the given user.
 func (r *ValuationRepository) HasActiveRun(userID uint) (bool, error) {
 	var count int64

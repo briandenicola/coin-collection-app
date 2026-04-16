@@ -408,6 +408,7 @@ export interface ValuationRun {
   triggerType: string
   triggerUserId: number | null
   status: string
+  totalCoins: number
   coinsChecked: number
   coinsUpdated: number
   coinsSkipped: number
