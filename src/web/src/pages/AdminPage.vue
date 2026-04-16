@@ -353,7 +353,7 @@
               <input
                 type="checkbox"
                 :checked="settings.WishlistCheckEnabled === 'true'"
-                @change="settings.WishlistCheckEnabled = ($event.target as HTMLInputElement).checked ? 'true' : 'false'; saveSettings()"
+                @change="settings.WishlistCheckEnabled = ($event.target as HTMLInputElement).checked ? 'true' : 'false'"
               />
               <span class="toggle-slider"></span>
             </label>
@@ -364,7 +364,6 @@
               v-model="settings.WishlistCheckStartTime"
               class="form-input avail-interval-input"
               type="time"
-              @change="saveSettings()"
             />
             <span class="form-hint">The first check runs at this time each day. Subsequent checks repeat at the interval below.</span>
           </div>
@@ -376,9 +375,14 @@
               type="number"
               min="5"
               step="5"
-              @change="saveSettings()"
             />
             <span class="form-hint">How often to repeat after the start time (e.g. 120 = every 2 hours).</span>
+          </div>
+          <div class="avail-save-row">
+            <button class="btn btn-primary btn-sm" :disabled="settingsSaving" @click="saveSettings()">
+              {{ settingsSaving ? 'Saving...' : 'Save Schedule Settings' }}
+            </button>
+            <span v-if="availSettingsMsg" class="avail-save-msg" :class="{ 'avail-save-error': availSettingsError }">{{ availSettingsMsg }}</span>
           </div>
         </div>
 
@@ -669,13 +673,19 @@ async function saveSettings() {
   settingsSaving.value = true
   settingsMsg.value = ''
   settingsError.value = false
+  availSettingsMsg.value = ''
+  availSettingsError.value = false
   try {
     const entries = Object.entries(settings.value).map(([key, value]) => ({ key, value }))
     await updateAppSettings(entries)
     settingsMsg.value = 'Settings saved'
+    availSettingsMsg.value = 'Settings saved'
+    setTimeout(() => { availSettingsMsg.value = '' }, 3000)
   } catch {
     settingsMsg.value = 'Failed to save settings'
     settingsError.value = true
+    availSettingsMsg.value = 'Failed to save settings'
+    availSettingsError.value = true
   } finally {
     settingsSaving.value = false
   }
@@ -783,6 +793,8 @@ function formatDate(dateStr: string) {
 }
 
 // Availability
+const availSettingsMsg = ref('')
+const availSettingsError = ref(false)
 const availRuns = ref<AvailabilityRun[]>([])
 const availTotal = ref(0)
 const availPage = ref(1)
@@ -1240,6 +1252,22 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+
+.avail-save-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.avail-save-msg {
+  font-size: 0.85rem;
+  color: var(--accent-gold);
+}
+
+.avail-save-error {
+  color: #e74c3c;
 }
 
 .toggle-switch {
