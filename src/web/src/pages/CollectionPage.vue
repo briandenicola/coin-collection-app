@@ -471,17 +471,18 @@ async function bulkTag(tagId: number) {
 .collection-header {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 1rem;
-}
-
-.collection-header h1 {
-  white-space: nowrap;
 }
 
 .collection-header :deep(.search-bar) {
   flex: 1;
-  max-width: 400px;
-  margin: 0 auto;
+  max-width: 600px;
+}
+
+.collection-header :deep(.search-input) {
+  padding: 0.75rem 2.5rem;
+  font-size: 0.95rem;
 }
 
 .collection-toolbar {
@@ -649,6 +650,11 @@ async function bulkTag(tagId: number) {
 
   .collection-header :deep(.search-bar) {
     max-width: 100%;
+  }
+
+  .collection-header :deep(.search-input) {
+    padding: 0.6rem 2.5rem;
+    font-size: 0.85rem;
   }
 
   .header-filters {
