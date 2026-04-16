@@ -1876,6 +1876,7 @@ onMounted(() => {
   font-size: 0.9rem;
   line-height: 1.65;
   color: var(--text-secondary);
+  overflow-x: auto;
 }
 
 .help-content h4 {
@@ -1934,6 +1935,8 @@ onMounted(() => {
   border-collapse: collapse;
   margin: 0.75rem 0;
   font-size: 0.85rem;
+  display: block;
+  overflow-x: auto;
 }
 
 .help-table th,
@@ -1941,6 +1944,7 @@ onMounted(() => {
   padding: 0.5rem 0.65rem;
   text-align: left;
   border-bottom: 1px solid var(--border-subtle);
+  word-break: break-word;
 }
 
 .help-table th {
