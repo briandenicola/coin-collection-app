@@ -1,7 +1,7 @@
 <template>
   <div class="coin-card card" @click="$router.push(`/coin/${coin.id}`)">
     <div class="card-image-container">
-      <img v-if="primaryImage" :src="primaryImage" :alt="coin.name" class="card-image" />
+      <img v-if="primaryImage" :src="primaryImage" :alt="coin.name" class="card-image" loading="lazy" />
       <div v-else class="card-image-placeholder"><Coins :size="48" :stroke-width="1" /></div>
       <div v-if="wishlist && coin.listingStatus === 'unavailable'" class="listing-overlay"></div>
       <span v-if="wishlist && coin.listingStatus === 'unavailable'" class="listing-badge listing-badge-unavailable">Unavailable</span>
@@ -100,8 +100,10 @@ const primaryImage = computed(() => {
   return img ? `/uploads/${img.filePath}` : null
 })
 
+const currencyFormatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' })
+
 function formatCurrency(value: number) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value)
+  return currencyFormatter.format(value)
 }
 </script>
 

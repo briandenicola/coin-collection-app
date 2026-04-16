@@ -193,6 +193,7 @@ func main() {
 		auctionUserRepo := repository.NewUserRepository(database.DB)
 		auctionLotHandler := handlers.NewAuctionLotHandler(auctionLotRepo, auctionLotSvc, auctionUserRepo, nbSvc)
 		protected.GET("/auctions", auctionLotHandler.List)
+		protected.GET("/auctions/counts", auctionLotHandler.Counts)
 		protected.GET("/auctions/:id", auctionLotHandler.Get)
 		protected.POST("/auctions", auctionLotHandler.Create)
 		protected.PUT("/auctions/:id", auctionLotHandler.Update)

@@ -112,6 +112,30 @@ func (r *AuctionLotRepository) Delete(id, userID uint) (int64, error) {
 	return result.RowsAffected, result.Error
 }
 
+// StatusCount holds a status label and its count.
+type StatusCount struct {
+	Status string
+	Count  int64
+}
+
+// CountByStatus returns per-status counts for the given user.
+func (r *AuctionLotRepository) CountByStatus(userID uint) (map[string]int64, error) {
+	var rows []StatusCount
+	err := r.db.Model(&models.AuctionLot{}).
+		Select("status, COUNT(*) as count").
+		Where("user_id = ?", userID).
+		Group("status").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	counts := make(map[string]int64)
+	for _, r := range rows {
+		counts[r.Status] = r.Count
+	}
+	return counts, nil
+}
+
 // Upsert creates or updates an auction lot by its NumisBids URL for the given user.
 func (r *AuctionLotRepository) Upsert(lot *models.AuctionLot) error {
 	existing, err := r.GetByURL(lot.NumisBidsURL, lot.UserID)

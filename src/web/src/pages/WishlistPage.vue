@@ -40,6 +40,12 @@
       />
     </div>
 
+    <div v-if="store.total > pageSize" class="pagination">
+      <button class="btn btn-secondary btn-sm" :disabled="page <= 1" @click="page--">← Previous</button>
+      <span class="page-info">Page {{ page }} of {{ Math.ceil(store.total / pageSize) }}</span>
+      <button class="btn btn-secondary btn-sm" :disabled="page * pageSize >= store.total" @click="page++">Next →</button>
+    </div>
+
     <div v-else class="empty-state">
       <h3>Your wishlist is empty</h3>
       <p>Add coins to your wishlist to track what you're looking for</p>
@@ -60,7 +66,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useCoinsStore } from '@/stores/coins'
 import CoinCard from '@/components/CoinCard.vue'
 import CoinSearchChat from '@/components/CoinSearchChat.vue'
@@ -75,10 +81,14 @@ const purchaseTarget = ref<Coin | null>(null)
 const checking = ref(false)
 const checkResult = ref<AvailabilityRunSummary | null>(null)
 let dismissTimer: ReturnType<typeof setTimeout> | null = null
+const page = ref(1)
+const pageSize = 50
 
 function loadCoins() {
-  store.fetchCoins({ wishlist: 'true', sort: 'updated_at', order: 'desc' })
+  store.fetchCoins({ wishlist: 'true', sort: 'updated_at', order: 'desc', page: page.value })
 }
+
+watch(page, loadCoins)
 
 function openPurchaseModal(coin: Coin) {
   purchaseTarget.value = coin
@@ -197,5 +207,19 @@ loadCoins()
 
 .banner-dismiss:hover {
   color: var(--text-primary);
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  padding: 1rem 0;
+}
+
+.page-info {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
 }
 </style>

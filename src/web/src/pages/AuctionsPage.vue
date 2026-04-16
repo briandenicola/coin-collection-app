@@ -141,9 +141,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { getAuctionLots, updateAuctionLotStatus, convertAuctionLotToCoin, deleteAuctionLot, syncNumisBidsWatchlist } from '@/api/client'
+import { getAuctionLots, getAuctionLotCounts, updateAuctionLotStatus, convertAuctionLotToCoin, deleteAuctionLot, syncNumisBidsWatchlist } from '@/api/client'
 import type { AuctionLot, AuctionLotStatus } from '@/types'
 import AuctionLotCard from '@/components/AuctionLotCard.vue'
 import ImportLotModal from '@/components/ImportLotModal.vue'
@@ -154,7 +154,7 @@ const router = useRouter()
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
 const lots = ref<AuctionLot[]>([])
-const allLots = ref<AuctionLot[]>([])
+const statusCounts = ref<Record<string, number>>({})
 const loading = ref(true)
 const showImport = ref(false)
 const selectedLot = ref<AuctionLot | null>(null)
@@ -179,14 +179,6 @@ const statuses = [
   { value: 'passed', label: 'Passed' },
 ]
 
-const statusCounts = computed(() => {
-  const counts: Record<string, number> = {}
-  for (const lot of allLots.value) {
-    counts[lot.status] = (counts[lot.status] ?? 0) + 1
-  }
-  return counts
-})
-
 watch(activeStatus, () => fetchLots())
 
 async function fetchLots() {
@@ -196,7 +188,6 @@ async function fetchLots() {
     if (activeStatus.value) params.status = activeStatus.value
     const res = await getAuctionLots(params)
     lots.value = res.data?.lots ?? []
-    if (!activeStatus.value) allLots.value = lots.value
   } catch {
     lots.value = []
   } finally {
@@ -206,8 +197,8 @@ async function fetchLots() {
 
 async function fetchAllCounts() {
   try {
-    const res = await getAuctionLots({ limit: 999 })
-    allLots.value = res.data?.lots ?? []
+    const res = await getAuctionLotCounts()
+    statusCounts.value = res.data?.counts ?? {}
   } catch { /* ignore */ }
 }
 

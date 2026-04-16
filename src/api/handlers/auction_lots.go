@@ -66,6 +66,25 @@ func (h *AuctionLotHandler) List(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"lots": lots, "total": total})
 }
 
+// Counts returns per-status counts for the authenticated user's auction lots.
+//
+//	@Summary		Get auction lot counts by status
+//	@Description	Returns a map of status → count for the authenticated user.
+//	@Tags			Auctions
+//	@Produce		json
+//	@Success		200	{object}	map[string]int64
+//	@Security		BearerAuth
+//	@Router			/auctions/counts [get]
+func (h *AuctionLotHandler) Counts(c *gin.Context) {
+	userID := c.GetUint("userId")
+	counts, err := h.repo.CountByStatus(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to count auction lots"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"counts": counts})
+}
+
 // Get returns a single auction lot by ID.
 //
 //	@Summary		Get auction lot

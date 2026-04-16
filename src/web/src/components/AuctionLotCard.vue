@@ -1,7 +1,7 @@
 <template>
   <div class="lot-card card" @click="emit('select', lot)">
     <div class="lot-image-container">
-      <img v-if="lot.imageUrl" :src="proxiedImageUrl" :alt="lot.title" class="lot-image" />
+      <img v-if="lot.imageUrl" :src="proxiedImageUrl" :alt="lot.title" class="lot-image" loading="lazy" />
       <div v-else class="lot-image-placeholder"><Gavel :size="48" :stroke-width="1" /></div>
       <span class="lot-status-badge" :class="`status-${lot.status}`">{{ statusLabel }}</span>
     </div>
