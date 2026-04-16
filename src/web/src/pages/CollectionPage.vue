@@ -18,6 +18,13 @@
               <span class="pwa-menu-label">Category</span>
               <CategoryFilter v-model="selectedCategory" />
             </div>
+            <div v-if="userTags.length" class="pwa-menu-section">
+              <span class="pwa-menu-label">Tag</span>
+              <select v-model="selectedTag" class="tag-filter-select pwa-tag-select">
+                <option value="">All Tags</option>
+                <option v-for="tag in userTags" :key="tag.id" :value="String(tag.id)">{{ tag.name }}</option>
+              </select>
+            </div>
             <div class="pwa-menu-section">
               <span class="pwa-menu-label">Sort</span>
               <SortSelect v-model="sortKey" />
@@ -54,7 +61,13 @@
     </div>
 
     <div v-if="!isPwa" class="collection-toolbar">
-      <CategoryFilter v-model="selectedCategory" />
+      <div class="toolbar-filters">
+        <CategoryFilter v-model="selectedCategory" />
+        <select v-if="userTags.length" v-model="selectedTag" class="tag-filter-select">
+          <option value="">All Tags</option>
+          <option v-for="tag in userTags" :key="tag.id" :value="String(tag.id)">{{ tag.name }}</option>
+        </select>
+      </div>
       <div class="toolbar-right">
         <div v-if="viewMode === 'grid'" class="side-toggle">
           <button class="toggle-btn" :class="{ active: gridSide === null }" @click="gridSide = null">
@@ -108,11 +121,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { useCoinsStore } from '@/stores/coins'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
-import type { ImageType } from '@/types'
+import type { ImageType, Tag } from '@/types'
+import { getTags } from '@/api/client'
 import { usePullToRefresh } from '@/composables/usePullToRefresh'
 import CoinCard from '@/components/CoinCard.vue'
 import SwipeGallery from '@/components/SwipeGallery.vue'
@@ -130,6 +144,17 @@ const search = ref(store.searchQuery)
 const page = ref(1)
 const sortKey = ref(localStorage.getItem('defaultSort') || 'updated_at_desc')
 const menuOpen = ref(false)
+const selectedTag = ref('')
+const userTags = ref<Tag[]>([])
+
+async function fetchUserTags() {
+  try {
+    const res = await getTags()
+    userTags.value = res.data?.tags ?? []
+  } catch { /* ignore */ }
+}
+
+onMounted(fetchUserTags)
 
 // Use saved preference if set, otherwise default to swipe in PWA mode
 const savedView = localStorage.getItem('defaultView') as 'grid' | 'swipe' | null
@@ -160,6 +185,7 @@ function loadCoins() {
   store.fetchCoins({
     category: selectedCategory.value || undefined,
     search: search.value || undefined,
+    tag: selectedTag.value || undefined,
     wishlist: 'false',
     sold: 'false',
     page: page.value,
@@ -169,6 +195,11 @@ function loadCoins() {
 }
 
 watch(selectedCategory, () => {
+  page.value = 1
+  loadCoins()
+})
+
+watch(selectedTag, () => {
   page.value = 1
   loadCoins()
 })
@@ -318,6 +349,27 @@ loadCoins()
   gap: 0.75rem;
   flex-wrap: wrap;
   margin-bottom: 1rem;
+}
+
+.toolbar-filters {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.tag-filter-select {
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.pwa-tag-select {
+  width: 100%;
 }
 
 .toolbar-right {

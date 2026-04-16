@@ -71,6 +71,7 @@ type Coin struct {
 	UserID              uint       `gorm:"not null" json:"userId"`
 	User                User       `gorm:"foreignKey:UserID" json:"-"`
 	Images              []CoinImage `gorm:"foreignKey:CoinID" json:"images"`
+	Tags                []Tag       `gorm:"many2many:coin_tags" json:"tags"`
 	CreatedAt           time.Time  `json:"createdAt"`
 	UpdatedAt           time.Time  `json:"updatedAt"`
 }

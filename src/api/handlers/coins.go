@@ -74,6 +74,12 @@ func (h *CoinHandler) List(c *gin.Context) {
 		v := false
 		filters.Sold = &v
 	}
+	if t := c.Query("tag"); t != "" {
+		if tagID, err := strconv.ParseUint(t, 10, 64); err == nil {
+			v := uint(tagID)
+			filters.TagID = &v
+		}
+	}
 
 	coins, total, err := h.repo.List(userID, filters)
 	if err != nil {

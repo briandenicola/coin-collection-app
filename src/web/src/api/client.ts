@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Coin, CoinListResponse, CoinImage, AuthResponse, StatsResponse, UserInfo, AppSettings, LogEntry, ApiKey, WebAuthnCredentialInfo, ValueSnapshot, CoinJournal, NumistaSearchResponse, AgentChatMessage, AgentChatResponse, CoinSuggestion, FollowUser, PublicProfile, CoinComment, CoinRating, LimitedCoin, ValueEstimate, CoinValueHistory, PortfolioSummary, AuctionLot, AuctionLotListResponse, AvailabilityRunSummary, AvailabilityRun, Notification, NotificationListResponse } from '@/types'
+import type { Coin, CoinListResponse, CoinImage, AuthResponse, StatsResponse, UserInfo, AppSettings, LogEntry, ApiKey, WebAuthnCredentialInfo, ValueSnapshot, CoinJournal, NumistaSearchResponse, AgentChatMessage, AgentChatResponse, CoinSuggestion, FollowUser, PublicProfile, CoinComment, CoinRating, LimitedCoin, ValueEstimate, CoinValueHistory, PortfolioSummary, AuctionLot, AuctionLotListResponse, AvailabilityRunSummary, AvailabilityRun, Notification, NotificationListResponse, Tag } from '@/types'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
@@ -127,6 +127,14 @@ export const purchaseCoin = (id: number, data?: { purchasePrice?: number; purcha
 export const sellCoin = (id: number, soldPrice: number | null, soldTo: string) =>
   api.post<Coin>(`/coins/${id}/sell`, { soldPrice, soldTo })
 export const deleteCoin = (id: number) => api.delete(`/coins/${id}`)
+
+// Tags
+export const getTags = () => api.get<{ tags: Tag[] }>('/tags')
+export const createTag = (data: { name: string; color?: string }) => api.post<Tag>('/tags', data)
+export const updateTag = (id: number, data: { name?: string; color?: string }) => api.put<Tag>(`/tags/${id}`, data)
+export const deleteTag = (id: number) => api.delete(`/tags/${id}`)
+export const addTagToCoin = (coinId: number, tagId: number) => api.post(`/coins/${coinId}/tags`, { tagId })
+export const removeTagFromCoin = (coinId: number, tagId: number) => api.delete(`/coins/${coinId}/tags/${tagId}`)
 
 // Journal
 export const getJournalEntries = (coinId: number) => api.get<CoinJournal[]>(`/coins/${coinId}/journal`)

@@ -36,6 +36,7 @@ export interface Coin {
   listingCheckReason: string
   userId: number
   images: CoinImage[]
+  tags?: Tag[]
   createdAt: string
   updatedAt: string
 }
@@ -47,6 +48,13 @@ export interface CoinImage {
   imageType: ImageType
   isPrimary: boolean
   createdAt: string
+}
+
+export interface Tag {
+  id: number
+  userId: number
+  name: string
+  color: string
 }
 
 export type Category = 'Roman' | 'Greek' | 'Byzantine' | 'Modern' | 'Other'

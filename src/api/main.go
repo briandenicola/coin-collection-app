@@ -157,6 +157,15 @@ func main() {
 		protected.POST("/coins/:id/sell", coinHandler.Sell)
 		protected.DELETE("/coins/:id", coinHandler.Delete)
 
+		tagRepo := repository.NewTagRepository(database.DB)
+		tagHandler := handlers.NewTagHandler(tagRepo)
+		protected.GET("/tags", tagHandler.List)
+		protected.POST("/tags", tagHandler.Create)
+		protected.PUT("/tags/:id", tagHandler.Update)
+		protected.DELETE("/tags/:id", tagHandler.Delete)
+		protected.POST("/coins/:id/tags", tagHandler.AttachToCoin)
+		protected.DELETE("/coins/:id/tags/:tagId", tagHandler.DetachFromCoin)
+
 		journalRepo := repository.NewJournalRepository(database.DB)
 		journalHandler := handlers.NewJournalHandler(journalRepo)
 		protected.GET("/coins/:id/journal", journalHandler.ListEntries)

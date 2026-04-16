@@ -25,6 +25,14 @@
         ></span>
         {{ coin.name }}
       </h3>
+      <div v-if="coin.tags?.length" class="card-tags">
+        <span
+          v-for="tag in coin.tags"
+          :key="tag.id"
+          class="tag-chip"
+          :style="{ backgroundColor: tag.color + '22', color: tag.color, borderColor: tag.color + '44' }"
+        >{{ tag.name }}</span>
+      </div>
       <template v-if="!wishlist && !sold">
         <div class="card-meta">
           <span v-if="coin.ruler" class="meta-item">{{ coin.ruler }}</span>
@@ -183,6 +191,22 @@ function formatCurrency(value: number) {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+.card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-bottom: 0.25rem;
+}
+
+.tag-chip {
+  font-size: 0.65rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 9999px;
+  border: 1px solid;
+  line-height: 1.4;
+  white-space: nowrap;
 }
 
 .card-meta {
