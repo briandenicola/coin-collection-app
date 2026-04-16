@@ -400,6 +400,26 @@ func (h *CoinHandler) Stats(c *gin.Context) {
 	})
 }
 
+// Distribution returns the era × category cross-tabulation for the collection heat map.
+//
+//	@Summary		Get collection distribution
+//	@Description	Returns era × category counts for the heat map visualization.
+//	@Tags			Coins
+//	@Produce		json
+//	@Success		200	{array}		repository.DistributionCell
+//	@Failure		401	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/stats/distribution [get]
+func (h *CoinHandler) Distribution(c *gin.Context) {
+	userID := c.GetUint("userId")
+	cells, err := h.repo.GetDistribution(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch distribution"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"cells": cells})
+}
+
 // Suggestions returns distinct values for autocomplete fields.
 //
 //	@Summary		Get autocomplete suggestions

@@ -287,6 +287,7 @@ export const getOllamaStatus = () =>
 
 // Stats
 export const getStats = () => api.get<StatsResponse>('/stats')
+export const getDistribution = () => api.get<{ cells: { era: string; category: string; count: number }[] }>('/stats/distribution')
 export const getValueHistory = () => api.get<ValueSnapshot[]>('/value-history')
 
 // Autocomplete suggestions

@@ -176,6 +176,7 @@ func main() {
 		protected.DELETE("/coins/:id/journal/:entryId", journalHandler.DeleteEntry)
 
 		protected.GET("/stats", coinHandler.Stats)
+		protected.GET("/stats/distribution", coinHandler.Distribution)
 		protected.GET("/value-history", coinHandler.ValueHistory)
 		protected.GET("/coins/:id/value-history", coinHandler.CoinValueHistory)
 		protected.GET("/suggestions", coinHandler.Suggestions)

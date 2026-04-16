@@ -85,6 +85,13 @@ type CollectionStats struct {
 	SoldValues    SoldSummary     `json:"soldValues"`
 }
 
+// DistributionCell holds a single cell in the era × category heat map.
+type DistributionCell struct {
+	Era      string `json:"era"`
+	Category string `json:"category"`
+	Count    int    `json:"count"`
+}
+
 // CoinRepository encapsulates all coin-related database operations.
 type CoinRepository struct {
 	db *gorm.DB
@@ -358,6 +365,18 @@ func (r *CoinRepository) GetStats(userID uint) (*CollectionStats, error) {
 		Scan(&stats.SoldValues)
 
 	return stats, nil
+}
+
+// GetDistribution returns era × category cross-tabulation counts for the heat map.
+func (r *CoinRepository) GetDistribution(userID uint) ([]DistributionCell, error) {
+	var cells []DistributionCell
+	err := r.db.Model(&models.Coin{}).
+		Select("era, category, COUNT(*) as count").
+		Where("user_id = ? AND is_wishlist = ? AND is_sold = ? AND era != '' AND category != ''", userID, false, false).
+		Group("era, category").
+		Order("era, category").
+		Scan(&cells).Error
+	return cells, err
 }
 
 // Suggestions returns distinct values for an autocomplete field.
