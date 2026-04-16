@@ -395,22 +395,7 @@ func (h *AgentHandler) PortfolioSummary(c *gin.Context) {
 	})
 }
 
-// Value estimation types
-
-type ValueComparable struct {
-	Source string `json:"source"`
-	Price  string `json:"price"`
-	URL    string `json:"url"`
-}
-
-type ValueEstimateResponse struct {
-	EstimatedValue float64           `json:"estimatedValue"`
-	Confidence     string            `json:"confidence"`
-	Reasoning      string            `json:"reasoning"`
-	Comparables    []ValueComparable `json:"comparables"`
-}
-
-const DefaultValuationPrompt = `You are an expert numismatist and coin appraiser. Estimate the current fair market value of a coin.
+const DefaultValuationPrompt= `You are an expert numismatist and coin appraiser. Estimate the current fair market value of a coin.
 
 Instructions:
 1. Search for CURRENT listings and RECENT sales of comparable coins.

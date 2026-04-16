@@ -81,7 +81,6 @@ function clearAuth() {
 }
 
 // Auth
-export const checkSetup = () => api.get<{ needsSetup: boolean }>('/auth/setup')
 export const login = (username: string, password: string) =>
   api.post<AuthResponse>('/auth/login', { username, password })
 export const register = (username: string, password: string, email?: string) =>
@@ -151,8 +150,6 @@ export const getValuationPrompt = () => api.get<{ prompt: string; default: strin
 export const getPortfolioSummary = () => api.get<PortfolioSummary>('/agent/portfolio-summary')
 
 // Agent
-export const agentChat = (message: string, history: AgentChatMessage[] = []) =>
-  api.post<AgentChatResponse>('/agent/chat', { message, history })
 
 export async function agentChatStream(
   message: string,
@@ -419,19 +416,14 @@ export const getFollowingCoinDetail = (userId: number, coinId: number) =>
 // Comments & ratings
 export const addComment = (coinId: number, comment: string, rating?: number) =>
   api.post<CoinComment>(`/social/coins/${coinId}/comments`, { comment, rating: rating || 0 })
-export const getComments = (coinId: number) => api.get<{ comments: CoinComment[] }>(`/social/coins/${coinId}/comments`)
 export const deleteComment = (coinId: number, commentId: number) =>
   api.delete(`/social/coins/${coinId}/comments/${commentId}`)
 export const rateCoin = (coinId: number, rating: number) =>
   api.put<CoinRating>(`/social/coins/${coinId}/rating`, { rating })
-export const getCoinRating = (coinId: number) => api.get<CoinRating>(`/social/coins/${coinId}/rating`)
 
 // Auction lots
 export const getAuctionLots = (params?: { status?: string; search?: string; sort?: string; order?: string; page?: number; limit?: number }) =>
   api.get<AuctionLotListResponse>('/auctions', { params })
-export const getAuctionLot = (id: number) => api.get<AuctionLot>(`/auctions/${id}`)
-export const createAuctionLot = (lot: Partial<AuctionLot>) => api.post<AuctionLot>('/auctions', lot)
-export const updateAuctionLot = (id: number, lot: Partial<AuctionLot>) => api.put<AuctionLot>(`/auctions/${id}`, lot)
 export const updateAuctionLotStatus = (id: number, status: string, maxBid?: number | null) => api.put<AuctionLot>(`/auctions/${id}/status`, { status, ...(maxBid != null ? { maxBid } : {}) })
 export const convertAuctionLotToCoin = (id: number) => api.post<Coin>(`/auctions/${id}/convert`)
 export const deleteAuctionLot = (id: number) => api.delete(`/auctions/${id}`)

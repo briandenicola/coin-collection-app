@@ -196,7 +196,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { CATEGORIES, MATERIALS } from '@/types'
 import type { Coin } from '@/types'
 import AutocompleteInput from '@/components/AutocompleteInput.vue'
@@ -327,21 +327,6 @@ legend {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.75rem;
-}
-
-.form-check {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  cursor: pointer;
-  font-size: 0.9rem;
-  color: var(--text-secondary);
-}
-
-.form-check input[type='checkbox'] {
-  accent-color: var(--accent-gold);
-  width: 16px;
-  height: 16px;
 }
 
 .form-actions {

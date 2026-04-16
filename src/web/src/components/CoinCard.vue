@@ -245,16 +245,6 @@ function formatCurrency(value: number) {
   font-size: 0.8rem;
 }
 
-.card-sell-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  margin-top: 0.5rem;
-  width: 100%;
-  justify-content: center;
-  font-size: 0.8rem;
-}
-
 .card-sold-info {
   display: flex;
   flex-direction: column;

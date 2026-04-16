@@ -108,7 +108,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch } from 'vue'
 import { useCoinsStore } from '@/stores/coins'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'

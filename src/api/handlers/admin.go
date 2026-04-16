@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -351,29 +350,4 @@ func (h *AdminHandler) TestSearXNGConnection(c *gin.Context) {
 	}
 }
 
-// ExportAllData exports all coins and images as a zip archive
-func (h *AdminHandler) ExportAllData(c *gin.Context) {
-	coins, _ := h.repo.ExportAllCoins()
 
-	filename := fmt.Sprintf("ancient-coins-export-%s.zip", time.Now().Format("2006-01-02"))
-	writeCollectionZip(c, coins, h.UploadDir, filename)
-}
-
-// ImportCollection imports coins from JSON for a specific user (admin)
-func (h *AdminHandler) ImportData(c *gin.Context) {
-	var coins []models.Coin
-	if err := json.NewDecoder(c.Request.Body).Decode(&coins); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
-		return
-	}
-
-	imported := 0
-	for _, coin := range coins {
-		coin.ID = 0
-		if err := h.repo.ImportCoin(&coin); err == nil {
-			imported++
-		}
-	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "Import complete", "imported": imported})
-}
