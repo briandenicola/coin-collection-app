@@ -8,6 +8,12 @@
     <!-- PWA compact header: search + filter/sort -->
     <div v-if="isPwa" class="pwa-header">
       <SearchBar v-model="search" />
+      <button class="pwa-icon-btn" :class="{ active: selectMode }" @click="toggleSelectMode" title="Select">
+        <CheckSquare :size="22" />
+      </button>
+      <router-link to="/add" class="pwa-add-btn">
+        <CirclePlus :size="22" />
+      </router-link>
       <div class="hamburger-wrapper">
         <button class="hamburger-btn" @click="menuOpen = !menuOpen" :class="{ active: menuOpen }">
           <SlidersHorizontal :size="22" />
@@ -437,6 +443,20 @@ async function bulkTag(tagId: number) {
   justify-content: center;
   gap: 0.4rem;
   text-decoration: none;
+}
+
+.pwa-icon-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+}
+.pwa-icon-btn.active {
+  color: var(--accent-gold);
 }
 
 /* Menu slide transition */
