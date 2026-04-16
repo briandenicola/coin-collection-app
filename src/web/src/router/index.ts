@@ -116,7 +116,7 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
-      path: '/showcases/:id',
+      path: '/showcases/:id/edit',
       name: 'showcase-edit',
       component: () => import('@/pages/ShowcaseEditPage.vue'),
       meta: { requiresAuth: true },
