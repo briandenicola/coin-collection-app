@@ -61,7 +61,6 @@
 
     <!-- Desktop header (hidden in PWA) -->
     <div v-if="!isPwa" class="page-header collection-header">
-      <h1>My Collection</h1>
       <SearchBar v-model="search" />
       <SortSelect v-model="sortKey" />
     </div>
@@ -75,26 +74,18 @@
         </select>
       </div>
       <div class="toolbar-right">
-        <button class="btn btn-sm" :class="selectMode ? 'btn-primary' : 'btn-secondary'" @click="toggleSelectMode">
+        <button class="btn" :class="selectMode ? 'btn-primary' : 'btn-secondary'" @click="toggleSelectMode">
           <CheckSquare :size="16" /> {{ selectMode ? 'Cancel' : 'Select' }}
         </button>
-        <div v-if="viewMode === 'grid'" class="side-toggle">
-          <button class="toggle-btn" :class="{ active: gridSide === null }" @click="gridSide = null">
+        <div class="side-toggle">
+          <button class="btn btn-primary toggle-btn" :class="{ active: gridSide === null }" @click="gridSide = null">
             Primary
           </button>
-          <button class="toggle-btn" :class="{ active: gridSide === 'obverse' }" @click="gridSide = 'obverse'">
+          <button class="btn btn-primary toggle-btn" :class="{ active: gridSide === 'obverse' }" @click="gridSide = 'obverse'">
             Obverse
           </button>
-          <button class="toggle-btn" :class="{ active: gridSide === 'reverse' }" @click="gridSide = 'reverse'">
+          <button class="btn btn-primary toggle-btn" :class="{ active: gridSide === 'reverse' }" @click="gridSide = 'reverse'">
             Reverse
-          </button>
-        </div>
-        <div class="view-toggle">
-          <button class="view-btn" :class="{ active: viewMode === 'swipe' }" @click="viewMode = 'swipe'" title="Swipe view">
-            <Layers :size="18" />
-          </button>
-          <button class="view-btn" :class="{ active: viewMode === 'grid' }" @click="viewMode = 'grid'" title="Grid view">
-            <LayoutGrid :size="18" />
           </button>
         </div>
         <router-link to="/add" class="btn btn-primary"><CirclePlus :size="16" /> Add Coin</router-link>
@@ -112,7 +103,7 @@
         <button class="btn btn-sm btn-secondary" @click="deselectAll">Deselect All</button>
         <span class="select-count">{{ selectedCoinIds.size }} selected</span>
       </div>
-      <SwipeGallery v-if="viewMode === 'swipe' && !selectMode" :coins="store.coins" />
+      <SwipeGallery v-if="isPwa && viewMode === 'swipe' && !selectMode" :coins="store.coins" />
       <div v-else class="coins-grid">
         <CoinCard
           v-for="coin in store.coins"
@@ -223,7 +214,7 @@ onMounted(fetchUserTags)
 const savedView = localStorage.getItem('defaultView') as 'grid' | 'swipe' | null
 const isPwa = window.matchMedia('(display-mode: standalone)').matches
   || (window.navigator as any).standalone === true
-const viewMode = ref<'grid' | 'swipe'>(savedView || (isPwa ? 'swipe' : 'grid'))
+const viewMode = ref<'grid' | 'swipe'>(isPwa ? (savedView || 'swipe') : 'grid')
 const gridSide = ref<ImageType | null>(null)
 
 const pullContainer = ref<HTMLElement | null>(null)
@@ -559,28 +550,35 @@ async function bulkTag(tagId: number) {
 
 .side-toggle {
   display: flex;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  overflow: hidden;
+  gap: 0;
+}
+
+.side-toggle .toggle-btn {
+  border-radius: 0;
+  border-right: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.side-toggle .toggle-btn:first-child {
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+
+.side-toggle .toggle-btn:last-child {
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  border-right: none;
 }
 
 .toggle-btn {
-  padding: 0.35rem 0.75rem;
-  border: none;
-  background: var(--bg-card);
-  color: var(--text-secondary);
-  font-size: 0.8rem;
-  cursor: pointer;
-  transition: all var(--transition-fast);
+  opacity: 0.6;
 }
 
 .toggle-btn.active {
-  background: var(--accent-gold-dim);
-  color: var(--accent-gold);
+  opacity: 1;
+  background: var(--accent-gold);
+  color: #1a1a2e;
 }
 
 .toggle-btn:hover:not(.active) {
-  background: var(--bg-card-hover);
+  opacity: 0.8;
 }
 
 .pagination {
