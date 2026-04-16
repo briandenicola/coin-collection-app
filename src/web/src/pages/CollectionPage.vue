@@ -60,38 +60,40 @@
     <div v-if="isPwa && menuOpen" class="pwa-menu-backdrop" @click="menuOpen = false"></div>
 
     <!-- Desktop header (hidden in PWA) -->
-    <div v-if="!isPwa" class="page-header collection-header">
-      <div class="header-spacer"></div>
-      <SearchBar v-model="search" />
-      <div class="header-sort">
-        <SortSelect v-model="sortKey" />
-      </div>
-    </div>
-
-    <div v-if="!isPwa" class="collection-toolbar">
-      <div class="toolbar-filters">
-        <CategoryFilter v-model="selectedCategory" />
-        <select v-if="userTags.length" v-model="selectedTag" class="tag-filter-select">
-          <option value="">All Tags</option>
-          <option v-for="tag in userTags" :key="tag.id" :value="String(tag.id)">{{ tag.name }}</option>
-        </select>
-      </div>
-      <div class="toolbar-right">
-        <button class="btn" :class="selectMode ? 'btn-primary' : 'btn-secondary'" @click="toggleSelectMode">
-          <CheckSquare :size="16" /> {{ selectMode ? 'Cancel' : 'Select' }}
-        </button>
-        <div class="side-toggle">
-          <button class="btn btn-primary toggle-btn" :class="{ active: gridSide === null }" @click="gridSide = null">
-            Primary
-          </button>
-          <button class="btn btn-primary toggle-btn" :class="{ active: gridSide === 'obverse' }" @click="gridSide = 'obverse'">
-            Obverse
-          </button>
-          <button class="btn btn-primary toggle-btn" :class="{ active: gridSide === 'reverse' }" @click="gridSide = 'reverse'">
-            Reverse
-          </button>
+    <div v-if="!isPwa" class="desktop-sticky-header">
+      <div class="page-header collection-header">
+        <div class="header-spacer"></div>
+        <SearchBar v-model="search" />
+        <div class="header-sort">
+          <SortSelect v-model="sortKey" />
         </div>
-        <router-link to="/add" class="btn btn-primary"><CirclePlus :size="16" /> Add Coin</router-link>
+      </div>
+
+      <div class="collection-toolbar">
+        <div class="toolbar-filters">
+          <CategoryFilter v-model="selectedCategory" />
+          <select v-if="userTags.length" v-model="selectedTag" class="tag-filter-select">
+            <option value="">All Tags</option>
+            <option v-for="tag in userTags" :key="tag.id" :value="String(tag.id)">{{ tag.name }}</option>
+          </select>
+        </div>
+        <div class="toolbar-right">
+          <button class="btn" :class="selectMode ? 'btn-primary' : 'btn-secondary'" @click="toggleSelectMode">
+            <CheckSquare :size="16" /> {{ selectMode ? 'Cancel' : 'Select' }}
+          </button>
+          <div class="side-toggle">
+            <button class="btn btn-primary toggle-btn" :class="{ active: gridSide === null }" @click="gridSide = null">
+              Primary
+            </button>
+            <button class="btn btn-primary toggle-btn" :class="{ active: gridSide === 'obverse' }" @click="gridSide = 'obverse'">
+              Obverse
+            </button>
+            <button class="btn btn-primary toggle-btn" :class="{ active: gridSide === 'reverse' }" @click="gridSide = 'reverse'">
+              Reverse
+            </button>
+          </div>
+          <router-link to="/add" class="btn btn-primary"><CirclePlus :size="16" /> Add Coin</router-link>
+        </div>
       </div>
     </div>
 
@@ -468,6 +470,18 @@ async function bulkTag(tagId: number) {
 .menu-slide-leave-to {
   opacity: 0;
   transform: translateY(-8px);
+}
+
+/* --- Desktop sticky header --- */
+.desktop-sticky-header {
+  position: sticky;
+  top: 60px;
+  z-index: 50;
+  background: var(--bg-primary);
+  padding-bottom: 0.5rem;
+  margin: 0 -2rem;
+  padding-left: 2rem;
+  padding-right: 2rem;
 }
 
 /* --- Desktop header --- */
