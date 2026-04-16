@@ -251,7 +251,7 @@
       <div class="stats-section card">
         <h2>Collection Distribution</h2>
         <div v-if="heatMapEras.length && heatMapCategories.length" class="heatmap-container">
-          <div class="heatmap-grid" :style="{ gridTemplateColumns: `100px repeat(${heatMapCategories.length}, 1fr)` }">
+          <div class="heatmap-grid" :style="{ gridTemplateColumns: `minmax(60px, 80px) repeat(${heatMapCategories.length}, 1fr)` }">
             <div class="heatmap-corner"></div>
             <div v-for="cat in heatMapCategories" :key="cat" class="heatmap-col-header">{{ cat }}</div>
             <template v-for="era in heatMapEras" :key="era">
@@ -701,12 +701,13 @@ onMounted(() => {
 /* Heat map */
 .heatmap-container {
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .heatmap-grid {
   display: grid;
   gap: 2px;
-  min-width: 400px;
+  min-width: 300px;
 }
 
 .heatmap-corner {
@@ -714,29 +715,32 @@ onMounted(() => {
 }
 
 .heatmap-col-header {
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   font-weight: 600;
   color: var(--text-secondary);
   text-align: center;
-  padding: 0.35rem 0.25rem;
-  white-space: nowrap;
-}
-
-.heatmap-row-header {
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  display: flex;
-  align-items: center;
-  padding-right: 0.5rem;
+  padding: 0.25rem 0.15rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
+.heatmap-row-header {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  padding-right: 0.35rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 80px;
+}
+
 .heatmap-cell {
   aspect-ratio: 1;
-  min-height: 36px;
+  min-height: 28px;
   border-radius: 4px;
   display: flex;
   align-items: center;
@@ -753,7 +757,7 @@ onMounted(() => {
 }
 
 .heatmap-count {
-  font-size: 0.75rem;
+  font-size: 0.65rem;
   font-weight: 700;
   color: var(--text-primary);
 }
@@ -776,5 +780,28 @@ onMounted(() => {
   height: 10px;
   border-radius: 5px;
   background: linear-gradient(to right, rgba(191, 155, 48, 0.1), rgba(191, 155, 48, 0.85));
+}
+
+@media (max-width: 480px) {
+  .heatmap-grid {
+    gap: 1px;
+    min-width: 0;
+  }
+  .heatmap-col-header {
+    font-size: 0.55rem;
+    padding: 0.2rem 0.1rem;
+  }
+  .heatmap-row-header {
+    font-size: 0.55rem;
+    max-width: 60px;
+    padding-right: 0.2rem;
+  }
+  .heatmap-cell {
+    min-height: 24px;
+    border-radius: 3px;
+  }
+  .heatmap-count {
+    font-size: 0.55rem;
+  }
 }
 </style>
