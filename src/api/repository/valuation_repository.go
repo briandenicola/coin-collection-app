@@ -65,6 +65,17 @@ func (r *ValuationRepository) HasActiveRun(userID uint) (bool, error) {
 	return count > 0, err
 }
 
+// CancelRun marks a running valuation run as cancelled in the DB.
+func (r *ValuationRepository) CancelRun(runID uint) {
+	now := time.Now()
+	r.db.Model(&models.ValuationRun{}).Where("id = ? AND status = ?", runID, "running").
+		Updates(map[string]interface{}{
+			"status":        "cancelled",
+			"error_message": "cancelled by user",
+			"completed_at":  now,
+		})
+}
+
 // RecoverStaleRuns marks runs that have been "running" longer than the timeout as failed.
 func (r *ValuationRepository) RecoverStaleRuns(timeout time.Duration) {
 	cutoff := time.Now().Add(-timeout)

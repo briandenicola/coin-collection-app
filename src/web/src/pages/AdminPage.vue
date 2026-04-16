@@ -546,6 +546,7 @@
                     <span v-if="run.status === 'running' && run.totalCoins > 0" class="val-progress">
                       {{ run.coinsChecked + run.coinsSkipped + run.errors }} / {{ run.totalCoins }}
                     </span>
+                    <button v-if="run.status === 'running'" class="btn-cancel-run" @click.stop="cancelRun(run.id)">Cancel</button>
                   </td>
                   <td>{{ run.coinsChecked }}</td>
                   <td class="avail-count-available">{{ run.coinsUpdated }}</td>
@@ -630,7 +631,7 @@ import {
   getAnthropicModels, getCoinSearchPrompt, getCoinShowsPrompt, getValuationPrompt,
   testAnthropicConnection, testSearXNGConnection,
   getAvailabilityRuns, getAvailabilityRunDetail,
-  getValuationRuns, getValuationRunDetail, triggerValuation,
+  getValuationRuns, getValuationRunDetail, triggerValuation, cancelValuationRun,
 } from '@/api/client'
 import type { AnthropicModel } from '@/api/client'
 import { LOG_LEVELS } from '@/types'
@@ -1045,6 +1046,18 @@ async function triggerManualValuation() {
     valSettingsError.value = true
   } finally {
     valTriggerLoading.value = false
+  }
+}
+
+async function cancelRun(runId: number) {
+  try {
+    await cancelValuationRun(runId)
+    valSettingsMsg.value = 'Cancellation requested'
+    setTimeout(() => { valSettingsMsg.value = '' }, 5000)
+    setTimeout(() => { loadValRuns() }, 1000)
+  } catch {
+    valSettingsMsg.value = 'Failed to cancel run'
+    valSettingsError.value = true
   }
 }
 
@@ -1686,6 +1699,26 @@ onUnmounted(() => {
 .val-status-failed {
   background: rgba(231, 76, 60, 0.15);
   color: #e74c3c;
+}
+
+.val-status-cancelled {
+  background: rgba(243, 156, 18, 0.15);
+  color: #f39c12;
+}
+
+.btn-cancel-run {
+  margin-left: 0.4rem;
+  padding: 0.1rem 0.4rem;
+  font-size: 0.65rem;
+  border: 1px solid rgba(231, 76, 60, 0.4);
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: #e74c3c;
+  cursor: pointer;
+  vertical-align: middle;
+}
+.btn-cancel-run:hover {
+  background: rgba(231, 76, 60, 0.15);
 }
 
 .val-value {

@@ -359,6 +359,7 @@ func main() {
 		admin.GET("/valuation-runs", valAdminHandler.ListRuns)
 		admin.GET("/valuation-runs/:id", valAdminHandler.GetRunDetail)
 		admin.POST("/valuation-runs/trigger", valAdminHandler.TriggerValuation)
+		admin.POST("/valuation-runs/:id/cancel", valAdminHandler.CancelValuation)
 	}
 
 	log.Printf("Starting server on :%s", cfg.Port)

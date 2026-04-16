@@ -498,6 +498,8 @@ export const getValuationRunDetail = (runId: number) =>
   api.get<ValuationRun>(`/admin/valuation-runs/${runId}`)
 export const triggerValuation = () =>
   api.post<{ message: string; users: number }>('/admin/valuation-runs/trigger')
+export const cancelValuationRun = (runId: number) =>
+  api.post<{ message: string }>(`/admin/valuation-runs/${runId}/cancel`)
 
 // Notifications
 export const getNotifications = (page = 1, limit = 20) =>

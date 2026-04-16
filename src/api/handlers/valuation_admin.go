@@ -123,3 +123,30 @@ func (h *ValuationAdminHandler) TriggerValuation(c *gin.Context) {
 
 	c.JSON(http.StatusAccepted, gin.H{"message": "Valuation started", "users": len(userIDs)})
 }
+
+// CancelValuation cancels a running valuation run.
+//
+//	@Summary		Cancel a valuation run
+//	@Description	Signals a running valuation to stop after the current coin.
+//	@Tags			Admin
+//	@Produce		json
+//	@Param			id	path		int	true	"Run ID"
+//	@Success		200	{object}	map[string]interface{}
+//	@Failure		400	{object}	ErrorResponse
+//	@Failure		404	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/admin/valuation-runs/{id}/cancel [post]
+func (h *ValuationAdminHandler) CancelValuation(c *gin.Context) {
+	runID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid run ID"})
+		return
+	}
+
+	found := h.valSvc.CancelRun(uint(runID))
+	if found {
+		c.JSON(http.StatusOK, gin.H{"message": "Cancellation signal sent"})
+	} else {
+		c.JSON(http.StatusOK, gin.H{"message": "Run marked as cancelled (was not active in memory)"})
+	}
+}

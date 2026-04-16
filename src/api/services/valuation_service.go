@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/briandenicola/ancient-coins-api/models"
@@ -20,6 +21,9 @@ const (
 	valuationMaxRetries   = 2
 	valuationRetryDelay   = 60 * time.Second // back off on rate-limit / 5xx errors
 )
+
+// cancelMap tracks cancellation channels for active valuation runs, keyed by run ID.
+var cancelMap sync.Map
 
 // ValuationService orchestrates bulk AI-powered coin valuation.
 type ValuationService struct {
@@ -195,8 +199,13 @@ func (s *ValuationService) ValuateCollectionForUser(
 		return nil, fmt.Errorf("failed to create run record: %w", err)
 	}
 
+	// Register a cancellation channel for this run
+	cancelCh := make(chan struct{})
+	cancelMap.Store(run.ID, cancelCh)
+
 	// Ensure run is finalized even on panic
 	defer func() {
+		cancelMap.Delete(run.ID)
 		if run.Status == "running" {
 			run.Status = "failed"
 			run.ErrorMessage = "run terminated unexpectedly"
@@ -243,6 +252,24 @@ func (s *ValuationService) ValuateCollectionForUser(
 	}
 
 	for i, coin := range coins {
+		// Check for cancellation
+		select {
+		case <-cancelCh:
+			s.logger.Info("valuation", "Run %d cancelled by user after %d coins", run.ID, checked+skipped)
+			completedAt := time.Now()
+			run.Status = "cancelled"
+			run.CoinsChecked = checked
+			run.CoinsUpdated = updated
+			run.CoinsSkipped = skipped
+			run.Errors = errCount
+			run.DurationMs = completedAt.Sub(startedAt).Milliseconds()
+			run.CompletedAt = &completedAt
+			run.ErrorMessage = "cancelled by user"
+			s.valRepo.CompleteRun(run)
+			return run, nil
+		default:
+		}
+
 		// Skip coins with insufficient metadata
 		if !coinHasEnoughMetadata(&coin) {
 			skipped++
@@ -372,6 +399,18 @@ func (s *ValuationService) ValuateCollectionForUser(
 		run.ID, checked, updated, skipped, errCount, run.DurationMs)
 
 	return run, nil
+}
+
+// CancelRun signals a running valuation to stop after the current coin.
+// Returns true if a running valuation was found and signalled.
+func (s *ValuationService) CancelRun(runID uint) bool {
+	if ch, ok := cancelMap.Load(runID); ok {
+		close(ch.(chan struct{}))
+		return true
+	}
+	// If not in memory (maybe stale), mark it in the DB directly
+	s.valRepo.CancelRun(runID)
+	return false
 }
 
 // updateCoinValuation updates a single coin's current value and records
