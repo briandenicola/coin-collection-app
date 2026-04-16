@@ -362,6 +362,11 @@ async function bulkTag(tagId: number) {
   align-items: center;
   gap: 0.5rem;
   margin-bottom: 0.75rem;
+  position: sticky;
+  top: 60px;
+  z-index: 50;
+  background: var(--bg-primary);
+  padding: 0.5rem 0;
 }
 
 .pwa-header :deep(.search-bar) {
