@@ -61,8 +61,11 @@
 
     <!-- Desktop header (hidden in PWA) -->
     <div v-if="!isPwa" class="page-header collection-header">
+      <div class="header-spacer"></div>
       <SearchBar v-model="search" />
-      <SortSelect v-model="sortKey" />
+      <div class="header-sort">
+        <SortSelect v-model="sortKey" />
+      </div>
     </div>
 
     <div v-if="!isPwa" class="collection-toolbar">
@@ -467,22 +470,30 @@ async function bulkTag(tagId: number) {
   transform: translateY(-8px);
 }
 
-/* --- Desktop header (unchanged) --- */
+/* --- Desktop header --- */
 .collection-header {
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 1rem;
 }
 
-.collection-header :deep(.search-bar) {
+.header-spacer {
   flex: 1;
-  max-width: 600px;
+}
+
+.collection-header :deep(.search-bar) {
+  flex: 0 1 600px;
 }
 
 .collection-header :deep(.search-input) {
   padding: 0.75rem 2.5rem;
   font-size: 0.95rem;
+}
+
+.header-sort {
+  flex: 1;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .collection-toolbar {
@@ -646,6 +657,14 @@ async function bulkTag(tagId: number) {
   .collection-header {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .header-spacer {
+    display: none;
+  }
+
+  .header-sort {
+    justify-content: flex-start;
   }
 
   .collection-header :deep(.search-bar) {
