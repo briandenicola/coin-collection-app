@@ -163,6 +163,9 @@ func main() {
 		protected.POST("/tags", tagHandler.Create)
 		protected.PUT("/tags/:id", tagHandler.Update)
 		protected.DELETE("/tags/:id", tagHandler.Delete)
+		bulkHandler := handlers.NewBulkHandler(coinRepo, tagRepo)
+		protected.POST("/coins/bulk", bulkHandler.BulkAction)
+
 		protected.POST("/coins/:id/tags", tagHandler.AttachToCoin)
 		protected.DELETE("/coins/:id/tags/:tagId", tagHandler.DetachFromCoin)
 

@@ -241,6 +241,63 @@ func (r *CoinRepository) Delete(id uint, userID uint) (int64, error) {
 	return rowsAffected, err
 }
 
+// BulkDelete removes multiple coins and all associated data in a single transaction.
+func (r *CoinRepository) BulkDelete(coinIDs []uint, userID uint) (int64, error) {
+	var rowsAffected int64
+	err := r.db.Transaction(func(tx *gorm.DB) error {
+		result := tx.Where("id IN ? AND user_id = ?", coinIDs, userID).Delete(&models.Coin{})
+		if result.Error != nil {
+			return result.Error
+		}
+		rowsAffected = result.RowsAffected
+		if rowsAffected == 0 {
+			return nil
+		}
+		if err := tx.Where("coin_id IN ?", coinIDs).Delete(&models.CoinImage{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("coin_id IN ?", coinIDs).Delete(&models.CoinJournal{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("coin_id IN ?", coinIDs).Delete(&models.CoinValueHistory{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("coin_id IN ?", coinIDs).Delete(&models.CoinComment{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("coin_id IN ?", coinIDs).Delete(&models.AvailabilityResult{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("coin_id IN ?", coinIDs).Delete(&models.CoinTag{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Model(&models.AuctionLot{}).Where("coin_id IN ?", coinIDs).Update("coin_id", nil).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+	return rowsAffected, err
+}
+
+// BulkMarkSold marks multiple coins as sold in a single transaction.
+func (r *CoinRepository) BulkMarkSold(coinIDs []uint, userID uint) (int64, error) {
+	result := r.db.Model(&models.Coin{}).
+		Where("id IN ? AND user_id = ? AND is_sold = ?", coinIDs, userID, false).
+		Updates(map[string]interface{}{
+			"is_sold":   true,
+			"sold_date": time.Now(),
+		})
+	return result.RowsAffected, result.Error
+}
+
+// GetByIDs returns coins matching the given IDs for the given user.
+func (r *CoinRepository) GetByIDs(coinIDs []uint, userID uint) ([]models.Coin, error) {
+	var coins []models.Coin
+	err := r.db.Where("id IN ? AND user_id = ?", coinIDs, userID).
+		Preload("Images").Preload("Tags").Find(&coins).Error
+	return coins, err
+}
+
 // GetStats returns aggregate collection statistics for a user.
 func (r *CoinRepository) GetStats(userID uint) (*CollectionStats, error) {
 	stats := &CollectionStats{}

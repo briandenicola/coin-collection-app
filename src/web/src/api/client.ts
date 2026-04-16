@@ -136,6 +136,10 @@ export const deleteTag = (id: number) => api.delete(`/tags/${id}`)
 export const addTagToCoin = (coinId: number, tagId: number) => api.post(`/coins/${coinId}/tags`, { tagId })
 export const removeTagFromCoin = (coinId: number, tagId: number) => api.delete(`/coins/${coinId}/tags/${tagId}`)
 
+// Bulk Operations
+export const bulkAction = (coinIds: number[], action: string, tagId?: number) =>
+  api.post<{ message: string; affected: number; coins?: Coin[] }>('/coins/bulk', { coinIds, action, tagId })
+
 // Journal
 export const getJournalEntries = (coinId: number) => api.get<CoinJournal[]>(`/coins/${coinId}/journal`)
 export const addJournalEntry = (coinId: number, entry: string) =>

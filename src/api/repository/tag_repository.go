@@ -136,3 +136,39 @@ func (r *TagRepository) ExistsByName(userID uint, name string) (bool, error) {
 		Count(&count).Error
 	return count > 0, err
 }
+
+// BulkAttachToCoin attaches a tag to multiple coins. All coins and the tag must belong to the user.
+func (r *TagRepository) BulkAttachToCoin(coinIDs []uint, tagID, userID uint) (int64, error) {
+	var affected int64
+	err := r.db.Transaction(func(tx *gorm.DB) error {
+		// Verify tag ownership
+		var tagCount int64
+		if err := tx.Model(&models.Tag{}).Where("id = ? AND user_id = ?", tagID, userID).Count(&tagCount).Error; err != nil {
+			return err
+		}
+		if tagCount == 0 {
+			return gorm.ErrRecordNotFound
+		}
+		// Verify all coins belong to user
+		var coinCount int64
+		if err := tx.Model(&models.Coin{}).Where("id IN ? AND user_id = ?", coinIDs, userID).Count(&coinCount).Error; err != nil {
+			return err
+		}
+		if coinCount == 0 {
+			return gorm.ErrRecordNotFound
+		}
+		// Insert associations, ignore duplicates
+		for _, coinID := range coinIDs {
+			result := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&models.CoinTag{
+				CoinID: coinID,
+				TagID:  tagID,
+			})
+			if result.Error != nil {
+				return result.Error
+			}
+			affected += result.RowsAffected
+		}
+		return nil
+	})
+	return affected, err
+}

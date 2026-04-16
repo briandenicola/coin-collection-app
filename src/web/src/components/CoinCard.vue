@@ -1,5 +1,5 @@
 <template>
-  <div class="coin-card card" @click="$router.push(`/coin/${coin.id}`)">
+  <div class="coin-card card" :class="{ 'coin-card-selected': selectable && selected }" @click="handleClick">
     <div class="card-image-container">
       <img v-if="primaryImage" :src="primaryImage" :alt="coin.name" class="card-image" loading="lazy" />
       <div v-else class="card-image-placeholder"><Coins :size="48" :stroke-width="1" /></div>
@@ -10,6 +10,9 @@
         class="listing-dismiss-btn"
         @click.stop="emit('dismiss-status', coin.id)"
       >Dismiss</button>
+      <div v-if="selectable" class="select-checkbox" :class="{ checked: selected }" @click.stop="emit('toggle-select', coin.id)">
+        <Check v-if="selected" :size="14" :stroke-width="3" />
+      </div>
     </div>
     <div class="card-body">
       <h3 class="card-title">
@@ -84,18 +87,39 @@
 <script setup lang="ts">
 import type { Coin, ImageType } from '@/types'
 import { computed } from 'vue'
-import { Coins, ShoppingCart } from 'lucide-vue-next'
+import { useRouter } from 'vue-router'
+import { Coins, ShoppingCart, Check } from 'lucide-vue-next'
 
-const props = withDefaults(defineProps<{ coin: Coin; imageSide?: ImageType | null; wishlist?: boolean; sold?: boolean }>(), {
+const router = useRouter()
+
+const props = withDefaults(defineProps<{
+  coin: Coin
+  imageSide?: ImageType | null
+  wishlist?: boolean
+  sold?: boolean
+  selectable?: boolean
+  selected?: boolean
+}>(), {
   imageSide: null,
   wishlist: false,
   sold: false,
+  selectable: false,
+  selected: false,
 })
 
 const emit = defineEmits<{
   purchase: [coin: Coin]
   'dismiss-status': [coinId: number]
+  'toggle-select': [coinId: number]
 }>()
+
+function handleClick() {
+  if (props.selectable) {
+    emit('toggle-select', props.coin.id)
+  } else {
+    router.push(`/coin/${props.coin.id}`)
+  }
+}
 
 const primaryImage = computed(() => {
   if (props.imageSide) {
@@ -371,5 +395,34 @@ function formatCurrency(value: number) {
 
 .status-dot-unknown {
   background: #f1c40f;
+}
+
+/* Select mode */
+.select-checkbox {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.7);
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 4;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.select-checkbox.checked {
+  background: var(--accent-gold);
+  border-color: var(--accent-gold);
+  color: #000;
+}
+
+.coin-card-selected {
+  outline: 2px solid var(--accent-gold);
+  outline-offset: -2px;
 }
 </style>
