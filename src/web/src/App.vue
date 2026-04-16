@@ -66,6 +66,14 @@
             <Clock :size="20" />
             <span>Timeline</span>
           </router-link>
+          <router-link to="/calendar" class="sidebar-link" active-class="active" @click="sidebarOpen = false">
+            <CalendarDays :size="20" />
+            <span>Calendar</span>
+          </router-link>
+          <router-link to="/showcases" class="sidebar-link" active-class="active" @click="sidebarOpen = false">
+            <Share2 :size="20" />
+            <span>Showcases</span>
+          </router-link>
           <router-link to="/notifications" class="sidebar-link" active-class="active" @click="sidebarOpen = false">
             <Bell :size="20" />
             <span>Notifications</span>
@@ -130,7 +138,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
-import { Landmark, Bookmark, BadgeDollarSign, BarChart3, CirclePlus, Settings, ShieldCheck, LogOut, Users as UsersIcon, Clock, Bot, Gavel, X, Bell } from 'lucide-vue-next'
+import { Landmark, Bookmark, BadgeDollarSign, BarChart3, CirclePlus, Settings, ShieldCheck, LogOut, Users as UsersIcon, Clock, Bot, Gavel, X, Bell, CalendarDays, Share2 } from 'lucide-vue-next'
 import { updateProfile, getMe, getUnreadNotificationCount } from '@/api/client'
 import CoinSearchChat from '@/components/CoinSearchChat.vue'
 import AppDialog from '@/components/AppDialog.vue'

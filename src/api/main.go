@@ -133,6 +133,11 @@ func main() {
 		api.POST("/auth/webauthn/login/begin", authRateLimit, webauthnHandler.LoginBegin)
 		api.POST("/auth/webauthn/login/finish", authRateLimit, webauthnHandler.LoginFinish)
 		api.GET("/auth/webauthn/check", webauthnHandler.CheckCredentials)
+
+		// Public showcase route (no auth)
+		publicShowcaseRepo := repository.NewShowcaseRepository(database.DB)
+		publicShowcaseHandler := handlers.NewShowcaseHandler(publicShowcaseRepo)
+		api.GET("/showcase/:slug", publicShowcaseHandler.GetPublicShowcase)
 	}
 
 	// Protected routes
@@ -293,6 +298,35 @@ func main() {
 		protected.POST("/auth/webauthn/register/finish", webauthnHandler.RegisterFinish)
 		protected.GET("/auth/webauthn/credentials", webauthnHandler.ListCredentials)
 		protected.DELETE("/auth/webauthn/credentials/:id", webauthnHandler.DeleteCredential)
+
+		// Showcase routes
+		showcaseRepo := repository.NewShowcaseRepository(database.DB)
+		showcaseHandler := handlers.NewShowcaseHandler(showcaseRepo)
+		protected.GET("/showcases", showcaseHandler.ListShowcases)
+		protected.GET("/showcases/:id", showcaseHandler.GetShowcase)
+		protected.POST("/showcases", showcaseHandler.CreateShowcase)
+		protected.PUT("/showcases/:id", showcaseHandler.UpdateShowcase)
+		protected.DELETE("/showcases/:id", showcaseHandler.DeleteShowcase)
+		protected.PUT("/showcases/:id/coins", showcaseHandler.SetShowcaseCoins)
+
+		// Calendar / Auction Event routes
+		eventRepo := repository.NewAuctionEventRepository(database.DB)
+		calendarHandler := handlers.NewCalendarHandler(eventRepo, auctionLotRepo)
+		protected.GET("/calendar", calendarHandler.GetCalendar)
+		protected.POST("/calendar/events", calendarHandler.CreateEvent)
+		protected.PUT("/calendar/events/:id", calendarHandler.UpdateEvent)
+		protected.DELETE("/calendar/events/:id", calendarHandler.DeleteEvent)
+
+		// Price Alerts & Bid Reminders
+		priceAlertRepo := repository.NewPriceAlertRepository(database.DB)
+		bidReminderRepo := repository.NewBidReminderRepository(database.DB)
+		alertHandler := handlers.NewAlertHandler(priceAlertRepo, bidReminderRepo)
+		protected.GET("/alerts", alertHandler.ListAlerts)
+		protected.POST("/alerts", alertHandler.CreateAlert)
+		protected.DELETE("/alerts/:id", alertHandler.DeleteAlert)
+		protected.GET("/reminders", alertHandler.ListReminders)
+		protected.POST("/reminders", alertHandler.CreateReminder)
+		protected.DELETE("/reminders/:id", alertHandler.DeleteReminder)
 	}
 
 	// Admin-only routes

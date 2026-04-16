@@ -109,6 +109,29 @@ const router = createRouter({
       component: () => import('@/pages/NotificationsPage.vue'),
       meta: { requiresAuth: true },
     },
+    {
+      path: '/showcases',
+      name: 'showcases',
+      component: () => import('@/pages/ShowcasesPage.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/showcases/:id',
+      name: 'showcase-edit',
+      component: () => import('@/pages/ShowcaseEditPage.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/s/:slug',
+      name: 'public-showcase',
+      component: () => import('@/pages/PublicShowcasePage.vue'),
+    },
+    {
+      path: '/calendar',
+      name: 'calendar',
+      component: () => import('@/pages/CalendarPage.vue'),
+      meta: { requiresAuth: true },
+    },
   ],
 })
 

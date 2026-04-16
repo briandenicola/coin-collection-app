@@ -412,6 +412,37 @@ export const followUser = (userId: number) => api.post(`/social/follow/${userId}
 export const unfollowUser = (userId: number) => api.delete(`/social/follow/${userId}`)
 export const acceptFollower = (userId: number) => api.put(`/social/followers/${userId}/accept`)
 export const blockFollower = (userId: number) => api.put(`/social/followers/${userId}/block`)
+
+// Showcases
+export const listShowcases = () => api.get('/showcases')
+export const getShowcase = (id: number) => api.get(`/showcases/${id}`)
+export const createShowcase = (data: { title: string; description?: string }) => api.post('/showcases', data)
+export const updateShowcase = (id: number, data: { title?: string; description?: string; isActive?: boolean }) => api.put(`/showcases/${id}`, data)
+export const deleteShowcase = (id: number) => api.delete(`/showcases/${id}`)
+export const setShowcaseCoins = (id: number, coinIds: number[]) => api.put(`/showcases/${id}/coins`, { coinIds })
+export const getPublicShowcase = (slug: string) => axios.get(`${API_BASE}/api/showcase/${slug}`)
+
+// Calendar / Auction Events
+export const getCalendar = (start?: string, end?: string) => {
+  const params: Record<string, string> = {}
+  if (start) params.start = start
+  if (end) params.end = end
+  return api.get('/calendar', { params })
+}
+export const createCalendarEvent = (data: { title: string; auctionHouse?: string; startDate?: string; endDate?: string; url?: string; notes?: string }) => api.post('/calendar/events', data)
+export const updateCalendarEvent = (id: number, data: Record<string, unknown>) => api.put(`/calendar/events/${id}`, data)
+export const deleteCalendarEvent = (id: number) => api.delete(`/calendar/events/${id}`)
+
+// Price Alerts
+export const listAlerts = () => api.get('/alerts')
+export const createAlert = (data: { auctionLotId: number; targetPrice: number; direction?: string }) => api.post('/alerts', data)
+export const deleteAlert = (id: number) => api.delete(`/alerts/${id}`)
+
+// Bid Reminders
+export const listReminders = () => api.get('/reminders')
+export const createReminder = (data: { auctionLotId: number; minutesBefore?: number }) => api.post('/reminders', data)
+export const deleteReminder = (id: number) => api.delete(`/reminders/${id}`)
+
 export const unblockFollower = (userId: number) => api.delete(`/social/followers/${userId}/block`)
 export const getFollowers = () => api.get<{ followers: FollowUser[] }>('/social/followers')
 export const getFollowing = () => api.get<{ following: FollowUser[] }>('/social/following')

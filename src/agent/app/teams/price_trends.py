@@ -13,6 +13,7 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langgraph.graph import END, StateGraph
 
 from app.llm.provider import get_chat_model, get_search_model
+from app.models.requests import LLMConfig
 
 logger = logging.getLogger(__name__)
 

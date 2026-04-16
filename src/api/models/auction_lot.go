@@ -19,7 +19,8 @@ type AuctionLot struct {
 	LotNumber    int              `json:"lotNumber"`
 	AuctionHouse string           `json:"auctionHouse"`
 	SaleName     string           `json:"saleName"`
-	SaleDate     *time.Time       `json:"saleDate"`
+	SaleDate       *time.Time       `json:"saleDate"`
+	AuctionEndTime *time.Time       `json:"auctionEndTime"`
 	Title        string           `gorm:"not null" json:"title"`
 	Description  string           `gorm:"type:text" json:"description"`
 	Category     Category         `gorm:"type:varchar(20);default:'Other'" json:"category"`

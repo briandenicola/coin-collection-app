@@ -81,7 +81,10 @@ def create_gap_analysis_team(
     async def suggestion_node(state: GapAnalysisState) -> dict:
         gap = state.get("gap_analysis", "")
         if not gap:
-            return {"suggestions": "", "messages": [AIMessage(content="Unable to analyze gaps without collection data.")]}
+            return {
+                "suggestions": "",
+                "messages": [AIMessage(content="Unable to analyze gaps without collection data.")],
+            }
 
         messages = [
             SystemMessage(content=SUGGESTION_PROMPT),
@@ -127,6 +130,6 @@ def _build_collection_summary(portfolio: PortfolioSummary) -> str:
         coin_list = []
         for c in portfolio.top_coins[:50]:
             coin_list.append(f"- {c.name} ({c.category}, {c.era}, {c.grade or 'ungraded'})")
-        parts.append(f"Coins:\n" + "\n".join(coin_list))
+        parts.append("Coins:\n" + "\n".join(coin_list))
 
     return "\n".join(parts)
