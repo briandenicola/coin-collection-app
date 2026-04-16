@@ -6,7 +6,6 @@
         <button class="nav-brand" @click="sidebarOpen = !sidebarOpen">
           <img src="/coin-logo.jpg" alt="Ancient Coins" class="nav-logo" />
           <span class="nav-title">Coin Collection</span>
-          <Menu :size="18" class="nav-menu-icon" />
         </button>
       </div>
     </nav>
@@ -122,7 +121,7 @@
 import { ref, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
-import { Landmark, Bookmark, BadgeDollarSign, BarChart3, CirclePlus, Settings, ShieldCheck, LogOut, Users as UsersIcon, Clock, Bot, Gavel, Menu, X } from 'lucide-vue-next'
+import { Landmark, Bookmark, BadgeDollarSign, BarChart3, CirclePlus, Settings, ShieldCheck, LogOut, Users as UsersIcon, Clock, Bot, Gavel, X } from 'lucide-vue-next'
 import { updateProfile, getMe } from '@/api/client'
 import CoinSearchChat from '@/components/CoinSearchChat.vue'
 import AppDialog from '@/components/AppDialog.vue'
@@ -232,16 +231,6 @@ function handleLogout() {
   color: var(--accent-gold);
   font-weight: 600;
   white-space: nowrap;
-}
-
-.nav-menu-icon {
-  color: var(--text-secondary);
-  margin-left: 0.25rem;
-  transition: color var(--transition-fast);
-}
-
-.nav-brand:hover .nav-menu-icon {
-  color: var(--accent-gold);
 }
 
 /* ── Sidebar ── */
