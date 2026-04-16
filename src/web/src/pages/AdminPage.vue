@@ -815,7 +815,7 @@ async function saveSettings() {
   valSettingsMsg.value = ''
   valSettingsError.value = false
   try {
-    const entries = Object.entries(settings.value).map(([key, value]) => ({ key, value }))
+    const entries = Object.entries(settings.value).map(([key, value]) => ({ key, value: String(value) }))
     await updateAppSettings(entries)
     settingsMsg.value = 'Settings saved'
     availSettingsMsg.value = 'Settings saved'
