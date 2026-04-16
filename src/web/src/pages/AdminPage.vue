@@ -452,10 +452,10 @@
             </tbody>
           </table>
 
-          <div v-if="availTotal > availRuns.length" class="avail-pagination">
+          <div class="avail-pagination">
             <button class="btn btn-secondary btn-sm" :disabled="availPage <= 1" @click="availPage--; loadAvailRuns()">Prev</button>
             <span class="avail-page-info">Page {{ availPage }}</span>
-            <button class="btn btn-secondary btn-sm" :disabled="availRuns.length < 20" @click="availPage++; loadAvailRuns()">Next</button>
+            <button class="btn btn-secondary btn-sm" :disabled="availRuns.length < 5" @click="availPage++; loadAvailRuns()">Next</button>
           </div>
         </template>
 
@@ -590,10 +590,10 @@
             </tbody>
           </table>
 
-          <div v-if="valTotal > valRuns.length" class="avail-pagination">
+          <div class="avail-pagination">
             <button class="btn btn-secondary btn-sm" :disabled="valPage <= 1" @click="valPage--; loadValRuns()">Prev</button>
             <span class="avail-page-info">Page {{ valPage }}</span>
-            <button class="btn btn-secondary btn-sm" :disabled="valRuns.length < 20" @click="valPage++; loadValRuns()">Next</button>
+            <button class="btn btn-secondary btn-sm" :disabled="valRuns.length < 5" @click="valPage++; loadValRuns()">Next</button>
           </div>
         </template>
       </section>
@@ -951,7 +951,7 @@ const expandedLoading = ref(false)
 async function loadAvailRuns() {
   availLoading.value = true
   try {
-    const res = await getAvailabilityRuns(availPage.value, 20)
+    const res = await getAvailabilityRuns(availPage.value, 5)
     availRuns.value = res.data.runs ?? []
     availTotal.value = res.data.total ?? 0
   } catch { /* ignore */ } finally {
@@ -994,7 +994,7 @@ let valPollTimer: ReturnType<typeof setInterval> | null = null
 async function loadValRuns() {
   valLoading.value = true
   try {
-    const res = await getValuationRuns(valPage.value, 20)
+    const res = await getValuationRuns(valPage.value, 5)
     valRuns.value = res.data.runs ?? []
     valTotal.value = res.data.total ?? 0
 
