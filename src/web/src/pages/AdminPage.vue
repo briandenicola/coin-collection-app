@@ -341,12 +341,13 @@
         </div>
       </section>
 
-      <!-- Availability Tab -->
-      <section v-if="activeTab === 'availability'" class="admin-section card">
-        <h2>Availability Check</h2>
+      <!-- Schedules Tab -->
+      <section v-if="activeTab === 'schedules'" class="admin-section card">
+        <h2>Schedules</h2>
 
+        <!-- Wishlist Availability Check -->
+        <h3 class="subsection-title">Wishlist Availability Check</h3>
         <div class="avail-settings">
-          <h3 class="subsection-title">Settings</h3>
           <div class="form-group avail-toggle-row">
             <label class="form-label">Enable Automatic Checks</label>
             <label class="toggle-switch">
@@ -387,7 +388,7 @@
         </div>
 
         <hr class="section-divider" />
-        <h3 class="subsection-title">Run History</h3>
+        <h3 class="subsection-title">Availability Run History</h3>
 
         <div v-if="availLoading" class="loading-overlay"><div class="spinner"></div></div>
         <div v-else-if="availRuns.length === 0" class="logs-empty">No availability runs recorded yet.</div>
@@ -457,6 +458,141 @@
             <button class="btn btn-secondary btn-sm" :disabled="availRuns.length < 20" @click="availPage++; loadAvailRuns()">Next</button>
           </div>
         </template>
+
+        <hr class="section-divider" />
+
+        <!-- Collection Valuation -->
+        <h3 class="subsection-title">Collection Valuation</h3>
+        <div class="avail-settings">
+          <div class="form-group avail-toggle-row">
+            <label class="form-label">Enable Scheduled Valuation</label>
+            <label class="toggle-switch">
+              <input
+                type="checkbox"
+                :checked="settings.ValuationCheckEnabled === 'true'"
+                @change="settings.ValuationCheckEnabled = ($event.target as HTMLInputElement).checked ? 'true' : 'false'"
+              />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Start Time (daily anchor)</label>
+            <input
+              v-model="settings.ValuationCheckStartTime"
+              class="form-input avail-interval-input"
+              type="time"
+            />
+            <span class="form-hint">The valuation cycle starts at this time on scheduled days.</span>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Repeat Interval (days)</label>
+            <input
+              v-model="settings.ValuationCheckIntervalDays"
+              class="form-input avail-interval-input"
+              type="number"
+              min="1"
+              step="1"
+            />
+            <span class="form-hint">How often to run (e.g. 7 = weekly). AI valuations are costly so daily runs are not recommended.</span>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Max Coins Per Run</label>
+            <input
+              v-model="settings.ValuationMaxCoins"
+              class="form-input avail-interval-input"
+              type="number"
+              min="1"
+              step="10"
+            />
+            <span class="form-hint">Limit how many coins are valuated per run to control AI costs.</span>
+          </div>
+          <div class="avail-save-row">
+            <button class="btn btn-primary btn-sm" :disabled="settingsSaving" @click="saveSettings()">
+              {{ settingsSaving ? 'Saving...' : 'Save Valuation Settings' }}
+            </button>
+            <button class="btn btn-secondary btn-sm" :disabled="valTriggerLoading" @click="triggerManualValuation()">
+              {{ valTriggerLoading ? 'Running...' : 'Run Now' }}
+            </button>
+            <span v-if="valSettingsMsg" class="avail-save-msg" :class="{ 'avail-save-error': valSettingsError }">{{ valSettingsMsg }}</span>
+          </div>
+        </div>
+
+        <hr class="section-divider" />
+        <h3 class="subsection-title">Valuation Run History</h3>
+
+        <div v-if="valLoading" class="loading-overlay"><div class="spinner"></div></div>
+        <div v-else-if="valRuns.length === 0" class="logs-empty">No valuation runs recorded yet.</div>
+        <template v-else>
+          <table class="users-table avail-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Trigger</th>
+                <th>Status</th>
+                <th>Checked</th>
+                <th>Updated</th>
+                <th>Skipped</th>
+                <th>Errors</th>
+                <th>Duration</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template v-for="run in valRuns" :key="run.id">
+                <tr class="avail-row" :class="{ 'avail-row-expanded': valExpandedRunId === run.id }" @click="toggleValRunDetail(run.id)">
+                  <td class="date-cell">{{ formatDate(run.startedAt) }}</td>
+                  <td>{{ run.triggerType }}</td>
+                  <td>
+                    <span class="val-status-badge" :class="'val-status-' + run.status">{{ run.status }}</span>
+                  </td>
+                  <td>{{ run.coinsChecked }}</td>
+                  <td class="avail-count-available">{{ run.coinsUpdated }}</td>
+                  <td class="avail-count-unknown">{{ run.coinsSkipped }}</td>
+                  <td class="avail-count-unavailable">{{ run.errors }}</td>
+                  <td>{{ formatDuration(run.durationMs) }}</td>
+                </tr>
+                <tr v-if="valExpandedRunId === run.id && valExpandedResults" class="avail-detail-row">
+                  <td colspan="8">
+                    <div v-if="valExpandedLoading" class="loading-overlay"><div class="spinner"></div></div>
+                    <table v-else-if="valExpandedResults.length" class="avail-detail-table val-detail-table">
+                      <thead>
+                        <tr>
+                          <th>Coin</th>
+                          <th>Previous</th>
+                          <th>Estimated</th>
+                          <th>Confidence</th>
+                          <th>Status</th>
+                          <th>Reasoning</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr v-for="r in valExpandedResults" :key="r.id">
+                          <td>{{ r.coinName }}</td>
+                          <td>{{ r.previousValue != null ? `$${r.previousValue.toFixed(2)}` : '--' }}</td>
+                          <td class="val-value">{{ r.estimatedValue > 0 ? `$${r.estimatedValue.toFixed(2)}` : '--' }}</td>
+                          <td>
+                            <span v-if="r.confidence" class="val-confidence" :class="'val-conf-' + r.confidence">{{ r.confidence }}</span>
+                            <span v-else>--</span>
+                          </td>
+                          <td>
+                            <span class="listing-status-badge" :class="'val-result-' + r.status">{{ r.status }}</span>
+                          </td>
+                          <td class="avail-reason">{{ r.reasoning || r.errorMessage || '--' }}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                    <p v-else class="logs-empty">No results for this run.</p>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+
+          <div v-if="valTotal > valRuns.length" class="avail-pagination">
+            <button class="btn btn-secondary btn-sm" :disabled="valPage <= 1" @click="valPage--; loadValRuns()">Prev</button>
+            <span class="avail-page-info">Page {{ valPage }}</span>
+            <button class="btn btn-secondary btn-sm" :disabled="valRuns.length < 20" @click="valPage++; loadValRuns()">Next</button>
+          </div>
+        </template>
       </section>
 
       <!-- Reset Password Modal -->
@@ -491,14 +627,15 @@ import {
   getAnthropicModels, getCoinSearchPrompt, getCoinShowsPrompt, getValuationPrompt,
   testAnthropicConnection, testSearXNGConnection,
   getAvailabilityRuns, getAvailabilityRunDetail,
+  getValuationRuns, getValuationRunDetail, triggerValuation,
 } from '@/api/client'
 import type { AnthropicModel } from '@/api/client'
 import { LOG_LEVELS } from '@/types'
-import type { UserInfo, AppSettings, LogEntry, AvailabilityRun } from '@/types'
+import type { UserInfo, AppSettings, LogEntry, AvailabilityRun, ValuationRun } from '@/types'
 import { useDialog } from '@/composables/useDialog'
-import { Users, Cpu, Wrench, ScrollText, Download, ShieldCheck } from 'lucide-vue-next'
+import { Users, Cpu, Wrench, ScrollText, Download, ShieldCheck, CalendarClock } from 'lucide-vue-next'
 
-const tabIcons: Record<string, Component> = { users: Users, ai: Cpu, system: Wrench, logs: ScrollText, availability: ShieldCheck }
+const tabIcons: Record<string, Component> = { users: Users, ai: Cpu, system: Wrench, logs: ScrollText, schedules: CalendarClock }
 
 const { showConfirm, showAlert } = useDialog()
 const auth = useAuthStore()
@@ -523,7 +660,7 @@ const tabs = [
   { id: 'ai', icon: 'cpu', label: 'AI' },
   { id: 'system', icon: 'wrench', label: 'System' },
   { id: 'logs', icon: 'scroll-text', label: 'Logs' },
-  { id: 'availability', icon: 'shield-check', label: 'Availability' },
+  { id: 'schedules', icon: 'calendar-clock', label: 'Schedules' },
 ]
 const activeTab = ref('users')
 
@@ -675,17 +812,22 @@ async function saveSettings() {
   settingsError.value = false
   availSettingsMsg.value = ''
   availSettingsError.value = false
+  valSettingsMsg.value = ''
+  valSettingsError.value = false
   try {
     const entries = Object.entries(settings.value).map(([key, value]) => ({ key, value }))
     await updateAppSettings(entries)
     settingsMsg.value = 'Settings saved'
     availSettingsMsg.value = 'Settings saved'
-    setTimeout(() => { availSettingsMsg.value = '' }, 3000)
+    valSettingsMsg.value = 'Settings saved'
+    setTimeout(() => { availSettingsMsg.value = ''; valSettingsMsg.value = '' }, 3000)
   } catch {
     settingsMsg.value = 'Failed to save settings'
     settingsError.value = true
     availSettingsMsg.value = 'Failed to save settings'
     availSettingsError.value = true
+    valSettingsMsg.value = 'Failed to save settings'
+    valSettingsError.value = true
   } finally {
     settingsSaving.value = false
   }
@@ -833,6 +975,66 @@ async function toggleRunDetail(runId: number) {
   }
 }
 
+// Valuation
+const valSettingsMsg = ref('')
+const valSettingsError = ref(false)
+const valRuns = ref<ValuationRun[]>([])
+const valTotal = ref(0)
+const valPage = ref(1)
+const valLoading = ref(false)
+const valTriggerLoading = ref(false)
+const valExpandedRunId = ref<number | null>(null)
+const valExpandedResults = ref<ValuationRun['results']>(undefined)
+const valExpandedLoading = ref(false)
+
+async function loadValRuns() {
+  valLoading.value = true
+  try {
+    const res = await getValuationRuns(valPage.value, 20)
+    valRuns.value = res.data.runs ?? []
+    valTotal.value = res.data.total ?? 0
+  } catch { /* ignore */ } finally {
+    valLoading.value = false
+  }
+}
+
+async function toggleValRunDetail(runId: number) {
+  if (valExpandedRunId.value === runId) {
+    valExpandedRunId.value = null
+    valExpandedResults.value = undefined
+    return
+  }
+  valExpandedRunId.value = runId
+  valExpandedResults.value = []
+  valExpandedLoading.value = true
+  try {
+    const res = await getValuationRunDetail(runId)
+    valExpandedResults.value = res.data.results ?? []
+  } catch {
+    valExpandedResults.value = []
+  } finally {
+    valExpandedLoading.value = false
+  }
+}
+
+async function triggerManualValuation() {
+  valTriggerLoading.value = true
+  valSettingsMsg.value = ''
+  valSettingsError.value = false
+  try {
+    await triggerValuation()
+    valSettingsMsg.value = 'Valuation triggered'
+    setTimeout(() => { valSettingsMsg.value = '' }, 5000)
+    // Reload run history after a delay to show the new run
+    setTimeout(() => { loadValRuns() }, 2000)
+  } catch {
+    valSettingsMsg.value = 'Failed to trigger valuation'
+    valSettingsError.value = true
+  } finally {
+    valTriggerLoading.value = false
+  }
+}
+
 function formatDuration(ms: number) {
   if (ms < 1000) return `${ms}ms`
   return `${(ms / 1000).toFixed(1)}s`
@@ -853,6 +1055,7 @@ onMounted(() => {
   loadUsers()
   loadSettings()
   loadAvailRuns()
+  loadValRuns()
 })
 
 onUnmounted(() => {
@@ -1439,4 +1642,84 @@ onUnmounted(() => {
   font-size: 0.82rem;
   color: var(--text-secondary);
 }
+
+/* Valuation */
+.val-status-badge {
+  display: inline-block;
+  padding: 0.15rem 0.4rem;
+  border-radius: var(--radius-full);
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.val-status-running {
+  background: rgba(52, 152, 219, 0.15);
+  color: #3498db;
+}
+
+.val-status-completed {
+  background: rgba(46, 204, 113, 0.15);
+  color: #2ecc71;
+}
+
+.val-status-failed {
+  background: rgba(231, 76, 60, 0.15);
+  color: #e74c3c;
+}
+
+.val-value {
+  font-weight: 600;
+  color: var(--accent-gold);
+}
+
+.val-confidence {
+  display: inline-block;
+  padding: 0.1rem 0.3rem;
+  border-radius: 3px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.val-conf-high {
+  background: rgba(46, 204, 113, 0.15);
+  color: #2ecc71;
+}
+
+.val-conf-medium {
+  background: rgba(241, 196, 15, 0.15);
+  color: #f1c40f;
+}
+
+.val-conf-low {
+  background: rgba(231, 76, 60, 0.15);
+  color: #e74c3c;
+}
+
+.val-result-success {
+  background: rgba(46, 204, 113, 0.15);
+  color: #2ecc71;
+}
+
+.val-result-skipped {
+  background: rgba(149, 165, 166, 0.15);
+  color: #95a5a6;
+}
+
+.val-result-error {
+  background: rgba(231, 76, 60, 0.15);
+  color: #e74c3c;
+}
+
+.val-detail-table th:nth-child(1),
+.val-detail-table td:nth-child(1) { width: 22%; }
+.val-detail-table th:nth-child(2),
+.val-detail-table td:nth-child(2) { width: 12%; }
+.val-detail-table th:nth-child(3),
+.val-detail-table td:nth-child(3) { width: 12%; }
+.val-detail-table th:nth-child(4),
+.val-detail-table td:nth-child(4) { width: 10%; }
+.val-detail-table th:nth-child(5),
+.val-detail-table td:nth-child(5) { width: 10%; }
+.val-detail-table th:nth-child(6),
+.val-detail-table td:nth-child(6) { width: 34%; }
 </style>

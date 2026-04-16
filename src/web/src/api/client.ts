@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Coin, CoinListResponse, CoinImage, AuthResponse, StatsResponse, UserInfo, AppSettings, LogEntry, ApiKey, WebAuthnCredentialInfo, ValueSnapshot, CoinJournal, NumistaSearchResponse, AgentChatMessage, AgentChatResponse, CoinSuggestion, FollowUser, PublicProfile, CoinComment, CoinRating, LimitedCoin, ValueEstimate, CoinValueHistory, PortfolioSummary, AuctionLot, AuctionLotListResponse, AvailabilityRunSummary, AvailabilityRun, Notification, NotificationListResponse, Tag } from '@/types'
+import type { Coin, CoinListResponse, CoinImage, AuthResponse, StatsResponse, UserInfo, AppSettings, LogEntry, ApiKey, WebAuthnCredentialInfo, ValueSnapshot, CoinJournal, NumistaSearchResponse, AgentChatMessage, AgentChatResponse, CoinSuggestion, FollowUser, PublicProfile, CoinComment, CoinRating, LimitedCoin, ValueEstimate, CoinValueHistory, PortfolioSummary, AuctionLot, AuctionLotListResponse, AvailabilityRunSummary, AvailabilityRun, Notification, NotificationListResponse, Tag, ValuationRun } from '@/types'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
@@ -490,6 +490,14 @@ export const getAvailabilityRuns = (page = 1, limit = 20) =>
   api.get<{ runs: AvailabilityRun[]; total: number }>('/admin/availability-runs', { params: { page, limit } })
 export const getAvailabilityRunDetail = (runId: number) =>
   api.get<AvailabilityRun>(`/admin/availability-runs/${runId}`)
+
+// Valuation Runs
+export const getValuationRuns = (page = 1, limit = 20) =>
+  api.get<{ runs: ValuationRun[]; total: number }>('/admin/valuation-runs', { params: { page, limit } })
+export const getValuationRunDetail = (runId: number) =>
+  api.get<ValuationRun>(`/admin/valuation-runs/${runId}`)
+export const triggerValuation = () =>
+  api.post<{ message: string; users: number }>('/admin/valuation-runs/trigger')
 
 // Notifications
 export const getNotifications = (page = 1, limit = 20) =>

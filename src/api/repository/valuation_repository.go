@@ -1,0 +1,117 @@
+package repository
+
+import (
+	"time"
+
+	"github.com/briandenicola/ancient-coins-api/models"
+	"gorm.io/gorm"
+)
+
+// ValuationRepository encapsulates all valuation-run related DB operations.
+type ValuationRepository struct {
+	db *gorm.DB
+}
+
+// NewValuationRepository creates a new ValuationRepository.
+func NewValuationRepository(db *gorm.DB) *ValuationRepository {
+	return &ValuationRepository{db: db}
+}
+
+// CreateRun inserts a new valuation run.
+func (r *ValuationRepository) CreateRun(run *models.ValuationRun) error {
+	return r.db.Create(run).Error
+}
+
+// CompleteRun updates a run's stats and completion timestamp.
+func (r *ValuationRepository) CompleteRun(run *models.ValuationRun) error {
+	return r.db.Model(run).Updates(map[string]interface{}{
+		"status":         run.Status,
+		"coins_checked":  run.CoinsChecked,
+		"coins_updated":  run.CoinsUpdated,
+		"coins_skipped":  run.CoinsSkipped,
+		"errors":         run.Errors,
+		"duration_ms":    run.DurationMs,
+		"completed_at":   run.CompletedAt,
+		"error_message":  run.ErrorMessage,
+	}).Error
+}
+
+// AddResult inserts a single valuation result.
+func (r *ValuationRepository) AddResult(result *models.ValuationResult) error {
+	return r.db.Create(result).Error
+}
+
+// HasActiveRun returns true if there is a running valuation for the given user.
+func (r *ValuationRepository) HasActiveRun(userID uint) (bool, error) {
+	var count int64
+	err := r.db.Model(&models.ValuationRun{}).
+		Where("user_id = ? AND status = ?", userID, "running").
+		Count(&count).Error
+	return count > 0, err
+}
+
+// RecoverStaleRuns marks runs that have been "running" longer than the timeout as failed.
+func (r *ValuationRepository) RecoverStaleRuns(timeout time.Duration) {
+	cutoff := time.Now().Add(-timeout)
+	r.db.Model(&models.ValuationRun{}).
+		Where("status = ? AND started_at < ?", "running", cutoff).
+		Updates(map[string]interface{}{
+			"status":        "failed",
+			"error_message": "run timed out (stale recovery)",
+			"completed_at":  time.Now(),
+		})
+}
+
+// GetOwnedCoins returns owned (not sold, not wishlist) coins for a user, limited to maxCoins.
+func (r *ValuationRepository) GetOwnedCoins(userID uint, maxCoins int) ([]models.Coin, error) {
+	var coins []models.Coin
+	err := r.db.Where("user_id = ? AND is_wishlist = ? AND is_sold = ?", userID, false, false).
+		Order("updated_at DESC").
+		Limit(maxCoins).
+		Find(&coins).Error
+	return coins, err
+}
+
+// ListRuns returns paginated valuation runs, newest first.
+func (r *ValuationRepository) ListRuns(page, limit int) ([]models.ValuationRun, int64, error) {
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 || limit > 100 {
+		limit = 20
+	}
+
+	var total int64
+	if err := r.db.Model(&models.ValuationRun{}).Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	var runs []models.ValuationRun
+	offset := (page - 1) * limit
+	err := r.db.Preload("User", func(db *gorm.DB) *gorm.DB {
+		return db.Select("id, username")
+	}).Order("started_at DESC").Offset(offset).Limit(limit).Find(&runs).Error
+	return runs, total, err
+}
+
+// GetRunWithResults returns a single run with all its per-coin results.
+func (r *ValuationRepository) GetRunWithResults(runID uint) (*models.ValuationRun, error) {
+	var run models.ValuationRun
+	err := r.db.Preload("Results").Preload("User", func(db *gorm.DB) *gorm.DB {
+		return db.Select("id, username")
+	}).First(&run, runID).Error
+	if err != nil {
+		return nil, err
+	}
+	return &run, nil
+}
+
+// GetUsersWithOwnedCoins returns distinct user IDs that have non-sold, non-wishlist coins.
+func (r *ValuationRepository) GetUsersWithOwnedCoins() ([]uint, error) {
+	var userIDs []uint
+	err := r.db.Model(&models.Coin{}).
+		Where("is_wishlist = ? AND is_sold = ?", false, false).
+		Distinct("user_id").
+		Pluck("user_id", &userIDs).Error
+	return userIDs, err
+}

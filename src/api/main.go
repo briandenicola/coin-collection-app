@@ -148,6 +148,9 @@ func main() {
 	notifRepo := repository.NewNotificationRepository(database.DB)
 	notifSvc := services.NewNotificationService(notifRepo, socialRepo)
 	availSvc := services.NewAvailabilityService(coinRepo, availRepo, agentProxy, notifSvc)
+	valRepo := repository.NewValuationRepository(database.DB)
+	userRepoForVal := repository.NewUserRepository(database.DB)
+	valSvc := services.NewValuationService(coinRepo, valRepo, agentProxy, userRepoForVal)
 
 	protected := api.Group("")
 	protected.Use(middleware.AuthRequired(cfg.JWTSecret, database.DB))
@@ -350,6 +353,12 @@ func main() {
 		adminAvailHandler := handlers.NewAvailabilityHandler(nil, availRepo, nil)
 		admin.GET("/availability-runs", adminAvailHandler.ListRuns)
 		admin.GET("/availability-runs/:id", adminAvailHandler.GetRunDetail)
+
+		// Valuation run history and manual trigger
+		valAdminHandler := handlers.NewValuationAdminHandler(valRepo, valSvc)
+		admin.GET("/valuation-runs", valAdminHandler.ListRuns)
+		admin.GET("/valuation-runs/:id", valAdminHandler.GetRunDetail)
+		admin.POST("/valuation-runs/trigger", valAdminHandler.TriggerValuation)
 	}
 
 	log.Printf("Starting server on :%s", cfg.Port)
@@ -372,6 +381,10 @@ func main() {
 	// Start wishlist availability scheduler
 	scheduler := services.NewAvailabilityScheduler(availSvc, coinRepo)
 	go scheduler.Start()
+
+	// Start collection valuation scheduler
+	valScheduler := services.NewValuationScheduler(valSvc, coinRepo)
+	go valScheduler.Start()
 
 	logger.Info("startup", "Application ready")
 	log.Println("Application ready")

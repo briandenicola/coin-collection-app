@@ -388,6 +388,38 @@ export interface AvailabilityRun {
   createdAt: string
 }
 
+export interface ValuationResult {
+  id: number
+  runId: number
+  coinId: number
+  coinName: string
+  previousValue: number | null
+  estimatedValue: number
+  confidence: string
+  reasoning: string
+  status: string
+  errorMessage?: string
+  checkedAt: string
+}
+
+export interface ValuationRun {
+  id: number
+  userId: number
+  triggerType: string
+  triggerUserId: number | null
+  status: string
+  coinsChecked: number
+  coinsUpdated: number
+  coinsSkipped: number
+  errors: number
+  durationMs: number
+  startedAt: string
+  completedAt: string | null
+  errorMessage?: string
+  results?: ValuationResult[]
+  createdAt: string
+}
+
 export interface Notification {
   id: number
   userId: number
