@@ -248,6 +248,7 @@ func main() {
 		protected.POST("/user/avatar", userHandler.UploadAvatar)
 		protected.DELETE("/user/avatar", userHandler.DeleteAvatar)
 		protected.GET("/user/export", userHandler.ExportCollection)
+		protected.GET("/user/export/catalog", userHandler.ExportCatalogPDF)
 		protected.POST("/user/import", userHandler.ImportCollection)
 
 		// Social routes

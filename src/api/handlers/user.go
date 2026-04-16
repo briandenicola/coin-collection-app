@@ -133,6 +133,44 @@ func (h *UserHandler) ExportCollection(c *gin.Context) {
 	writeCollectionZip(c, coins, h.UploadDir, filename)
 }
 
+// ExportCatalogPDF generates a styled PDF catalog of the user's collection.
+//
+//	@Summary		Export PDF catalog
+//	@Description	Generates a PDF catalog with photos, grades, provenance, and valuations.
+//	@Tags			User
+//	@Produce		application/pdf
+//	@Success		200	"PDF document"
+//	@Failure		401	{object}	ErrorResponse
+//	@Failure		500	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/user/export/catalog [get]
+func (h *UserHandler) ExportCatalogPDF(c *gin.Context) {
+	userID := c.GetUint("userId")
+
+	var coins []models.Coin
+	coins, _ = h.repo.GetCoinsWithImages(userID)
+
+	// Get username for cover page
+	user, _ := h.repo.FindByID(userID)
+	username := "Collector"
+	if user != nil {
+		username = user.Username
+	}
+
+	pdf, err := writeCatalogPDF(coins, h.UploadDir, username)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate catalog"})
+		return
+	}
+
+	filename := fmt.Sprintf("coin-catalog-%s.pdf", time.Now().Format("2006-01-02"))
+	c.Header("Content-Type", "application/pdf")
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
+	if err := pdf.Output(c.Writer); err != nil {
+		services.AppLogger.Error("pdf", "Failed to write PDF: %v", err)
+	}
+}
+
 // ImportCollection imports coins from JSON for the current user.
 //
 //	@Summary		Import collection

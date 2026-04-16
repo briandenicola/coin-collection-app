@@ -352,7 +352,16 @@
             <span class="setting-desc">Download your collection data and photos as a zip archive</span>
           </div>
           <button class="btn btn-secondary btn-sm" :disabled="exporting" @click="handleExport">
-            {{ exporting ? 'Exporting...' : '📥 Export' }}
+            {{ exporting ? 'Exporting...' : 'Export ZIP' }}
+          </button>
+        </div>
+        <div class="setting-item">
+          <div class="setting-info">
+            <span class="setting-label">PDF Catalog</span>
+            <span class="setting-desc">Generate a styled PDF catalog with photos, grades, and valuations</span>
+          </div>
+          <button class="btn btn-secondary btn-sm" :disabled="exportingPdf" @click="handleExportPDF">
+            {{ exportingPdf ? 'Generating...' : 'Export PDF' }}
           </button>
         </div>
         <div class="setting-item">
@@ -775,7 +784,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import PullToRefresh from '@/components/PullToRefresh.vue'
 import {
-  changePassword, exportCollection, importCollection,
+  changePassword, exportCollection, exportCatalogPDF, importCollection,
   generateApiKey, listApiKeys, revokeApiKey,
   webauthnRegisterBegin, webauthnRegisterFinish,
   webauthnListCredentials, webauthnDeleteCredential,
@@ -1132,6 +1141,7 @@ function saveDefaultSort() {
 
 // Data
 const exporting = ref(false)
+const exportingPdf = ref(false)
 const dataMsg = ref('')
 const dataError = ref(false)
 
@@ -1153,6 +1163,27 @@ async function handleExport() {
     dataError.value = true
   } finally {
     exporting.value = false
+  }
+}
+
+async function handleExportPDF() {
+  exportingPdf.value = true
+  dataMsg.value = ''
+  try {
+    const res = await exportCatalogPDF()
+    const blob = new Blob([res.data], { type: 'application/pdf' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `coin-catalog-${new Date().toISOString().slice(0, 10)}.pdf`
+    a.click()
+    URL.revokeObjectURL(url)
+    dataMsg.value = 'PDF catalog downloaded'
+  } catch {
+    dataMsg.value = 'PDF generation failed'
+    dataError.value = true
+  } finally {
+    exportingPdf.value = false
   }
 }
 
