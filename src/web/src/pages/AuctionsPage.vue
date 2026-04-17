@@ -4,14 +4,17 @@
     <div class="page-header">
       <h1>Auctions</h1>
       <div class="header-actions">
-        <button class="icon-btn" :disabled="syncing" @click="syncWatchlist" title="Sync Watchlist">
-          <RefreshCw :size="18" :class="{ spinning: syncing }" />
+        <button class="btn btn-secondary" :disabled="syncing" @click="syncWatchlist" title="Sync Watchlist">
+          <RefreshCw :size="16" :class="{ spinning: syncing }" />
+          <span class="btn-label">{{ syncing ? 'Syncing...' : 'Sync Watchlist' }}</span>
         </button>
-        <button class="icon-btn" :class="{ 'icon-btn-active': selectMode }" @click="toggleSelectMode" title="Select">
-          <CheckSquare :size="18" />
+        <button class="btn" :class="selectMode ? 'btn-primary' : 'btn-secondary'" @click="toggleSelectMode" title="Select">
+          <CheckSquare :size="16" />
+          <span class="btn-label">{{ selectMode ? 'Cancel' : 'Select' }}</span>
         </button>
-        <button class="icon-btn icon-btn-primary" @click="showImport = true" title="Add Lot">
-          <Plus :size="18" />
+        <button class="btn btn-primary" @click="showImport = true" title="Add Lot">
+          <Plus :size="16" />
+          <span class="btn-label">Add Lot</span>
         </button>
       </div>
     </div>
@@ -411,49 +414,24 @@ fetchAllCounts()
 <style scoped>
 .header-actions {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.75rem;
   align-items: center;
 }
 
-.icon-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border-subtle);
-  background: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.icon-btn:hover {
-  border-color: var(--accent-gold-dim);
-  color: var(--accent-gold);
-}
-
-.icon-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.icon-btn-active {
-  background: var(--accent-gold-glow);
-  border-color: var(--accent-gold-dim);
-  color: var(--accent-gold);
-}
-
-.icon-btn-primary {
-  background: var(--accent-gold);
-  border-color: var(--accent-gold);
-  color: #1a1a2e;
-}
-
-.icon-btn-primary:hover {
-  filter: brightness(1.1);
-  color: #1a1a2e;
+/* In PWA standalone mode, collapse to icon-only buttons */
+@media (display-mode: standalone) {
+  .header-actions {
+    gap: 0.5rem;
+  }
+  .header-actions .btn-label {
+    display: none;
+  }
+  .header-actions .btn {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    justify-content: center;
+  }
 }
 
 .filter-bar {
