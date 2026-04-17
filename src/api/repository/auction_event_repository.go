@@ -54,7 +54,8 @@ func (r *AuctionEventRepository) GetCalendar(userID uint, start, end time.Time) 
 	var events []models.AuctionEvent
 	eventsQuery := r.db.Where("user_id = ?", userID).Where(
 		r.db.Where("start_date BETWEEN ? AND ?", start, end).
-			Or("end_date BETWEEN ? AND ?", start, end),
+			Or("end_date BETWEEN ? AND ?", start, end).
+			Or("start_date IS NULL"),
 	)
 	if err := eventsQuery.Order("start_date ASC").Find(&events).Error; err != nil {
 		return nil, nil, err

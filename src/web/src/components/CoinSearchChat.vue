@@ -419,12 +419,51 @@ function showKey(show: CoinShow): string {
 
 function parseDateRange(dateStr: string): { start?: string; end?: string } {
   if (!dateStr) return {}
-  // Try common patterns: "May 15-17, 2026", "May 15 - May 17, 2026", "2026-05-15"
+
+  // ISO format: "2026-05-15"
   const isoMatch = dateStr.match(/(\d{4}-\d{2}-\d{2})/)
   if (isoMatch) {
     return { start: isoMatch[1]! + 'T00:00:00Z' }
   }
-  // Try parsing the first recognizable date from the string
+
+  // "Month Day-Day, Year" e.g. "May 15-17, 2026"
+  const rangeMatch = dateStr.match(/([A-Z][a-z]+)\s+(\d{1,2})\s*[-–]\s*(\d{1,2}),?\s*(\d{4})/)
+  if (rangeMatch) {
+    const [, month, startDay, endDay, year] = rangeMatch
+    const s = new Date(`${month} ${startDay}, ${year}`)
+    const e = new Date(`${month} ${endDay}, ${year}`)
+    if (!isNaN(s.getTime())) {
+      return {
+        start: s.toISOString().split('T')[0]! + 'T00:00:00Z',
+        end: !isNaN(e.getTime()) ? e.toISOString().split('T')[0]! + 'T00:00:00Z' : undefined,
+      }
+    }
+  }
+
+  // "Month Day - Month Day, Year" e.g. "May 30 - June 1, 2026"
+  const crossMonthMatch = dateStr.match(/([A-Z][a-z]+)\s+(\d{1,2})\s*[-–]\s*([A-Z][a-z]+)\s+(\d{1,2}),?\s*(\d{4})/)
+  if (crossMonthMatch) {
+    const [, month1, day1, month2, day2, year] = crossMonthMatch
+    const s = new Date(`${month1} ${day1}, ${year}`)
+    const e = new Date(`${month2} ${day2}, ${year}`)
+    if (!isNaN(s.getTime())) {
+      return {
+        start: s.toISOString().split('T')[0]! + 'T00:00:00Z',
+        end: !isNaN(e.getTime()) ? e.toISOString().split('T')[0]! + 'T00:00:00Z' : undefined,
+      }
+    }
+  }
+
+  // "Month Day, Year" e.g. "May 15, 2026"
+  const singleMatch = dateStr.match(/([A-Z][a-z]+)\s+(\d{1,2}),?\s*(\d{4})/)
+  if (singleMatch) {
+    const d = new Date(`${singleMatch[1]} ${singleMatch[2]}, ${singleMatch[3]}`)
+    if (!isNaN(d.getTime())) {
+      return { start: d.toISOString().split('T')[0]! + 'T00:00:00Z' }
+    }
+  }
+
+  // Fallback: try native Date parsing
   const d = new Date(dateStr)
   if (!isNaN(d.getTime())) {
     return { start: d.toISOString().split('T')[0]! + 'T00:00:00Z' }
