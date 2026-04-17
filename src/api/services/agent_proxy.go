@@ -74,6 +74,7 @@ type PortfolioCoinProxy struct {
 	Material      string  `json:"material"`
 	Era           string  `json:"era"`
 	Ruler         string  `json:"ruler"`
+	Grade         string  `json:"grade"`
 	PurchasePrice float64 `json:"purchase_price"`
 	CurrentValue  float64 `json:"current_value"`
 }

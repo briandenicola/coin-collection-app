@@ -516,6 +516,7 @@ func buildPortfolioData(s *repository.PortfolioSummary) *services.PortfolioData 
 			Category:     tc.Category,
 			Era:          tc.Era,
 			Ruler:        tc.Ruler,
+			Grade:        tc.Grade,
 			CurrentValue: cv,
 		})
 	}
