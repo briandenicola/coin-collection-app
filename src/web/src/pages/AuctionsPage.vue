@@ -4,14 +4,15 @@
     <div class="page-header">
       <h1>Auctions</h1>
       <div class="header-actions">
-        <button class="btn btn-secondary" :disabled="syncing" @click="syncWatchlist">
-          <RefreshCw :size="16" :class="{ spinning: syncing }" />
-          {{ syncing ? 'Syncing...' : 'Sync Watchlist' }}
+        <button class="icon-btn" :disabled="syncing" @click="syncWatchlist" title="Sync Watchlist">
+          <RefreshCw :size="18" :class="{ spinning: syncing }" />
         </button>
-        <button class="btn" :class="selectMode ? 'btn-primary' : 'btn-secondary'" @click="toggleSelectMode">
-          <CheckSquare :size="16" /> {{ selectMode ? 'Cancel' : 'Select' }}
+        <button class="icon-btn" :class="{ 'icon-btn-active': selectMode }" @click="toggleSelectMode" title="Select">
+          <CheckSquare :size="18" />
         </button>
-        <button class="btn btn-primary" @click="showImport = true"><Import :size="16" /> Add Lot</button>
+        <button class="icon-btn icon-btn-primary" @click="showImport = true" title="Add Lot">
+          <Plus :size="18" />
+        </button>
       </div>
     </div>
 
@@ -58,7 +59,7 @@
       <h3>No auction lots{{ activeStatus ? ` with status "${activeStatus}"` : '' }}</h3>
       <p>Import lots from NumisBids to start tracking auctions</p>
       <button class="btn btn-primary" @click="showImport = true" style="margin-top: 0.75rem">
-        <Import :size="16" /> Import Your First Lot
+        <Plus :size="16" /> Import Your First Lot
       </button>
     </div>
 
@@ -201,7 +202,7 @@ import type { AuctionLot, AuctionLotStatus } from '@/types'
 import AuctionLotCard from '@/components/AuctionLotCard.vue'
 import ImportLotModal from '@/components/ImportLotModal.vue'
 import PullToRefresh from '@/components/PullToRefresh.vue'
-import { Import, X, ExternalLink, ArrowRightCircle, Trash2, RefreshCw, CalendarDays, CheckSquare } from 'lucide-vue-next'
+import { Plus, X, ExternalLink, ArrowRightCircle, Trash2, RefreshCw, CalendarDays, CheckSquare } from 'lucide-vue-next'
 
 const router = useRouter()
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
@@ -410,8 +411,49 @@ fetchAllCounts()
 <style scoped>
 .header-actions {
   display: flex;
-  gap: 0.75rem;
+  gap: 0.5rem;
   align-items: center;
+}
+
+.icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.icon-btn:hover {
+  border-color: var(--accent-gold-dim);
+  color: var(--accent-gold);
+}
+
+.icon-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.icon-btn-active {
+  background: var(--accent-gold-glow);
+  border-color: var(--accent-gold-dim);
+  color: var(--accent-gold);
+}
+
+.icon-btn-primary {
+  background: var(--accent-gold);
+  border-color: var(--accent-gold);
+  color: #1a1a2e;
+}
+
+.icon-btn-primary:hover {
+  filter: brightness(1.1);
+  color: #1a1a2e;
 }
 
 .filter-bar {

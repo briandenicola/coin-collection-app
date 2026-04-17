@@ -2,14 +2,9 @@
   <div class="container">
     <div class="page-header">
       <h1>Auction Calendar</h1>
-      <div class="header-actions">
-        <a href="https://www.numisbids.com/sales.php?type=calendar" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">
-          <ExternalLink :size="16" /> NumisBids Calendar
-        </a>
-        <button class="btn btn-primary" @click="showAddEvent = true">
-          <Plus :size="16" /> Add Event
-        </button>
-      </div>
+      <button class="btn btn-primary" @click="showAddEvent = true">
+        <Plus :size="16" /> Add Event
+      </button>
     </div>
 
     <!-- Month Navigation -->
@@ -501,8 +496,7 @@ onMounted(loadCalendar)
 .container { max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
 .page-header h1 { font-size: 1.75rem; color: var(--text-primary); }
-.header-actions { display: flex; gap: 0.75rem; align-items: center; }
-.btn { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.5rem 1rem; border-radius: 8px; border: none; cursor: pointer; font-weight: 500; font-size: 0.875rem; }
+.btn {display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.5rem 1rem; border-radius: 8px; border: none; cursor: pointer; font-weight: 500; font-size: 0.875rem; }
 .btn-primary { background: var(--accent-gold); color: #1e1e1e; }
 .btn-secondary { background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border-subtle); }
 .btn-danger { background: #dc3545; color: white; }
