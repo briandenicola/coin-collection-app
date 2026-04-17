@@ -423,6 +423,12 @@ fetchAllCounts()
 </script>
 
 <style scoped>
+.page-header:has(.pwa-actions) {
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: nowrap;
+}
+
 .header-actions {
   display: flex;
   gap: 0.75rem;
