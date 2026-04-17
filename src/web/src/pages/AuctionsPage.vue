@@ -3,19 +3,28 @@
   <div class="container">
     <div class="page-header">
       <h1>Auctions</h1>
-      <div class="header-actions">
-        <button class="btn btn-secondary" :disabled="syncing" @click="syncWatchlist" title="Sync Watchlist">
+      <!-- PWA: icon-only buttons inline with title -->
+      <div v-if="isPwa" class="pwa-actions">
+        <button class="pwa-icon-btn" :disabled="syncing" @click="syncWatchlist" title="Sync Watchlist">
+          <RefreshCw :size="22" :class="{ spinning: syncing }" />
+        </button>
+        <button class="pwa-icon-btn" :class="{ active: selectMode }" @click="toggleSelectMode" title="Select">
+          <CheckSquare :size="22" />
+        </button>
+        <button class="pwa-icon-btn" @click="showImport = true" title="Add Lot">
+          <CirclePlus :size="22" />
+        </button>
+      </div>
+      <!-- Desktop: full text buttons -->
+      <div v-else class="header-actions">
+        <button class="btn btn-secondary" :disabled="syncing" @click="syncWatchlist">
           <RefreshCw :size="16" :class="{ spinning: syncing }" />
-          <span class="btn-label">{{ syncing ? 'Syncing...' : 'Sync Watchlist' }}</span>
+          {{ syncing ? 'Syncing...' : 'Sync Watchlist' }}
         </button>
-        <button class="btn" :class="selectMode ? 'btn-primary' : 'btn-secondary'" @click="toggleSelectMode" title="Select">
-          <CheckSquare :size="16" />
-          <span class="btn-label">{{ selectMode ? 'Cancel' : 'Select' }}</span>
+        <button class="btn" :class="selectMode ? 'btn-primary' : 'btn-secondary'" @click="toggleSelectMode">
+          <CheckSquare :size="16" /> {{ selectMode ? 'Cancel' : 'Select' }}
         </button>
-        <button class="btn btn-primary" @click="showImport = true" title="Add Lot">
-          <Plus :size="16" />
-          <span class="btn-label">Add Lot</span>
-        </button>
+        <button class="btn btn-primary" @click="showImport = true"><Plus :size="16" /> Add Lot</button>
       </div>
     </div>
 
@@ -205,10 +214,12 @@ import type { AuctionLot, AuctionLotStatus } from '@/types'
 import AuctionLotCard from '@/components/AuctionLotCard.vue'
 import ImportLotModal from '@/components/ImportLotModal.vue'
 import PullToRefresh from '@/components/PullToRefresh.vue'
-import { Plus, X, ExternalLink, ArrowRightCircle, Trash2, RefreshCw, CalendarDays, CheckSquare } from 'lucide-vue-next'
+import { Plus, CirclePlus, X, ExternalLink, ArrowRightCircle, Trash2, RefreshCw, CalendarDays, CheckSquare } from 'lucide-vue-next'
 
 const router = useRouter()
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
+const isPwa = window.matchMedia('(display-mode: standalone)').matches
+  || (window.navigator as any).standalone === true
 
 const lots = ref<AuctionLot[]>([])
 const statusCounts = ref<Record<string, number>>({})
@@ -418,20 +429,31 @@ fetchAllCounts()
   align-items: center;
 }
 
-/* In PWA standalone mode, collapse to icon-only buttons */
-@media (display-mode: standalone) {
-  .header-actions {
-    gap: 0.5rem;
-  }
-  .header-actions .btn-label {
-    display: none;
-  }
-  .header-actions .btn {
-    width: 36px;
-    height: 36px;
-    padding: 0;
-    justify-content: center;
-  }
+.pwa-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-left: auto;
+}
+
+.pwa-icon-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+}
+
+.pwa-icon-btn.active {
+  color: var(--accent-gold);
+}
+
+.pwa-icon-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .filter-bar {
