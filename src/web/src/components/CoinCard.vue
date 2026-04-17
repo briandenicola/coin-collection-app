@@ -251,11 +251,20 @@ function formatCurrency(value: number) {
 }
 
 .detail {
-  font-size: 0.75rem;
-  padding: 0.15rem 0.5rem;
+  font-size: 0.8rem;
+  padding: 0.2rem 0.65rem;
   background: var(--bg-primary);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-full);
   color: var(--text-secondary);
+}
+
+/* PWA: slightly larger pills for touch targets */
+@media (display-mode: standalone) {
+  .detail {
+    font-size: 0.85rem;
+    padding: 0.25rem 0.75rem;
+  }
 }
 
 .card-grade {
@@ -334,6 +343,12 @@ function formatCurrency(value: number) {
 .category-byzantine { color: #e67e73; }
 .category-modern { color: #7ab3d4; }
 .category-other { color: #aaa; }
+
+.material-gold { color: #d4af37; }
+.material-silver { color: #a8a9ad; }
+.material-bronze { color: #cd7f32; }
+.material-copper { color: #b87333; }
+.material-ae { color: #cd7f32; }
 
 /* Listing status overlay & badge */
 .listing-overlay {
