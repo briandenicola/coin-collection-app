@@ -25,60 +25,28 @@
         <div class="sidebar-header">
           <img src="/coin-logo.jpg" alt="Ancient Coins" class="sidebar-logo" />
           <span class="sidebar-title">Coin Collection</span>
+          <button class="sidebar-header-btn" :class="{ active: editMode }" @click="toggleEditMode" :title="editMode ? 'Done' : 'Reorder menu'">
+            <GripVertical :size="18" />
+          </button>
           <button class="sidebar-close" @click="sidebarOpen = false">
             <X :size="20" />
           </button>
         </div>
-        <nav class="sidebar-nav">
-          <router-link to="/" class="sidebar-link" active-class="active" @click="sidebarOpen = false">
-            <Landmark :size="20" />
-            <span>Collection</span>
-          </router-link>
-          <router-link v-if="isPwa" to="/add" class="sidebar-link" active-class="active" @click="sidebarOpen = false">
-            <CirclePlus :size="20" />
-            <span>Add Coin</span>
-          </router-link>
-          <router-link to="/wishlist" class="sidebar-link" active-class="active" @click="sidebarOpen = false">
-            <Bookmark :size="20" />
-            <span>Wishlist</span>
-          </router-link>
-          <router-link to="/sold" class="sidebar-link" active-class="active" @click="sidebarOpen = false">
-            <BadgeDollarSign :size="20" />
-            <span>Sold</span>
-          </router-link>
-          <router-link to="/auctions" class="sidebar-link" active-class="active" @click="sidebarOpen = false">
-            <Gavel :size="20" />
-            <span>Auctions</span>
-          </router-link>
-          <router-link to="/followers" class="sidebar-link" active-class="active" @click="sidebarOpen = false">
-            <UsersIcon :size="20" />
-            <span>Followers</span>
-          </router-link>
-          <a href="#" class="sidebar-link" @click.prevent="showChat = true; sidebarOpen = false">
-            <Bot :size="20" />
-            <span>Agent</span>
-          </a>
-          <router-link to="/stats" class="sidebar-link" active-class="active" @click="sidebarOpen = false">
-            <BarChart3 :size="20" />
-            <span>Stats</span>
-          </router-link>
-          <router-link to="/timeline" class="sidebar-link" active-class="active" @click="sidebarOpen = false">
-            <Clock :size="20" />
-            <span>Timeline</span>
-          </router-link>
-          <router-link to="/calendar" class="sidebar-link" active-class="active" @click="sidebarOpen = false">
-            <CalendarDays :size="20" />
-            <span>Calendar</span>
-          </router-link>
-          <router-link to="/showcases" class="sidebar-link" active-class="active" @click="sidebarOpen = false">
-            <Share2 :size="20" />
-            <span>Showcases</span>
-          </router-link>
-          <router-link to="/notifications" class="sidebar-link" active-class="active" @click="sidebarOpen = false">
-            <Bell :size="20" />
-            <span>Notifications</span>
-            <span v-if="unreadCount > 0" class="sidebar-badge">{{ unreadCount }}</span>
-          </router-link>
+        <nav ref="navRef" class="sidebar-nav" :class="{ 'edit-mode': editMode }">
+          <component
+            v-for="item in orderedNavItems"
+            :key="item.id"
+            :is="!editMode && item.to ? 'router-link' : 'button'"
+            v-bind="!editMode && item.to ? { to: item.to, 'active-class': 'active' } : {}"
+            class="sidebar-link"
+            :data-id="item.id"
+            @click="handleNavClick(item)"
+          >
+            <span v-if="editMode" class="drag-handle"><GripVertical :size="16" /></span>
+            <component :is="item.icon" :size="20" />
+            <span>{{ item.label }}</span>
+            <span v-if="item.badge && item.badge() > 0" class="sidebar-badge">{{ item.badge() }}</span>
+          </component>
         </nav>
         <div class="sidebar-footer">
           <router-link to="/settings" class="sidebar-link" active-class="active" @click="sidebarOpen = false">
@@ -135,16 +103,27 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onUnmounted, markRaw, type Component } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
-import { Landmark, Bookmark, BadgeDollarSign, BarChart3, CirclePlus, Settings, ShieldCheck, LogOut, Users as UsersIcon, Clock, Bot, Gavel, X, Bell, CalendarDays, Share2 } from 'lucide-vue-next'
+import { Landmark, Bookmark, BadgeDollarSign, BarChart3, CirclePlus, Settings, ShieldCheck, LogOut, Users as UsersIcon, Clock, Bot, Gavel, X, Bell, CalendarDays, Share2, GripVertical } from 'lucide-vue-next'
 import { updateProfile, getMe } from '@/api/client'
 import { useNotifications } from '@/composables/useNotifications'
 import { useBulkSelect } from '@/composables/useBulkSelect'
 import CoinSearchChat from '@/components/CoinSearchChat.vue'
 import AppDialog from '@/components/AppDialog.vue'
 import PwaInstallPrompt from '@/components/PwaInstallPrompt.vue'
+import Sortable from 'sortablejs'
+
+interface NavItem {
+  id: string
+  label: string
+  icon: Component
+  to?: string
+  action?: () => void
+  visible: boolean
+  badge?: () => number
+}
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -155,8 +134,134 @@ const showChat = ref(false)
 const sidebarOpen = ref(false)
 const showEmailPrompt = ref(false)
 const promptEmail = ref('')
+const editMode = ref(false)
+const navRef = ref<HTMLElement | null>(null)
+let sortableInstance: Sortable | null = null
 const { unreadCount, startPolling, stopPolling } = useNotifications()
 const { bulkSelectActive } = useBulkSelect()
+
+const defaultNavItems: NavItem[] = [
+  { id: 'collection', label: 'Collection', icon: markRaw(Landmark), to: '/', visible: true },
+  { id: 'add-coin', label: 'Add Coin', icon: markRaw(CirclePlus), to: '/add', visible: isPwa },
+  { id: 'wishlist', label: 'Wishlist', icon: markRaw(Bookmark), to: '/wishlist', visible: true },
+  { id: 'sold', label: 'Sold', icon: markRaw(BadgeDollarSign), to: '/sold', visible: true },
+  { id: 'auctions', label: 'Auctions', icon: markRaw(Gavel), to: '/auctions', visible: true },
+  { id: 'followers', label: 'Followers', icon: markRaw(UsersIcon), to: '/followers', visible: true },
+  { id: 'agent', label: 'Agent', icon: markRaw(Bot), action: () => { showChat.value = true; sidebarOpen.value = false }, visible: true },
+  { id: 'stats', label: 'Stats', icon: markRaw(BarChart3), to: '/stats', visible: true },
+  { id: 'timeline', label: 'Timeline', icon: markRaw(Clock), to: '/timeline', visible: true },
+  { id: 'calendar', label: 'Calendar', icon: markRaw(CalendarDays), to: '/calendar', visible: true },
+  { id: 'showcases', label: 'Showcases', icon: markRaw(Share2), to: '/showcases', visible: true },
+  { id: 'notifications', label: 'Notifications', icon: markRaw(Bell), to: '/notifications', visible: true, badge: () => unreadCount.value },
+]
+
+function getStorageKey() {
+  const userId = auth.user?.id || 'default'
+  return `sidebarNavOrder:${userId}`
+}
+
+function loadSavedOrder(): string[] {
+  try {
+    const saved = localStorage.getItem(getStorageKey())
+    return saved ? JSON.parse(saved) : []
+  } catch { return [] }
+}
+
+function applyOrder(order: string[]): NavItem[] {
+  const itemMap = new Map(defaultNavItems.map(item => [item.id, item]))
+  const ordered: NavItem[] = []
+  for (const id of order) {
+    const item = itemMap.get(id)
+    if (item) {
+      ordered.push(item)
+      itemMap.delete(id)
+    }
+  }
+  // Append any new items not in saved order
+  for (const item of itemMap.values()) {
+    ordered.push(item)
+  }
+  return ordered
+}
+
+const navOrder = ref<string[]>(loadSavedOrder())
+const orderedNavItems = computed(() => {
+  const items = navOrder.value.length ? applyOrder(navOrder.value) : defaultNavItems
+  return items.filter(item => item.visible)
+})
+
+// Full order including hidden items for persistence
+const fullOrder = computed(() => {
+  return navOrder.value.length ? applyOrder(navOrder.value).map(i => i.id) : defaultNavItems.map(i => i.id)
+})
+
+function handleNavClick(item: NavItem) {
+  if (editMode.value) return
+  if (item.action) {
+    item.action()
+  } else if (item.to) {
+    router.push(item.to)
+    sidebarOpen.value = false
+  }
+}
+
+function toggleEditMode() {
+  editMode.value = !editMode.value
+}
+
+function initSortable() {
+  if (!navRef.value) return
+  sortableInstance = Sortable.create(navRef.value, {
+    animation: 150,
+    handle: '.drag-handle',
+    ghostClass: 'sortable-ghost',
+    chosenClass: 'sortable-chosen',
+    onEnd: (evt) => {
+      if (evt.oldIndex == null || evt.newIndex == null) return
+      const visibleIds = orderedNavItems.value.map(i => i.id)
+      const moved = visibleIds.splice(evt.oldIndex, 1)[0]!
+      visibleIds.splice(evt.newIndex, 0, moved)
+      const full = [...fullOrder.value]
+      const newFull: string[] = []
+      let visIdx = 0
+      for (const id of full) {
+        const item = defaultNavItems.find(n => n.id === id)
+        if (item && !item.visible) {
+          newFull.push(id)
+        } else if (visIdx < visibleIds.length) {
+          newFull.push(visibleIds[visIdx]!)
+          visIdx++
+        }
+      }
+      while (visIdx < visibleIds.length) {
+        newFull.push(visibleIds[visIdx]!)
+        visIdx++
+      }
+      navOrder.value = newFull
+      localStorage.setItem(getStorageKey(), JSON.stringify(newFull))
+    },
+  })
+}
+
+function destroySortable() {
+  if (sortableInstance) {
+    sortableInstance.destroy()
+    sortableInstance = null
+  }
+}
+
+watch([sidebarOpen, editMode], async ([open, edit]) => {
+  destroySortable()
+  if (open && edit) {
+    await nextTick()
+    initSortable()
+  }
+})
+
+// Turn off edit mode when sidebar closes
+watch(sidebarOpen, (open) => {
+  if (!open) editMode.value = false
+})
 
 onMounted(async () => {
   if (auth.isAuthenticated) {
@@ -194,6 +299,7 @@ function handleLogout() {
 }
 
 onUnmounted(() => {
+  destroySortable()
   stopPolling()
 })
 </script>
@@ -356,6 +462,26 @@ onUnmounted(() => {
   background: var(--accent-gold-glow);
 }
 
+.sidebar-header-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0.3rem;
+  border-radius: var(--radius-sm);
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.sidebar-header-btn:hover {
+  color: var(--text-primary);
+  background: var(--accent-gold-glow);
+}
+
+.sidebar-header-btn.active {
+  color: var(--accent-gold);
+  background: var(--accent-gold-glow);
+}
+
 .sidebar-nav {
   flex: 1;
   padding: 0.75rem 0;
@@ -406,6 +532,40 @@ onUnmounted(() => {
 .sidebar-footer {
   border-top: 1px solid var(--border-subtle);
   padding: 0.5rem 0;
+}
+
+/* Drag handle & edit mode */
+.drag-handle {
+  color: var(--text-secondary);
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  opacity: 0.5;
+  transition: opacity var(--transition-fast);
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.sidebar-link:hover .drag-handle {
+  opacity: 1;
+}
+
+.edit-mode .sidebar-link {
+  cursor: default;
+  user-select: none;
+}
+
+.sortable-ghost {
+  background: var(--accent-gold-glow);
+  border-right: 3px solid var(--accent-gold);
+  opacity: 0.6;
+}
+
+.sortable-chosen {
+  background: var(--accent-gold-glow);
 }
 
 .sidebar-logout {
