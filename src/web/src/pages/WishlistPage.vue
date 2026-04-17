@@ -4,9 +4,6 @@
       <h1>Wishlist</h1>
       <!-- PWA: icon-only buttons inline with title -->
       <div v-if="isPwa" class="pwa-actions">
-        <button class="pwa-icon-btn" @click="showChat = true" title="Find Coins">
-          <Bot :size="22" />
-        </button>
         <button class="pwa-icon-btn" :disabled="checking" @click="handleCheckAvailability" title="Check Availability">
           <span v-if="checking" class="spinner-sm"></span>
           <ShieldCheck v-else :size="22" />
