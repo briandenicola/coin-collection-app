@@ -609,165 +609,17 @@ function openResetModal(user: UserInfo) {
   resetTarget.value = user
 }
 
-// Settings
-const settings = ref<AppSettings>({
-  AIProvider: '',
-  OllamaURL: 'http://localhost:11434',
-  OllamaModel: 'llava',
-  ObversePrompt: '',
-  ReversePrompt: '',
-  TextExtractionPrompt: '',
-  OllamaTimeout: '300',
-  SearXNGURL: '',
-  LogLevel: 'info',
-})
-const settingDefaults = ref<AppSettings>({
-  AIProvider: '',
-  OllamaURL: '',
-  OllamaModel: '',
-  ObversePrompt: '',
-  ReversePrompt: '',
-  TextExtractionPrompt: '',
-  OllamaTimeout: '',
-  SearXNGURL: '',
-  LogLevel: '',
-})
-const settingsMsg = ref('')
-const settingsError = ref(false)
-const settingsSaving = ref(false)
-const ollamaTesting = ref(false)
-const ollamaTestResult = ref('')
-const ollamaTestOk = ref(false)
-const anthropicTesting = ref(false)
-const anthropicTestResult = ref('')
-const anthropicTestOk = ref(false)
-const searxngTesting = ref(false)
-const searxngTestResult = ref('')
-const searxngTestOk = ref(false)
-const anthropicModels = ref<AnthropicModel[]>([
-  { id: 'claude-sonnet-4-20250514', name: 'Claude Sonnet 4' },
-  { id: 'claude-haiku-4-20250414', name: 'Claude Haiku 4' },
-  { id: 'claude-opus-4-20250514', name: 'Claude Opus 4' },
-])
-const coinSearchPromptDefault = ref('')
-const coinShowsPromptDefault = ref('')
-const valuationPromptDefault = ref('')
-
-async function loadSettings() {
-  try {
-    const [settingsRes, defaultsRes] = await Promise.all([
-      getAppSettings(),
-      getAppSettingDefaults(),
-    ])
-    settingDefaults.value = { ...settingDefaults.value, ...defaultsRes.data }
-    settings.value = { ...settings.value, ...settingsRes.data }
-
-    // Load Anthropic models and prompts in parallel
-    const [modelsRes, coinSearchRes, coinShowsRes, valPromptRes] = await Promise.all([
-      getAnthropicModels().catch(() => null),
-      getCoinSearchPrompt().catch(() => null),
-      getCoinShowsPrompt().catch(() => null),
-      getValuationPrompt().catch(() => null),
-    ])
-
-    if (modelsRes?.data?.length) {
-      anthropicModels.value = modelsRes.data
-    }
-
-    if (coinSearchRes?.data) {
-      coinSearchPromptDefault.value = coinSearchRes.data.default
-      if (!settings.value.CoinSearchPrompt) {
-        settings.value.CoinSearchPrompt = coinSearchRes.data.prompt
-      }
-    }
-
-    if (coinShowsRes?.data) {
-      coinShowsPromptDefault.value = coinShowsRes.data.default
-      if (!settings.value.CoinShowsPrompt) {
-        settings.value.CoinShowsPrompt = coinShowsRes.data.prompt
-      }
-    }
-
-    if (valPromptRes?.data) {
-      valuationPromptDefault.value = valPromptRes.data.default
-      if (!settings.value.ValuationPrompt) {
-        settings.value.ValuationPrompt = valPromptRes.data.prompt
-      }
-    }
-  } catch { /* use defaults */ }
-}
-
-async function saveSettings() {
-  settingsSaving.value = true
-  settingsMsg.value = ''
-  settingsError.value = false
-  availSettingsMsg.value = ''
-  availSettingsError.value = false
-  valSettingsMsg.value = ''
-  valSettingsError.value = false
-  try {
-    const entries = Object.entries(settings.value).map(([key, value]) => ({ key, value: String(value) }))
-    await updateAppSettings(entries)
-    settingsMsg.value = 'Settings saved'
-    availSettingsMsg.value = 'Settings saved'
-    valSettingsMsg.value = 'Settings saved'
-    setTimeout(() => { availSettingsMsg.value = ''; valSettingsMsg.value = '' }, 3000)
-  } catch {
-    settingsMsg.value = 'Failed to save settings'
-    settingsError.value = true
-    availSettingsMsg.value = 'Failed to save settings'
-    availSettingsError.value = true
-    valSettingsMsg.value = 'Failed to save settings'
-    valSettingsError.value = true
-  } finally {
-    settingsSaving.value = false
-  }
-}
-
-async function testOllamaConnection() {
-  ollamaTesting.value = true
-  ollamaTestResult.value = ''
-  try {
-    const res = await getOllamaStatus()
-    ollamaTestOk.value = res.data.available
-    ollamaTestResult.value = res.data.message
-  } catch {
-    ollamaTestOk.value = false
-    ollamaTestResult.value = 'Failed to check Ollama status'
-  } finally {
-    ollamaTesting.value = false
-  }
-}
-
-async function testAnthropicConn() {
-  anthropicTesting.value = true
-  anthropicTestResult.value = ''
-  try {
-    const res = await testAnthropicConnection()
-    anthropicTestOk.value = res.data.available
-    anthropicTestResult.value = res.data.message
-  } catch {
-    anthropicTestOk.value = false
-    anthropicTestResult.value = 'Failed to test Anthropic connection'
-  } finally {
-    anthropicTesting.value = false
-  }
-}
-
-async function testSearxngConn() {
-  searxngTesting.value = true
-  searxngTestResult.value = ''
-  try {
-    const res = await testSearXNGConnection()
-    searxngTestOk.value = res.data.available
-    searxngTestResult.value = res.data.message
-  } catch {
-    searxngTestOk.value = false
-    searxngTestResult.value = 'Failed to test SearXNG connection'
-  } finally {
-    searxngTesting.value = false
-  }
-}
+// Settings (from composable)
+const {
+  settings, settingDefaults, settingsMsg, settingsError, settingsSaving,
+  ollamaTesting, ollamaTestResult, ollamaTestOk,
+  anthropicTesting, anthropicTestResult, anthropicTestOk, anthropicModels,
+  searxngTesting, searxngTestResult, searxngTestOk,
+  coinSearchPromptDefault, coinShowsPromptDefault, valuationPromptDefault,
+  availSettingsMsg, availSettingsError, valSettingsMsg, valSettingsError,
+  loadSettings, saveSettings,
+  testOllamaConnection, testAnthropicConn, testSearxngConn,
+} = useAdminConfig()
 
 // Logs
 const logs = ref<LogEntry[]>([])
@@ -822,8 +674,6 @@ function onSystemSave(payload: { numistaApiKey: string; logLevel: string }) {
 }
 
 // Availability
-const availSettingsMsg = ref('')
-const availSettingsError = ref(false)
 const availRuns = ref<AvailabilityRun[]>([])
 const availTotal = ref(0)
 const availPage = ref(1)
@@ -863,8 +713,6 @@ async function toggleRunDetail(runId: number) {
 }
 
 // Valuation
-const valSettingsMsg = ref('')
-const valSettingsError = ref(false)
 const valRuns = ref<ValuationRun[]>([])
 const valTotal = ref(0)
 const valPage = ref(1)
