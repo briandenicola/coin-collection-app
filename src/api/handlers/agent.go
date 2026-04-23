@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -423,8 +422,7 @@ func (h *AgentHandler) EstimateValue(c *gin.Context) {
 	// Resolve LLM provider from shared config
 	llmCfg, cfgErr := services.ResolveLLMConfig()
 	if cfgErr != nil {
-		log.Printf("[handler] EstimateValue: %v", cfgErr)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Unable to configure valuation provider"})
+		respondError(c, http.StatusBadRequest, "Unable to configure valuation provider", cfgErr)
 		return
 	}
 

@@ -129,8 +129,7 @@ func (h *AdminHandler) ResetPassword(c *gin.Context) {
 		NewPassword string `json:"newPassword" binding:"required,min=6"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		log.Printf("[handler] ResetPassword: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
+		respondError(c, http.StatusBadRequest, "Invalid request payload", err)
 		return
 	}
 
@@ -201,8 +200,7 @@ func (h *AdminHandler) UpdateSettings(c *gin.Context) {
 		Value string `json:"value"`
 	}
 	if err := c.ShouldBindJSON(&settings); err != nil {
-		log.Printf("[handler] UpdateSettings: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
+		respondError(c, http.StatusBadRequest, "Invalid request payload", err)
 		return
 	}
 

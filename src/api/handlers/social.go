@@ -381,8 +381,7 @@ func (h *SocialHandler) AddComment(c *gin.Context) {
 		Rating  int    `json:"rating"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		log.Printf("[handler] AddComment: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
+		respondError(c, http.StatusBadRequest, "Invalid request payload", err)
 		return
 	}
 

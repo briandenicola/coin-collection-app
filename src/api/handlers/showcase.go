@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"log"
 	"net/http"
 	"strconv"
 
@@ -194,8 +193,7 @@ func (h *ShowcaseHandler) SetShowcaseCoins(c *gin.Context) {
 	}
 
 	if err := h.repo.SetCoins(uint(id), userID, req.CoinIDs); err != nil {
-		log.Printf("[handler] SetShowcaseCoins: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		respondError(c, http.StatusBadRequest, "Invalid request", err)
 		return
 	}
 

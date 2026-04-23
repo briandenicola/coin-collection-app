@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"log"
 	"net/http"
 
 	"github.com/briandenicola/ancient-coins-api/models"
@@ -41,8 +40,7 @@ func (h *ConversationHandler) List(c *gin.Context) {
 	var conversations []models.AgentConversation
 	conversations, err := h.repo.List(userID)
 	if err != nil {
-		log.Printf("[handler] List: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to list conversations"})
+		respondError(c, http.StatusInternalServerError, "Failed to list conversations", err)
 		return
 	}
 

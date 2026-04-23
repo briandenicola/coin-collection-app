@@ -49,8 +49,7 @@ func (h *UserHandler) ChangePassword(c *gin.Context) {
 		NewPassword     string `json:"newPassword" binding:"required,min=6"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		log.Printf("[handler] ChangePassword: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
+		respondError(c, http.StatusBadRequest, "Invalid request payload", err)
 		return
 	}
 
@@ -74,8 +73,7 @@ func (h *UserHandler) ChangePassword(c *gin.Context) {
 	}
 
 	if err := h.repo.UpdateField(&user, "password_hash", string(hash)); err != nil {
-		log.Printf("[handler] ChangePassword: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update password"})
+		respondError(c, http.StatusInternalServerError, "Failed to update password", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Password changed"})
@@ -227,8 +225,7 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 		NumisBidsPassword *string `json:"numisBidsPassword"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		log.Printf("[handler] UpdateProfile: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
+		respondError(c, http.StatusBadRequest, "Invalid request payload", err)
 		return
 	}
 
@@ -276,16 +273,14 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 		}
 		if len(updates) > 0 {
 			if err := h.repo.UpdateProfileWithPrivacy(&user, updates, goingPrivate); err != nil {
-				log.Printf("[handler] UpdateProfile: %v", err)
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update profile"})
+				respondError(c, http.StatusInternalServerError, "Failed to update profile", err)
 				return
 			}
 			logger.Info("user", "Profile updated for user %d", userID)
 		}
 	} else if len(updates) > 0 {
 		if err := h.repo.UpdateFields(&user, updates); err != nil {
-			log.Printf("[handler] UpdateProfile: %v", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update profile"})
+			respondError(c, http.StatusInternalServerError, "Failed to update profile", err)
 			return
 		}
 		logger.Info("user", "Profile updated for user %d", userID)
@@ -293,8 +288,7 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 
 	// Reload and return
 	if err := h.repo.Reload(&user); err != nil {
-		log.Printf("[handler] UpdateProfile: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to reload profile"})
+		respondError(c, http.StatusInternalServerError, "Failed to reload profile", err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
@@ -355,8 +349,7 @@ func (h *UserHandler) UploadAvatar(c *gin.Context) {
 
 	avatarRelPath := filepath.ToSlash(filepath.Join("avatars", filename))
 	if err := h.repo.UpdateField(&user, "avatar_path", avatarRelPath); err != nil {
-		log.Printf("[handler] UploadAvatar: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update avatar"})
+		respondError(c, http.StatusInternalServerError, "Failed to update avatar", err)
 		return
 	}
 
@@ -381,8 +374,7 @@ func (h *UserHandler) DeleteAvatar(c *gin.Context) {
 			log.Printf("[handler] DeleteAvatar: failed to remove file: %v", err)
 		}
 		if err := h.repo.UpdateField(&user, "avatar_path", ""); err != nil {
-			log.Printf("[handler] DeleteAvatar: %v", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to remove avatar"})
+			respondError(c, http.StatusInternalServerError, "Failed to remove avatar", err)
 			return
 		}
 	}

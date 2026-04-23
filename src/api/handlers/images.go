@@ -3,7 +3,6 @@ package handlers
 import (
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -139,8 +138,7 @@ func (h *ImageHandler) UploadBase64(c *gin.Context) {
 
 	var req base64ImageRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		log.Printf("[handler] UploadBase64: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
+		respondError(c, http.StatusBadRequest, "Invalid request payload", err)
 		return
 	}
 
