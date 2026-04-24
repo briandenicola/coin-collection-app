@@ -18,4 +18,6 @@
 
 - **2026-04-24:** SettingsService currently uses package-level `settingsDB` global (not constructor injection). Tests save/restore the global. When Cassius completes the DI refactor, settings tests will need updating to use the new constructor pattern.
 
+- **2026-04-24:** P1 #22 and #23 completed. Auth store tests (17 tests in `src/web/src/stores/__tests__/auth.test.ts`): initial state, localStorage persistence/restore, login/register flows, logout clears all state, computed isAuthenticated/isAdmin, double login overwrites, logout-when-logged-out safety, token refresh sync callback. API client tests (24 tests in `src/web/src/api/__tests__/client.test.ts`): sanitizeCoin normalizes empty/undefined→null, preserves 0 and valid numbers, date conversion to RFC3339, immutability; JWT request interceptor; 401 response interceptor (refresh attempt, no-refreshToken clear, non-401 passthrough, no double-retry); 8 API wrapper URL/param correctness tests. All 48 Vitest tests pass, `npm run build` clean. Key pattern: mock axios via `vi.mock` with interceptor capture; mock localStorage via `vi.stubGlobal`; test sanitizeCoin indirectly through createCoin/updateCoin since it's not exported.
+
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
