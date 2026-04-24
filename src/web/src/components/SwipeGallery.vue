@@ -87,6 +87,7 @@ const currentIndex = computed({
 })
 const isAnimating = ref(false)
 const stackRef = ref<HTMLElement | null>(null)
+const animationTimers: ReturnType<typeof setTimeout>[] = []
 
 // Drag state
 const dragX = ref(0)
@@ -179,9 +180,10 @@ function onPointerUp(e: PointerEvent) {
     isAnimating.value = true
     dragX.value = 0
     dragY.value = 0
-    setTimeout(() => {
+    const tid = setTimeout(() => {
       isAnimating.value = false
     }, 300)
+    animationTimers.push(tid)
   }
 }
 
@@ -190,7 +192,7 @@ function flyAway(direction: 1 | -1) {
   dragX.value = direction * FLY_DISTANCE
   dragY.value = direction * -50
 
-  setTimeout(() => {
+  const tid = setTimeout(() => {
     isAnimating.value = false
     dragX.value = 0
     dragY.value = 0
@@ -203,6 +205,7 @@ function flyAway(direction: 1 | -1) {
       currentIndex.value = (currentIndex.value - 1 + len) % len
     }
   }, 300)
+  animationTimers.push(tid)
 }
 
 function onCardTap() {
@@ -223,7 +226,7 @@ function goPrev() {
 }
 
 onUnmounted(() => {
-  // Cleanup handled by pointer event listeners on targets
+  animationTimers.forEach(clearTimeout)
 })
 </script>
 

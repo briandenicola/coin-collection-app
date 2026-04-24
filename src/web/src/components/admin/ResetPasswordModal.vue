@@ -20,7 +20,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, onBeforeUnmount } from 'vue'
 import type { UserInfo } from '@/types'
 import { resetUserPassword } from '@/api/client'
 
@@ -36,6 +36,7 @@ const password = ref('')
 const msg = ref('')
 const error = ref(false)
 const loading = ref(false)
+let closeTimer: ReturnType<typeof setTimeout> | null = null
 
 watch(() => props.user, () => {
   password.value = ''
@@ -50,7 +51,7 @@ async function handleSubmit() {
   try {
     await resetUserPassword(props.user.id, password.value)
     msg.value = 'Password reset successfully'
-    setTimeout(() => { emit('close') }, 1200)
+    closeTimer = setTimeout(() => { emit('close') }, 1200)
   } catch {
     msg.value = 'Failed to reset password'
     error.value = true
@@ -58,6 +59,10 @@ async function handleSubmit() {
     loading.value = false
   }
 }
+
+onBeforeUnmount(() => {
+  if (closeTimer) clearTimeout(closeTimer)
+})
 </script>
 
 <style scoped>

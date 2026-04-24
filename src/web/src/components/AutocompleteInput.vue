@@ -104,7 +104,10 @@ function onClickOutside(e: MouseEvent) {
 }
 
 onMounted(() => document.addEventListener('click', onClickOutside))
-onUnmounted(() => document.removeEventListener('click', onClickOutside))
+onUnmounted(() => {
+  document.removeEventListener('click', onClickOutside)
+  clearTimeout(debounceTimer)
+})
 </script>
 
 <style scoped>

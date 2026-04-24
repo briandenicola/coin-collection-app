@@ -195,7 +195,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick, onMounted } from 'vue'
+import { ref, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { Users, UserPlus, Search, X, Eye, Check, ShieldOff } from 'lucide-vue-next'
 import PullToRefresh from '@/components/PullToRefresh.vue'
 import {
@@ -325,6 +325,10 @@ async function handleRefresh() {
 
 onMounted(() => {
   loadData()
+})
+
+onBeforeUnmount(() => {
+  if (searchTimeout) clearTimeout(searchTimeout)
 })
 </script>
 

@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { User, AuthResponse } from '@/types'
 import * as api from '@/api/client'
+import { onTokenRefreshed } from '@/api/client'
 
 export const useAuthStore = defineStore('auth', () => {
   const token = ref<string | null>(localStorage.getItem('token'))
@@ -17,6 +18,12 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.setItem('refreshToken', data.refreshToken)
     localStorage.setItem('user', JSON.stringify(data.user))
   }
+
+  // Keep Pinia store in sync after silent token refresh
+  onTokenRefreshed((data) => {
+    token.value = data.token
+    user.value = data.user
+  })
 
   async function doLogin(username: string, password: string) {
     const res = await api.login(username, password)

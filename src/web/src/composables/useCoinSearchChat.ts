@@ -42,6 +42,7 @@ export function useCoinSearchChat(options: UseCoinSearchChatOptions) {
   const scrapedImages = ref<Map<string, string>>(new Map())
   const saveLabel = ref('Save')
   const providerConfigured = ref(true)
+  let saveLabelTimer: ReturnType<typeof setTimeout> | null = null
 
   function scrollToBottom() {
     nextTick(() => {
@@ -150,10 +151,12 @@ export function useCoinSearchChat(options: UseCoinSearchChatOptions) {
       })
       conversationId.value = res.data.id
       saveLabel.value = 'Saved!'
-      setTimeout(() => { saveLabel.value = 'Save' }, 2000)
+      if (saveLabelTimer) clearTimeout(saveLabelTimer)
+      saveLabelTimer = setTimeout(() => { saveLabel.value = 'Save' }, 2000)
     } catch {
       saveLabel.value = 'Failed'
-      setTimeout(() => { saveLabel.value = 'Save' }, 2000)
+      if (saveLabelTimer) clearTimeout(saveLabelTimer)
+      saveLabelTimer = setTimeout(() => { saveLabel.value = 'Save' }, 2000)
     } finally {
       saving.value = false
     }
@@ -367,6 +370,7 @@ export function useCoinSearchChat(options: UseCoinSearchChatOptions) {
       window.visualViewport.removeEventListener('resize', handleViewportResize)
       window.visualViewport.removeEventListener('scroll', handleViewportResize)
     }
+    if (saveLabelTimer) clearTimeout(saveLabelTimer)
   })
 
   return {

@@ -18,6 +18,13 @@ api.interceptors.request.use((config) => {
 let isRefreshing = false
 let failedQueue: Array<{ resolve: (token: string) => void; reject: (err: unknown) => void }> = []
 
+// Callback for syncing Pinia auth store after silent token refresh.
+// Registered by the auth store to avoid circular imports.
+let _onTokenRefreshed: ((data: AuthResponse) => void) | null = null
+export function onTokenRefreshed(cb: (data: AuthResponse) => void) {
+  _onTokenRefreshed = cb
+}
+
 function processQueue(error: unknown, token: string | null) {
   failedQueue.forEach((p) => {
     if (token) p.resolve(token)
@@ -58,6 +65,7 @@ api.interceptors.response.use(
         localStorage.setItem('token', token)
         localStorage.setItem('refreshToken', newRefresh)
         localStorage.setItem('user', JSON.stringify(user))
+        _onTokenRefreshed?.(res.data)
         processQueue(null, token)
         originalRequest.headers.Authorization = `Bearer ${token}`
         return api(originalRequest)

@@ -1,4 +1,4 @@
-import { ref, watch } from 'vue'
+import { ref, onBeforeUnmount, watch } from 'vue'
 import { useCoinsStore } from '@/stores/coins'
 import { getTags } from '@/api/client'
 import type { Tag } from '@/types'
@@ -62,6 +62,10 @@ export function useCollectionFilters() {
   watch(sortKey, () => {
     page.value = 1
     loadCoins()
+  })
+
+  onBeforeUnmount(() => {
+    clearTimeout(debounceTimer)
   })
 
   return {

@@ -619,6 +619,7 @@ const {
   availSettingsMsg, availSettingsError, valSettingsMsg, valSettingsError,
   loadSettings, saveSettings,
   testOllamaConnection, testAnthropicConn, testSearxngConn,
+  cleanup: cleanupAdminConfig,
 } = useAdminConfig()
 
 // Logs
@@ -722,6 +723,7 @@ const valExpandedRunId = ref<number | null>(null)
 const valExpandedResults = ref<ValuationRun['results']>(undefined)
 const valExpandedLoading = ref(false)
 let valPollTimer: ReturnType<typeof setInterval> | null = null
+const adminTimers: ReturnType<typeof setTimeout>[] = []
 
 async function loadValRuns() {
   valLoading.value = true
@@ -769,9 +771,9 @@ async function triggerManualValuation() {
   try {
     await triggerValuation()
     valSettingsMsg.value = 'Valuation started — progress updates below'
-    setTimeout(() => { valSettingsMsg.value = '' }, 10000)
+    adminTimers.push(setTimeout(() => { valSettingsMsg.value = '' }, 10000))
     // Kick off initial reload; auto-poll will continue while run is active
-    setTimeout(() => { loadValRuns() }, 2000)
+    adminTimers.push(setTimeout(() => { loadValRuns() }, 2000))
   } catch {
     valSettingsMsg.value = 'Failed to trigger valuation'
     valSettingsError.value = true
@@ -784,8 +786,8 @@ async function cancelRun(runId: number) {
   try {
     await cancelValuationRun(runId)
     valSettingsMsg.value = 'Cancellation requested'
-    setTimeout(() => { valSettingsMsg.value = '' }, 5000)
-    setTimeout(() => { loadValRuns() }, 1000)
+    adminTimers.push(setTimeout(() => { valSettingsMsg.value = '' }, 5000))
+    adminTimers.push(setTimeout(() => { loadValRuns() }, 1000))
   } catch {
     valSettingsMsg.value = 'Failed to cancel run'
     valSettingsError.value = true
@@ -818,6 +820,8 @@ onMounted(() => {
 onUnmounted(() => {
   if (logsInterval) clearInterval(logsInterval)
   if (valPollTimer) clearInterval(valPollTimer)
+  adminTimers.forEach(clearTimeout)
+  cleanupAdminConfig()
 })
 </script>
 

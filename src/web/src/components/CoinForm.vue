@@ -196,7 +196,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onBeforeUnmount } from 'vue'
 import { CATEGORIES, MATERIALS } from '@/types'
 import type { Coin } from '@/types'
 import AutocompleteInput from '@/components/AutocompleteInput.vue'
@@ -241,6 +241,7 @@ const existingReverse = computed(() => {
 function onObverseFile(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0]
   if (!file) return
+  if (obversePreview.value) URL.revokeObjectURL(obversePreview.value)
   obverseFile.value = file
   obversePreview.value = URL.createObjectURL(file)
 }
@@ -248,6 +249,7 @@ function onObverseFile(e: Event) {
 function onReverseFile(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0]
   if (!file) return
+  if (reversePreview.value) URL.revokeObjectURL(reversePreview.value)
   reverseFile.value = file
   reversePreview.value = URL.createObjectURL(file)
 }
@@ -255,6 +257,7 @@ function onReverseFile(e: Event) {
 function clearObverse() {
   const existing = props.form.images?.find((i) => i.imageType === 'obverse')
   if (existing) removedObverseId.value = existing.id
+  if (obversePreview.value) URL.revokeObjectURL(obversePreview.value)
   obverseFile.value = null
   obversePreview.value = null
   if (obverseInput.value) obverseInput.value.value = ''
@@ -263,6 +266,7 @@ function clearObverse() {
 function clearReverse() {
   const existing = props.form.images?.find((i) => i.imageType === 'reverse')
   if (existing) removedReverseId.value = existing.id
+  if (reversePreview.value) URL.revokeObjectURL(reversePreview.value)
   reverseFile.value = null
   reversePreview.value = null
   if (reverseInput.value) reverseInput.value.value = ''
@@ -271,15 +275,23 @@ function clearReverse() {
 function onCardFile(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0]
   if (!file) return
+  if (cardPreview.value) URL.revokeObjectURL(cardPreview.value)
   cardFile.value = file
   cardPreview.value = URL.createObjectURL(file)
 }
 
 function clearCard() {
+  if (cardPreview.value) URL.revokeObjectURL(cardPreview.value)
   cardFile.value = null
   cardPreview.value = null
   if (cardInput.value) cardInput.value.value = ''
 }
+
+onBeforeUnmount(() => {
+  if (obversePreview.value) URL.revokeObjectURL(obversePreview.value)
+  if (reversePreview.value) URL.revokeObjectURL(reversePreview.value)
+  if (cardPreview.value) URL.revokeObjectURL(cardPreview.value)
+})
 
 // Expose pending images for parent to upload after save
 defineExpose({

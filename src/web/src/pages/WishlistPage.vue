@@ -76,7 +76,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, onBeforeUnmount } from 'vue'
 import { useCoinsStore } from '@/stores/coins'
 import CoinCard from '@/components/CoinCard.vue'
 import CoinSearchChat from '@/components/CoinSearchChat.vue'
@@ -143,6 +143,10 @@ async function handlePurchaseConfirm(data: { purchasePrice?: number; purchaseDat
 }
 
 loadCoins()
+
+onBeforeUnmount(() => {
+  if (dismissTimer) clearTimeout(dismissTimer)
+})
 </script>
 
 <style scoped>

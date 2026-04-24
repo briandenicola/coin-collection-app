@@ -34,6 +34,8 @@ export function useAdminConfig() {
   const settingsError = ref(false)
   const settingsSaving = ref(false)
 
+  let saveTimerId: ReturnType<typeof setTimeout> | null = null
+
   // Ollama
   const ollamaTesting = ref(false)
   const ollamaTestResult = ref('')
@@ -122,7 +124,8 @@ export function useAdminConfig() {
       settingsMsg.value = 'Settings saved'
       availSettingsMsg.value = 'Settings saved'
       valSettingsMsg.value = 'Settings saved'
-      setTimeout(() => { availSettingsMsg.value = ''; valSettingsMsg.value = '' }, 3000)
+      if (saveTimerId) clearTimeout(saveTimerId)
+      saveTimerId = setTimeout(() => { availSettingsMsg.value = ''; valSettingsMsg.value = '' }, 3000)
     } catch {
       settingsMsg.value = 'Failed to save settings'
       settingsError.value = true
@@ -214,5 +217,8 @@ export function useAdminConfig() {
     testOllamaConnection,
     testAnthropicConn,
     testSearxngConn,
+    cleanup() {
+      if (saveTimerId) clearTimeout(saveTimerId)
+    },
   }
 }

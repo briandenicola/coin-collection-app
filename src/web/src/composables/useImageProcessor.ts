@@ -442,6 +442,7 @@ export function useImageProcessor(
 
   onUnmounted(() => {
     if (processedImage.value) URL.revokeObjectURL(processedImage.value.src)
+    if (searchTimeout) clearTimeout(searchTimeout)
   })
 
   return {
