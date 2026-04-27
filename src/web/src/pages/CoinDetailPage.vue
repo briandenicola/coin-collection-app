@@ -207,51 +207,53 @@
 
         <!-- Upload Images -->
         <div class="detail-upload">
-          <div class="image-upload-section">
-            <h4>Upload Images</h4>
-            <div class="upload-row">
-              <select v-model="uploadType" class="form-select upload-select">
-                <option value="obverse">Obverse</option>
-                <option value="reverse">Reverse</option>
-                <option value="detail">Detail</option>
-                <option value="other">Other</option>
-              </select>
-              <label class="btn btn-secondary btn-sm upload-btn">
-                Choose File
-                <input type="file" accept="image/*" hidden @change="handleImageUpload" />
-              </label>
-              <label v-if="isPwa" class="btn btn-secondary btn-sm upload-btn camera-btn">
-                <Camera :size="14" /> Photo
-                <input type="file" accept="image/*" capture="environment" hidden @change="handleImageUpload" />
-              </label>
-            </div>
+          <div class="upload-section">
+            <h3>Upload Images</h3>
+            <div class="upload-content">
+              <div class="upload-row">
+                <select v-model="uploadType" class="form-select upload-select">
+                  <option value="obverse">Obverse</option>
+                  <option value="reverse">Reverse</option>
+                  <option value="detail">Detail</option>
+                  <option value="other">Other</option>
+                </select>
+                <label class="btn btn-secondary btn-sm upload-btn">
+                  Choose File
+                  <input type="file" accept="image/*" hidden @change="handleImageUpload" />
+                </label>
+                <label v-if="isPwa" class="btn btn-secondary btn-sm upload-btn camera-btn">
+                  <Camera :size="14" /> Photo
+                  <input type="file" accept="image/*" capture="environment" hidden @change="handleImageUpload" />
+                </label>
+              </div>
 
-            <div class="url-upload-row">
-              <input
-                v-model="imageUrl"
-                type="url"
-                class="form-input url-input"
-                placeholder="Or paste an image URL..."
-                @keydown.enter="handleUrlUpload"
-              />
-              <button
-                class="btn btn-secondary btn-sm"
-                :disabled="!imageUrl || urlLoading"
-                @click="handleUrlUpload"
-              >
-                {{ urlLoading ? 'Fetching...' : 'Fetch' }}
-              </button>
-            </div>
+              <div class="url-upload-row">
+                <input
+                  v-model="imageUrl"
+                  type="url"
+                  class="form-input url-input"
+                  placeholder="Or paste an image URL..."
+                  @keydown.enter="handleUrlUpload"
+                />
+                <button
+                  class="btn btn-secondary btn-sm"
+                  :disabled="!imageUrl || urlLoading"
+                  @click="handleUrlUpload"
+                >
+                  {{ urlLoading ? 'Fetching...' : 'Fetch' }}
+                </button>
+              </div>
 
-            <p v-if="uploadStatus" class="upload-status" :class="{ error: uploadError }">{{ uploadStatus }}</p>
+              <p v-if="uploadStatus" class="upload-status" :class="{ error: uploadError }">{{ uploadStatus }}</p>
+            </div>
           </div>
         </div>
 
         <!-- AI Analysis -->
         <div class="detail-ai">
           <div class="ai-analysis-section">
-            <div class="ai-analysis-header">
-              <h3>AI Analysis</h3>
+            <h3>AI Analysis</h3>
+            <div class="ai-analysis-content">
               <div class="ai-buttons">
                 <button
                   class="btn btn-primary btn-sm"
@@ -270,32 +272,32 @@
                   {{ analyzingSide === 'reverse' ? 'Analyzing...' : 'Analyze Reverse' }}
                 </button>
               </div>
-            </div>
-            <p v-if="!ollamaAvailable" class="ai-unavailable">AI unavailable — configure Ollama in Admin → AI Configuration</p>
+              <p v-if="!ollamaAvailable" class="ai-unavailable">AI unavailable — configure Ollama in Admin → AI Configuration</p>
 
-            <div v-if="coin.obverseAnalysis" class="ai-result-section">
-              <div class="ai-result-header">
-                <h5 class="ai-result-heading">Obverse Analysis</h5>
-                <button class="btn btn-ghost btn-xs" @click="handleDeleteAnalysis('obverse')">Remove</button>
+              <div v-if="coin.obverseAnalysis" class="ai-result-section">
+                <div class="ai-result-header">
+                  <h5 class="ai-result-heading">Obverse Analysis</h5>
+                  <button class="btn btn-ghost btn-xs" @click="handleDeleteAnalysis('obverse')">Remove</button>
+                </div>
+                <div class="ai-content" v-html="renderedObverse"></div>
               </div>
-              <div class="ai-content" v-html="renderedObverse"></div>
-            </div>
 
-            <div v-if="coin.reverseAnalysis" class="ai-result-section">
-              <div class="ai-result-header">
-                <h5 class="ai-result-heading">Reverse Analysis</h5>
-                <button class="btn btn-ghost btn-xs" @click="handleDeleteAnalysis('reverse')">Remove</button>
+              <div v-if="coin.reverseAnalysis" class="ai-result-section">
+                <div class="ai-result-header">
+                  <h5 class="ai-result-heading">Reverse Analysis</h5>
+                  <button class="btn btn-ghost btn-xs" @click="handleDeleteAnalysis('reverse')">Remove</button>
+                </div>
+                <div class="ai-content" v-html="renderedReverse"></div>
               </div>
-              <div class="ai-content" v-html="renderedReverse"></div>
-            </div>
 
-            <div v-if="coin.aiAnalysis && !coin.obverseAnalysis && !coin.reverseAnalysis" class="ai-result-section">
-              <div class="ai-content" v-html="renderedLegacy"></div>
-            </div>
+              <div v-if="coin.aiAnalysis && !coin.obverseAnalysis && !coin.reverseAnalysis" class="ai-result-section">
+                <div class="ai-content" v-html="renderedLegacy"></div>
+              </div>
 
-            <p v-if="!coin.obverseAnalysis && !coin.reverseAnalysis && !coin.aiAnalysis && ollamaAvailable" class="ai-empty">
-              Upload images and click an analyze button to get an expert assessment.
-            </p>
+              <p v-if="!coin.obverseAnalysis && !coin.reverseAnalysis && !coin.aiAnalysis && ollamaAvailable" class="ai-empty">
+                Upload images and click an analyze button to get an expert assessment.
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -1084,18 +1086,14 @@ function formatCurrency(value: number) {
   margin-top: 0.75rem;
 }
 
-/* Image upload */
-.image-upload-section {
-  margin-top: 1.25rem;
-  padding: 1rem;
-  background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
+/* Upload Images — standard section */
+.upload-section {
+  margin-bottom: 1.5rem;
 }
 
-.image-upload-section h4 {
-  font-size: 0.9rem;
+.upload-section h3 {
   margin-bottom: 0.75rem;
+  font-size: 1rem;
 }
 
 .upload-row {
@@ -1140,26 +1138,27 @@ function formatCurrency(value: number) {
   font-size: 0.82rem;
 }
 
-/* AI Analysis — standard section matching Description, Notes, Journal */
+/* AI Analysis — standard section, content in card */
 .ai-analysis-section {
   margin-bottom: 1.5rem;
 }
 
-.ai-analysis-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+.ai-analysis-section h3 {
   margin-bottom: 0.75rem;
+  font-size: 1rem;
 }
 
-.ai-analysis-header h3 {
-  margin: 0;
-  font-size: 1rem;
+.ai-analysis-content {
+  padding: 1rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
 }
 
 .ai-buttons {
   display: flex;
   gap: 0.4rem;
+  margin-bottom: 0.75rem;
 }
 
 .ai-result-section {

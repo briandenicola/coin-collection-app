@@ -30,6 +30,11 @@
       </h3>
       <template v-if="!wishlist && !sold">
         <p v-if="cardInscription" class="card-inscription">{{ cardInscription }}</p>
+        <div class="card-details">
+          <span v-if="coin.category" class="badge" :class="`badge-${coin.category.toLowerCase()}`">{{ coin.category }}</span>
+          <span v-if="coin.denomination" class="detail">{{ coin.denomination }}</span>
+          <span v-if="coin.material" class="detail">{{ coin.material }}</span>
+        </div>
         <div v-if="coin.tags?.length" class="card-tags">
           <span
             v-for="tag in coin.tags"
