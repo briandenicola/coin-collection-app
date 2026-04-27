@@ -68,10 +68,12 @@
 
           <div v-if="coin.purchaseDate || coin.purchaseLocation || coin.referenceUrl" class="purchase-meta">
             <span v-if="coin.purchaseDate">Purchased {{ new Date(coin.purchaseDate).toLocaleDateString() }}</span>
-            <span v-if="coin.purchaseDate && coin.purchaseLocation"> from </span>
-            <span v-if="!coin.purchaseDate && coin.purchaseLocation">Purchased from </span>
-            <span v-if="coin.purchaseLocation">{{ coin.purchaseLocation }}</span>
-            <a v-if="coin.referenceUrl" :href="coin.referenceUrl" target="_blank" rel="noopener" class="store-link">
+            <template v-if="coin.purchaseLocation">
+              <span>{{ coin.purchaseDate ? ' from ' : 'Purchased from ' }}</span>
+              <a v-if="coin.referenceUrl" :href="coin.referenceUrl" target="_blank" rel="noopener" class="store-link">{{ coin.purchaseLocation }} ↗</a>
+              <span v-else>{{ coin.purchaseLocation }}</span>
+            </template>
+            <a v-if="coin.referenceUrl && !coin.purchaseLocation" :href="coin.referenceUrl" target="_blank" rel="noopener" class="store-link">
               {{ coin.referenceText || 'Store Link' }} ↗
             </a>
           </div>
