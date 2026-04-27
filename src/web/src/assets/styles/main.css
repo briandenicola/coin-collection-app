@@ -37,6 +37,7 @@ h1, h2, h3, h4 {
 h1 { font-size: 2rem; font-weight: 600; }
 h2 { font-size: 1.5rem; font-weight: 500; }
 h3 { font-size: 1.2rem; font-weight: 500; }
+h4 { font-size: 0.9rem; font-weight: 500; }
 
 a {
   color: var(--accent-gold);
@@ -94,6 +95,70 @@ a:hover {
 .btn-sm {
   padding: 0.4rem 0.8rem;
   font-size: 0.8rem;
+}
+
+.btn-xs {
+  padding: 0.25rem 0.6rem;
+  font-size: 0.75rem;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+}
+.btn-ghost:hover {
+  color: var(--accent-gold);
+  border-color: var(--border-accent);
+  background: var(--accent-gold-glow);
+}
+
+/* Chip / pill — standard interactive filter pill */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.85rem;
+  border-radius: var(--radius-full);
+  font-size: 0.8rem;
+  font-weight: 500;
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.chip:hover {
+  border-color: var(--border-accent);
+  color: var(--text-primary);
+}
+.chip.active {
+  background: var(--accent-gold-dim);
+  border-color: var(--accent-gold);
+  color: var(--accent-gold);
+}
+
+/* Chip small — compact tag/label pill */
+.chip-sm {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 500;
+  border: 1px solid var(--border-subtle);
+  background: var(--accent-gold-glow);
+  color: var(--text-secondary);
+}
+
+/* Section label — consistent uppercase label above grouped content */
+.section-label {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
 }
 
 /* Form elements */

@@ -51,8 +51,8 @@
             <div v-if="viewMode === 'grid'" class="pwa-menu-section">
               <span class="pwa-menu-label">Face</span>
               <div class="face-filter">
-                <button class="filter-btn" :class="{ active: gridSide === 'obverse' }" @click="gridSide = gridSide === 'obverse' ? null : 'obverse'">Obverse</button>
-                <button class="filter-btn" :class="{ active: gridSide === 'reverse' }" @click="gridSide = gridSide === 'reverse' ? null : 'reverse'">Reverse</button>
+                <button class="chip" :class="{ active: gridSide === 'obverse' }" @click="gridSide = gridSide === 'obverse' ? null : 'obverse'">Obverse</button>
+                <button class="chip" :class="{ active: gridSide === 'reverse' }" @click="gridSide = gridSide === 'reverse' ? null : 'reverse'">Reverse</button>
               </div>
             </div>
           </div>
@@ -84,10 +84,10 @@
             <CheckSquare :size="16" /> {{ selectMode ? 'Cancel' : 'Select' }}
           </button>
           <div class="face-filter">
-            <button class="filter-btn" :class="{ active: gridSide === 'obverse' }" @click="gridSide = gridSide === 'obverse' ? null : 'obverse'">
+            <button class="chip" :class="{ active: gridSide === 'obverse' }" @click="gridSide = gridSide === 'obverse' ? null : 'obverse'">
               Obverse
             </button>
-            <button class="filter-btn" :class="{ active: gridSide === 'reverse' }" @click="gridSide = gridSide === 'reverse' ? null : 'reverse'">
+            <button class="chip" :class="{ active: gridSide === 'reverse' }" @click="gridSide = gridSide === 'reverse' ? null : 'reverse'">
               Reverse
             </button>
           </div>
@@ -362,7 +362,7 @@ async function bulkTag(tagId: number) {
 .pwa-menu-label {
   font-size: 0.7rem;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
   color: var(--text-muted);
   font-weight: 600;
 }
@@ -499,29 +499,6 @@ async function bulkTag(tagId: number) {
   display: flex;
   gap: 0.4rem;
   flex-wrap: wrap;
-}
-
-.face-filter .filter-btn {
-  padding: 0.4rem 0.9rem;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-full);
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: 0.8rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.face-filter .filter-btn:hover {
-  border-color: var(--border-accent);
-  color: var(--text-primary);
-}
-
-.face-filter .filter-btn.active {
-  background: var(--accent-gold-dim);
-  border-color: var(--accent-gold);
-  color: var(--accent-gold);
 }
 
 /* --- Pull to refresh --- */

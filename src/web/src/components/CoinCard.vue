@@ -28,24 +28,26 @@
         ></span>
         {{ coin.name }}
       </h3>
-      <div v-if="coin.tags?.length" class="card-tags">
-        <span
-          v-for="tag in coin.tags"
-          :key="tag.id"
-          class="tag-chip"
-          :style="{ backgroundColor: tag.color + '22', color: tag.color, borderColor: tag.color + '44' }"
-        >{{ tag.name }}</span>
-      </div>
       <template v-if="!wishlist && !sold">
-        <div class="card-details">
-          <span v-if="coin.category" class="detail" :class="`category-${coin.category.toLowerCase()}`">{{ coin.category }}</span>
-          <span v-if="coin.denomination" class="detail">{{ coin.denomination }}</span>
-          <span v-if="coin.material" class="detail" :class="`material-${coin.material.toLowerCase()}`">
-            {{ coin.material }}
-          </span>
+        <p v-if="cardInscription" class="card-inscription">{{ cardInscription }}</p>
+        <div v-if="coin.tags?.length" class="card-tags">
+          <span
+            v-for="tag in coin.tags"
+            :key="tag.id"
+            class="tag-chip"
+            :style="{ backgroundColor: tag.color + '22', color: tag.color, borderColor: tag.color + '44' }"
+          >{{ tag.name }}</span>
         </div>
       </template>
       <template v-if="sold">
+        <div v-if="coin.tags?.length" class="card-tags">
+          <span
+            v-for="tag in coin.tags"
+            :key="tag.id"
+            class="tag-chip"
+            :style="{ backgroundColor: tag.color + '22', color: tag.color, borderColor: tag.color + '44' }"
+          >{{ tag.name }}</span>
+        </div>
         <div class="card-sold-info">
           <div v-if="coin.soldPrice" class="card-sold-price">Sold: {{ formatCurrency(coin.soldPrice) }}</div>
           <div v-if="coin.purchasePrice" class="card-cost-basis">Paid: {{ formatCurrency(coin.purchasePrice) }}</div>
@@ -125,6 +127,16 @@ const primaryImage = computed(() => {
   const first = props.coin.images?.[0]
   const img = primary || first
   return img ? `/uploads/${img.filePath}` : null
+})
+
+const cardInscription = computed(() => {
+  if (props.imageSide === 'reverse' && props.coin.reverseInscription) {
+    return props.coin.reverseInscription
+  }
+  if (props.imageSide === 'obverse' && props.coin.obverseInscription) {
+    return props.coin.obverseInscription
+  }
+  return props.coin.obverseInscription || props.coin.reverseInscription || ''
 })
 
 const currencyFormatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' })
@@ -212,6 +224,16 @@ function formatCurrency(value: number) {
   overflow: hidden;
 }
 
+.card-inscription {
+  font-size: 0.8rem;
+  font-style: italic;
+  color: var(--text-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 .card-tags {
   display: flex;
   flex-wrap: wrap;
@@ -220,9 +242,9 @@ function formatCurrency(value: number) {
 }
 
 .tag-chip {
-  font-size: 0.65rem;
-  padding: 0.1rem 0.4rem;
-  border-radius: 9999px;
+  font-size: 0.75rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-full);
   border: 1px solid;
   line-height: 1.4;
   white-space: nowrap;

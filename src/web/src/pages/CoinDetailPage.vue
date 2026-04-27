@@ -701,7 +701,7 @@ function formatCurrency(value: number) {
 .detail-tag-chip {
   font-size: 0.75rem;
   padding: 0.15rem 0.5rem;
-  border-radius: 9999px;
+  border-radius: var(--radius-full);
   border: 1px solid;
   display: inline-flex;
   align-items: center;
@@ -726,7 +726,7 @@ function formatCurrency(value: number) {
 .btn-tag-add {
   background: none;
   border: 1px dashed var(--border-subtle);
-  border-radius: 9999px;
+  border-radius: var(--radius-full);
   color: var(--text-secondary);
   font-size: 0.75rem;
   padding: 0.15rem 0.5rem;
@@ -784,9 +784,10 @@ function formatCurrency(value: number) {
 .info-label {
   display: block;
   font-size: 0.7rem;
+  font-weight: 600;
   color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
   margin-bottom: 0.2rem;
 }
 
@@ -950,7 +951,7 @@ function formatCurrency(value: number) {
   padding: 1rem;
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   color: var(--text-secondary);
 }
 
@@ -977,7 +978,7 @@ function formatCurrency(value: number) {
   padding: 1rem;
   background: var(--bg-card);
   border: 1px solid var(--accent-gold-dim, var(--border-subtle));
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
 }
 
 .estimate-value-row {
@@ -1033,7 +1034,7 @@ function formatCurrency(value: number) {
   color: var(--text-muted);
   margin: 0 0 0.5rem;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.08em;
 }
 
 .comparable-item {
@@ -1167,7 +1168,7 @@ function formatCurrency(value: number) {
   font-size: 0.8rem;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
   color: var(--accent-gold);
   margin-bottom: 0.5rem;
 }
@@ -1182,24 +1183,7 @@ function formatCurrency(value: number) {
   margin-bottom: 0;
 }
 
-.btn-ghost {
-  background: transparent;
-  border: 1px solid var(--border-subtle);
-  color: var(--text-muted);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.btn-ghost:hover {
-  color: #e74c3c;
-  border-color: #e74c3c;
-}
-
-.btn-xs {
-  padding: 0.15rem 0.45rem;
-  font-size: 0.7rem;
-  border-radius: var(--radius-sm);
-}
+/* btn-ghost and btn-xs are now global in main.css */
 
 .ai-content {
   font-size: 0.85rem;
