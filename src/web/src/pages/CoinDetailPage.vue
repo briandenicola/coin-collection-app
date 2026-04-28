@@ -5,6 +5,7 @@
     </div>
 
     <div v-else-if="coin" class="coin-detail">
+      <div class="sticky-action-bar">
       <CoinDetailHeaderActions
         :is-wishlist="coin.isWishlist"
         :is-sold="coin.isSold"
@@ -13,6 +14,7 @@
         @sell="showSellModal = true"
         @delete="handleDelete"
       />
+      </div>
 
       <div class="detail-layout">
         <!-- Images -->
@@ -386,6 +388,17 @@ async function confirmSell(soldPrice: number | null, soldTo: string) {
   font-size: 0.9rem;
   white-space: pre-wrap;
   margin-bottom: 0;
+}
+
+/* Desktop: sticky action bar below fixed navbar */
+@media (min-width: 769px) {
+  .sticky-action-bar {
+    position: sticky;
+    top: 76px;
+    z-index: 10;
+    background: var(--bg-primary);
+    padding: 0.75rem 0;
+  }
 }
 
 /* Desktop: sticky image sidebar */

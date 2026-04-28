@@ -18,4 +18,6 @@
 
 - **2025-07-23:** Fixed sanitizeCoin() truthiness bug (#28). `!clean.currentValue` treated `0` as falsy, overwriting it with purchasePrice. Changed to `== null` / `!= null` checks so `0` is preserved as a valid numeric value. Also removed `as any` casts by typing NULLABLE_FIELDS as `(keyof Coin)[]` and using `Record<string, unknown>` for the working copy (backlog #63). Production build verified clean.
 
+- **2025-07-24:** Implemented Option A desktop layout redesign for CoinDetailPage. Key changes: (1) Grid widened from 1000px to 1400px with 400px fixed image column + 1fr info column, (2) Image column is now sticky (`position: sticky; top: 1rem`), (3) Actions and AI Analysis moved inside `detail-info` and wrapped in a `.detail-dashboard` 2-column sub-grid so they display side-by-side on desktop, (4) Mobile layout unchanged — dashboard collapses to single column via media query. Template restructure approach: sections moved into DOM flow inside info column rather than using `grid-column: 1 / -1` spanning. Both vue-tsc and production build pass clean.
+
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
