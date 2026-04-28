@@ -269,7 +269,7 @@ Upload an image file via multipart form data.
 
 | Field | Type | Required | Description |
 | ----- | ---- | -------- | ----------- |
-| `file` | file | Yes | The image file |
+| `image` | file | Yes | The image file |
 | `imageType` | string | No | One of: `obverse`, `reverse`, `detail`, `other` |
 | `isPrimary` | string | No | `true` to set as the primary/cover image |
 
@@ -278,7 +278,7 @@ Upload an image file via multipart form data.
 ```sh
 curl -X POST http://localhost:8080/api/coins/42/images \
   -H "Authorization: Bearer $TOKEN" \
-  -F "file=@coin-obverse.jpg" \
+  -F "image=@coin-obverse.jpg" \
   -F "imageType=obverse" \
   -F "isPrimary=true"
 ```
@@ -287,13 +287,13 @@ curl -X POST http://localhost:8080/api/coins/42/images \
 
 Upload an image as a base64-encoded string. Useful for programmatic uploads or when working with image data directly.
 
-**Supported extensions:** `jpg`, `jpeg`, `png`, `gif`, `webp`, `bmp`, `tiff`
+**Supported extensions:** `jpg`, `jpeg`, `png`, `gif`, `webp`
 
 **Request Body:**
 
 ```json
 {
-  "data": "/9j/4AAQSkZJRg...",
+  "image": "/9j/4AAQSkZJRg...",
   "fileExtension": "jpg",
   "imageType": "obverse",
   "isPrimary": true
@@ -449,6 +449,40 @@ curl http://localhost:8080/api/stats \
 
 Get portfolio value snapshots over time, useful for charting collection value trends.
 
+#### GET /api/stats/distribution
+
+Get era × category cross-tabulation data for the collection heat map visualization.
+
+**Response:**
+
+```json
+{
+  "cells": [
+    { "era": "Roman Republic", "category": "Roman", "count": 5 },
+    { "era": "Imperial", "category": "Roman", "count": 12 }
+  ]
+}
+```
+
+#### GET /api/coins/:id/value-history
+
+Get value tracking entries for a specific coin, ordered oldest first.
+
+**Path Parameters:**
+
+| Param | Type | Description |
+| ----- | ---- | ----------- |
+| `id` | int | Coin ID |
+
+**Response:**
+
+```json
+[
+  { "id": 1, "coinId": 42, "value": 250.00, "source": "ai_estimate", "createdAt": "2024-06-01T12:00:00Z" },
+  { "id": 2, "coinId": 42, "value": 275.00, "source": "manual", "createdAt": "2024-07-01T12:00:00Z" }
+]
+```
+
 #### GET /api/suggestions
 
 Get autocomplete suggestions for coin fields (e.g., rulers, mints, denominations). Used by the frontend to power form autocomplete.
@@ -522,9 +556,100 @@ curl -N -X POST http://localhost:8080/api/agent/chat \
 
 List available Anthropic models that can be used with the agent.
 
-#### GET /api/agent/prompt
+#### GET /api/agent/coin-search-prompt
 
-Get the current system prompt used by the AI agent.
+Get the system prompt for coin search queries. Returns the current prompt and the built-in default.
+
+**Response:**
+
+```json
+{
+  "prompt": "You are a numismatic search specialist...",
+  "default": "You are a numismatic search specialist..."
+}
+```
+
+#### GET /api/agent/coin-shows-prompt
+
+Get the system prompt for coin show queries. Returns the current prompt and the built-in default.
+
+**Response:**
+
+```json
+{
+  "prompt": "You are a coin show search specialist...",
+  "default": "You are a coin show search specialist..."
+}
+```
+
+#### GET /api/agent/valuation-prompt
+
+Get the system prompt for valuation queries. Returns the current prompt and the built-in default.
+
+**Response:**
+
+```json
+{
+  "prompt": "You are an expert numismatist and coin appraiser...",
+  "default": "You are an expert numismatist and coin appraiser..."
+}
+```
+
+#### POST /api/coins/:id/estimate-value
+
+Estimate a coin's current market value using the AI agent. The agent searches for comparable listings and returns a structured estimate. The estimate is also saved to the coin's journal.
+
+**Path Parameters:**
+
+| Param | Type | Description |
+| ----- | ---- | ----------- |
+| `id` | int | Coin ID |
+
+**Response:**
+
+```json
+{
+  "estimatedValue": 275,
+  "confidence": "high",
+  "reasoning": "Found 4 comparable Augustus denarii in VF condition listed at $250-300.",
+  "comparables": [
+    { "source": "VCoins - Example Dealer", "price": "$285", "url": "https://www.vcoins.com/..." },
+    { "source": "MA-Shops", "price": "$250", "url": "https://www.ma-shops.com/..." }
+  ]
+}
+```
+
+#### GET /api/agent/portfolio-summary
+
+Get aggregated collection data for AI portfolio analysis. Returns totals, category/material/era/ruler breakdowns, and top coins by value.
+
+**Response:**
+
+```json
+{
+  "totalCoins": 42,
+  "totalValue": 12500.00,
+  "totalInvested": 9800.00,
+  "categories": { "Roman": 20, "Greek": 15, "Byzantine": 7 },
+  "materials": { "Silver": 25, "Bronze": 12, "Gold": 5 },
+  "eras": [{ "name": "Imperial", "count": 18 }],
+  "rulers": [{ "name": "Augustus", "count": 5 }],
+  "topCoins": [{ "name": "Augustus Aureus", "category": "Roman", "era": "Imperial", "ruler": "Augustus", "grade": "VF", "currentValue": 2500.00 }]
+}
+```
+
+#### GET /api/agent/status
+
+Check the AI agent service configuration status. Returns the current provider and whether it is configured.
+
+**Response:**
+
+```json
+{
+  "provider": "anthropic",
+  "configured": true
+}
+```
 
 ---
 
@@ -1192,9 +1317,107 @@ curl "http://localhost:8080/api/admin/logs?level=error&limit=50" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
-### GET /api/admin/availability-runs
+### GET /api/admin/test-anthropic
 
-List availability check run history (paginated).
+Test Anthropic API connectivity by validating the configured API key.
+
+**Response:**
+
+```json
+{ "available": true, "message": "Anthropic API key is valid" }
+```
+
+or
+
+```json
+{ "available": false, "message": "Anthropic API key is not configured" }
+```
+
+### GET /api/admin/test-searxng
+
+Test SearXNG connectivity by checking the configured endpoint.
+
+**Response:**
+
+```json
+{ "available": true, "message": "SearXNG is reachable at http://localhost:8888" }
+```
+
+or
+
+```json
+{ "available": false, "message": "SearXNG URL is not configured" }
+```
+
+### GET /api/admin/valuation-runs
+
+List valuation run history (paginated).
+
+**Query Parameters:**
+
+| Param | Type | Default | Description |
+| ----- | ---- | ------- | ----------- |
+| `page` | int | `1` | Page number |
+| `limit` | int | `20` | Results per page |
+
+**Response:**
+
+```json
+{
+  "runs": [
+    {
+      "id": 1,
+      "triggerType": "manual",
+      "triggeredByUserID": 1,
+      "status": "completed",
+      "coinsValued": 10,
+      "startedAt": "2026-04-13T02:00:00Z",
+      "completedAt": "2026-04-13T02:05:00Z"
+    }
+  ],
+  "total": 1,
+  "page": 1,
+  "limit": 20
+}
+```
+
+### GET /api/admin/valuation-runs/:id
+
+Get a single valuation run with all per-coin results.
+
+**Path Parameters:**
+
+| Param | Type | Description |
+| ----- | ---- | ----------- |
+| `id` | int | Valuation run ID |
+
+### POST /api/admin/valuation-runs/trigger
+
+Manually trigger a valuation run for all users with owned coins. The valuation runs asynchronously.
+
+**Response (202):**
+
+```json
+{ "message": "Valuation started", "users": 3 }
+```
+
+### POST /api/admin/valuation-runs/:id/cancel
+
+Cancel a running valuation. Signals the run to stop after the current coin finishes processing.
+
+**Path Parameters:**
+
+| Param | Type | Description |
+| ----- | ---- | ----------- |
+| `id` | int | Valuation run ID |
+
+**Response:**
+
+```json
+{ "message": "Cancellation signal sent" }
+```
+
+### GET /api/admin/availability-runs
 
 **Query Parameters:**
 
@@ -1378,6 +1601,70 @@ Validate NumisBids credentials by attempting a login. Does not save anything.
 **Body:** `{ "username": "user@example.com", "password": "..." }`
 
 **Response:** `{ "valid": true }` or `{ "valid": false, "error": "Login failed. Check your credentials." }`
+
+### GET /api/auctions/counts
+
+Get auction lot counts grouped by status for the authenticated user.
+
+**Response:**
+
+```json
+{
+  "counts": {
+    "watching": 5,
+    "bidding": 2,
+    "won": 3,
+    "lost": 1,
+    "passed": 0
+  }
+}
+```
+
+### PUT /api/auctions/bulk-link-event
+
+Bulk-link multiple auction lots to a calendar event (or unlink by passing `null`).
+
+**Request Body:**
+
+```json
+{
+  "lotIds": [1, 2, 3],
+  "eventId": 5
+}
+```
+
+| Field | Type | Required | Description |
+| ----- | ---- | -------- | ----------- |
+| `lotIds` | int[] | Yes | Array of auction lot IDs |
+| `eventId` | int\|null | No | Calendar event ID (`null` to unlink) |
+
+**Response:**
+
+```json
+{ "updated": 3 }
+```
+
+### PUT /api/auctions/:id/event
+
+Link a single auction lot to a calendar event, or unlink by passing `null`.
+
+**Path Parameters:**
+
+| Param | Type | Description |
+| ----- | ---- | ----------- |
+| `id` | int | Auction lot ID |
+
+**Request Body:**
+
+```json
+{ "eventId": 5 }
+```
+
+| Field | Type | Required | Description |
+| ----- | ---- | -------- | ----------- |
+| `eventId` | int\|null | No | Calendar event ID (`null` to unlink) |
+
+**Response:** The updated auction lot object.
 
 ---
 
@@ -1674,6 +1961,39 @@ Get calendar data for a date range. Returns auction lots and custom events that 
   "events": [
     { "id": 1, "title": "Coin Show - NYC", "description": "Annual NYINC show", "date": "2024-06-20T09:00:00Z", "url": "https://example.com/show" }
   ]
+}
+```
+
+### GET /api/calendar/events
+
+List all calendar events for the authenticated user.
+
+**Response:**
+
+```json
+{
+  "events": [
+    { "id": 1, "title": "CNG Auction", "auctionHouse": "CNG", "startDate": "2024-06-20T09:00:00Z", "endDate": "2024-06-21T17:00:00Z", "url": "https://example.com", "notes": "" }
+  ]
+}
+```
+
+### GET /api/calendar/events/:id
+
+Get a single calendar event by ID, including its linked auction lots.
+
+**Path Parameters:**
+
+| Param | Type | Description |
+| ----- | ---- | ----------- |
+| `id` | int | Event ID |
+
+**Response:**
+
+```json
+{
+  "event": { "id": 1, "title": "CNG Auction", "auctionHouse": "CNG", "startDate": "2024-06-20T09:00:00Z", "endDate": "2024-06-21T17:00:00Z", "url": "https://example.com", "notes": "" },
+  "lots": []
 }
 ```
 
