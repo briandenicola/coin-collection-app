@@ -117,6 +117,8 @@ var allowedSortFields = map[string]string{
 	"created_at":    "created_at",
 	"updated_at":    "updated_at",
 	"current_value": "current_value",
+	"purchase_date": "purchase_date",
+	"name":          "name",
 }
 
 var searchFields = []string{

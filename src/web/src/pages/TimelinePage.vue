@@ -188,8 +188,8 @@ async function loadCoins() {
   try {
     // Fetch all non-wishlist coins (collection + sold)
     const [collectionRes, soldRes] = await Promise.all([
-      getCoins({ limit: 9999, sort: 'purchaseDate', order: 'desc' }),
-      getCoins({ limit: 9999, sold: 'true', sort: 'purchaseDate', order: 'desc' }),
+      getCoins({ limit: 9999, sort: 'purchase_date', order: 'desc' }),
+      getCoins({ limit: 9999, sold: 'true', sort: 'purchase_date', order: 'desc' }),
     ])
     const coinMap = new Map<number, Coin>()
     for (const c of collectionRes.data.coins) coinMap.set(c.id, c)

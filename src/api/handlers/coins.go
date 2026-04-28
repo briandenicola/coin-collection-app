@@ -20,6 +20,8 @@ var allowedListSortFields = map[string]bool{
 	"created_at":    true,
 	"updated_at":    true,
 	"current_value": true,
+	"purchase_date": true,
+	"name":          true,
 }
 
 type CoinHandler struct {
