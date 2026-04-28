@@ -40,4 +40,14 @@ const router = useRouter()
   display: flex;
   gap: 0.5rem;
 }
+
+@media (min-width: 769px) {
+  .detail-header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--bg-primary);
+    padding: 0.75rem 0;
+  }
+}
 </style>
