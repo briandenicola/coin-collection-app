@@ -1,42 +1,102 @@
-# .
+# Ancient Coins — Web Frontend
 
-This template should help get you started developing with Vue 3 in Vite.
+Vue 3 + TypeScript + Pinia + Vite PWA for managing a personal ancient coin collection. Dark-themed, mobile-friendly single-page application that communicates with the Go API backend.
 
-## Recommended IDE Setup
+## Prerequisites
 
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+- **Node.js** `^20.19.0` or `>=22.12.0`
 
-## Recommended Browser Setup
+## Install & Run
 
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd)
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
-
-## Type Support for `.vue` Imports in TS
-
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
-
-## Customize configuration
-
-See [Vite Configuration Reference](https://vite.dev/config/).
-
-## Project Setup
-
-```sh
-npm install
+```bash
+npm install          # install dependencies
+npm run dev          # start dev server (http://localhost:5173, proxies /api to :8080)
+npm run build        # type-check + production build
+npm run preview      # preview production build locally
 ```
 
-### Compile and Hot-Reload for Development
+## Testing
 
-```sh
-npm run dev
+```bash
+npm run test         # run tests with Vitest
+npm run test:watch   # run tests in watch mode
+npm run type-check   # vue-tsc type checking
 ```
 
-### Type-Check, Compile and Minify for Production
+## Key Dependencies
 
-```sh
-npm run build
+| Dependency | Purpose |
+|---|---|
+| `vue` 3.5+ | UI framework (Composition API, `<script setup>`) |
+| `vue-router` 5 | Client-side routing |
+| `pinia` 3 | State management |
+| `axios` | HTTP client (JWT interceptor, 401 refresh queue) |
+| `vite` 7 | Build tool and dev server |
+| `vite-plugin-pwa` | Service worker and PWA manifest generation |
+| `lucide-vue-next` | Icon library |
+| `markdown-it` + `dompurify` | Render and sanitize markdown (AI chat) |
+| `sortablejs` | Drag-and-drop reordering |
+| `@imgly/background-removal` | Client-side image background removal |
+| `vitest` | Unit testing framework |
+| `vue-tsc` | TypeScript checking for `.vue` files |
+
+## Directory Structure
+
 ```
+src/
+  pages/             # Route-level page components
+  components/        # Reusable UI components
+  stores/            # Pinia stores (auth, coins, settings, etc.)
+  api/               # Axios client with JWT interceptor (client.ts)
+  composables/       # Vue composables (shared reactive logic)
+  utils/             # Pure utility functions
+  types/             # TypeScript type definitions
+  assets/styles/     # CSS variables and global styles
+  router/            # Vue Router configuration
+  __tests__/         # Vitest test files
+```
+
+## Routes
+
+| Path | Page | Auth |
+|---|---|---|
+| `/login` | LoginPage | No |
+| `/register` | RegisterPage | No |
+| `/` | CollectionPage | Yes |
+| `/coin/:id` | CoinDetailPage | Yes |
+| `/add` | AddCoinPage | Yes |
+| `/edit/:id` | EditCoinPage | Yes |
+| `/wishlist` | WishlistPage | Yes |
+| `/sold` | SoldPage | Yes |
+| `/auctions` | AuctionsPage | Yes |
+| `/stats` | StatsPage | Yes |
+| `/timeline` | TimelinePage | Yes |
+| `/settings` | SettingsPage | Yes |
+| `/admin` | AdminPage | Yes + Admin |
+| `/followers` | FollowersPage | Yes |
+| `/followers/:username/gallery` | FollowerGalleryPage | Yes |
+| `/followers/:username/coins/:coinId` | FollowerCoinDetailPage | Yes |
+| `/notifications` | NotificationsPage | Yes |
+| `/showcases` | ShowcasesPage | Yes |
+| `/showcases/:id/edit` | ShowcaseEditPage | Yes |
+| `/s/:slug` | PublicShowcasePage | No |
+| `/calendar` | CalendarPage | Yes |
+| `/process-image` | Redirects to `/settings?tab=process` | — |
+
+A global navigation guard redirects unauthenticated users to `/login` and non-admin users away from `/admin`.
+
+## PWA
+
+The app uses `vite-plugin-pwa` with `registerType: 'autoUpdate'`:
+
+- **Manifest**: `standalone` display mode, dark theme (`#1a1a2e` / `#0f0f1a`)
+- **Precaching**: All JS, CSS, HTML, images, and fonts via Workbox glob patterns
+- **Runtime caching**:
+  - `GET /api/*` — NetworkFirst (5 min cache, 50 entries)
+  - `PUT/POST/DELETE /api/*` — NetworkOnly
+  - `/uploads/*.{png,jpg,jpeg,gif,webp}` — CacheFirst (30-day cache, 200 entries)
+- **Navigation fallback**: Denies `/api`, `/uploads`, and `/sw.js`
+
+## Design System
+
+All styling uses design tokens defined in `assets/styles/variables.css` and global utility classes from `main.css`. Key tokens include `--accent-gold`, `--bg-card`, `--border-subtle`, `--text-primary`, and `--radius-sm` through `--radius-full`. See the root `.copilot-instructions.md` for the full token reference and component class hierarchy (`.chip`, `.btn`, `.badge`, etc.).
