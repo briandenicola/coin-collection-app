@@ -21,6 +21,15 @@ tasks:
     cmds:
       - go build -o ancient-coins-api .
 
+  openapi:
+    desc: Regenerate Swagger artifacts and sync docs/openapi.json
+    dir: src/api
+    cmds:
+      - go install github.com/swaggo/swag/cmd/swag@latest
+      - '"$(go env GOPATH)/bin/swag" init -g main.go -o ./docs --parseDependency --parseInternal'
+      - cp docs/swagger.json ../../docs/openapi.json
+      - test -s ../../docs/openapi.json
+
   build-web:
     desc: Build the Vue frontend
     dir: src/web

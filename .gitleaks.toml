@@ -1,0 +1,23 @@
+title = "Ancient Coins gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Generated artifacts and documented fake examples"
+paths = [
+  '''src/web/dist/.*''',
+  '''src/api/docs/docs\.go''',
+  '''src/api/docs/swagger\.json''',
+  '''src/api/docs/swagger\.yaml'''
+]
+regexes = [
+  '''password123''',
+  '''eyJhbGciOiJIUzI1NiIs\.\.\.''',
+  '''Bearer eyJhbGci\.\.\.''',
+  '''ak_a1b2c3d4(?:e5f6)?\.\.\.''',
+  '''ak_test_(?:valid|revoked)_key(?:_[0-9]+)?''',
+  '''ak_nonexistent_key''',
+  '''rt_bogus_token_that_does_not_exist''',
+  '''rt_completely_invalid_token'''
+]

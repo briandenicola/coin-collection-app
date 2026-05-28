@@ -7,6 +7,13 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// BulkActionRequest is the request body for bulk coin actions.
+type BulkActionRequest struct {
+	CoinIDs []uint `json:"coinIds" binding:"required"`
+	Action  string `json:"action" binding:"required"`
+	TagID   *uint  `json:"tagId"`
+}
+
 // BulkHandler handles bulk operations on coins.
 type BulkHandler struct {
 	coinRepo *repository.CoinRepository
@@ -33,11 +40,7 @@ func NewBulkHandler(coinRepo *repository.CoinRepository, tagRepo *repository.Tag
 func (h *BulkHandler) BulkAction(c *gin.Context) {
 	userID := c.GetUint("userId")
 
-	var req struct {
-		CoinIDs []uint `json:"coinIds" binding:"required"`
-		Action  string `json:"action" binding:"required"`
-		TagID   *uint  `json:"tagId"`
-	}
+	var req BulkActionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "coinIds and action are required"})
 		return

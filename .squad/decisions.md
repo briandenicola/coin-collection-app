@@ -15,7 +15,7 @@ Adopted tech-inventory governance philosophy (operational scaffolding adapted to
 - Constitution MAJOR version bump: v1.1.0 → v2.0.0 (16 principles untouched; operational restructure warrants MAJOR)
 - Seed `specs/001-foundation/` retroactively (Phase 2 work)
 - `docs/prd.md` becomes product source of truth
-- Split `docs/security-analysis.md` → `docs/security-baseline.md` + `docs/threat-model.md` (Phase 3)
+- Split the legacy security review into `docs/security-principles.md` + `docs/threat-model.md` + `docs/incident-response.md` (Phase 3)
 - Signed commits NOT required (single-developer hobby project); Conventional Commits + Co-authored-by trailer remain mandatory
 - Reject signed commits per Brian's confirmation
 
@@ -95,8 +95,8 @@ Security reporters know where to send disclosures; maintainers can enforce revie
 **Why:** Cross-repo consistency, decouples product intent from build instructions
 
 #### Decision 4: Security Analysis Split
-**What:** Split into `docs/security-baseline.md` (controls) + `docs/threat-model.md` (STRIDE); keep `docs/security-analysis.md` as deprecated redirect stub  
-**Why:** Matches tech-inventory pattern; STRIDE warrants its own doc
+**What:** Replace the legacy single security review with `docs/security-principles.md` (controls), `docs/threat-model.md` (findings), and `docs/incident-response.md` (operations); delete the retired file cleanly  
+**Why:** Matches the tech-inventory information architecture while giving controls, live findings, and incident operations their own maintainable homes
 
 #### Decision 5: Signed Commits on main
 **What:** SKIP — single-developer hobby project  
@@ -1062,3 +1062,176 @@ Prior session note suggested running `specify upgrade` to "register" the four ne
 - All meaningful changes require team consensus
 - Document architectural decisions here
 - Keep history focused on work, decisions focused on direction
+
+### 14. Keep `ci.yml` filename for Quality Gate (2026-05-28)
+
+**Authors:** Cassius, Coordinator  
+**Date:** 2026-05-28  
+**Status:** ACCEPTED — Phase 3b landed
+
+#### What
+
+Constitution §17 requires a named `Quality Gate`, but the repository already documents `.github/workflows/ci.yml` in multiple places and Phase 3b has security-doc and specification work running in locked or parallel workstreams. Renaming the file now would create cross-workstream churn and force follow-up cleanup in locked documents.
+
+#### Decision
+
+Keep the file path as `.github/workflows/ci.yml`, but change the workflow `name:` to `"Quality Gate"` in the UI. Expand the workflow to enforce the full Go, Vue, Python, and OpenAPI drift checks mandated by §17.
+
+#### Consequences
+
+- File-path references in existing docs, handoff logs, and branch protection rules remain stable
+- Workflow name is "Quality Gate" in GitHub Actions UI, fulfilling §17 textual requirement
+- Avoids unnecessary documentation churn during Phase 3b while still exposing the constitutionally required identity
+- Leaves room for a future rename once Maximus's security-doc updates and branch-protection expectations are aligned
+
+#### Impact
+
+CI Quality Gate fully operational with zero cross-team disruption. Satisfies §17 substance without process overhead.
+
+---
+
+### 15. Clean Security Doc Split — No Deprecated Stubs (2026-05-28)
+
+**Authors:** Maximus, Coordinator  
+**Date:** 2026-05-28  
+**Status:** ACCEPTED — Phase 3b landed
+
+#### What
+
+The monolithic `docs/security-analysis.md` has been retired entirely (no redirect stub). Its content is replaced with three purpose-built documents:
+
+- `docs/security-principles.md` — stable controls and governance posture
+- `docs/threat-model.md` — live finding inventory (24 findings catalogued)
+- `docs/incident-response.md` — operational response playbook
+
+#### Decision
+
+Delete the retired file cleanly. Update all live references (Constitution, README, docs/) to point to the three new documents. No 301-style redirect or stub left in the codebase.
+
+#### Consequences
+
+- **+** Each of the three concerns (principles, findings, response) has a dedicated, maintainable home
+- **+** Future ADRs, security audits, and incident runbooks have unambiguous anchors
+- **+** No ambiguity about "which doc should this update go into?" — the three purposes are distinct
+- **−** Readers of old git history who click a `docs/security-analysis.md` link see a 404; they must infer the new location from the commit history
+- **+** Historical context is available in git; only the current docs set is curated
+
+#### Rationale
+
+A deprecated stub would preserve the old name but keep the repo anchored to the wrong information architecture. The cleaner cut is to update live references now and let the three replacements become the only maintained security surface.
+
+#### References
+
+- `docs/security-principles.md` (new)
+- `docs/threat-model.md` (new)
+- `docs/incident-response.md` (new)
+- `.specify/memory/constitution.md` (updated 4 stale refs)
+
+---
+
+### 16. Propose F011 — Browser E2E Smoke Tests (2026-05-28)
+
+**Authors:** Brutus  
+**Date:** 2026-05-28  
+**Status:** PROPOSAL — captured for Phase 4+ backlog
+
+#### What
+
+Phase 3b testing audit revealed no browser end-to-end test harness in `src/web/`. The project has strong unit/contract coverage (Go 118 tests, Vue 61 tests, Python 35 tests), but the highest-value user journeys lack automated full-stack smoke coverage.
+
+#### Proposal
+
+Create a new backlog card at `specs/_backlog/F011-browser-e2e-smoke-tests.md` with scope:
+
+- Add a minimal browser E2E framework (Playwright preferred for VS Code integrations and cross-platform reliability)
+- Cover only critical deterministic journeys: login/refresh, create/edit coin, collection pagination/filtering, one admin-only protected route
+- Run against local dev stack or CI service containers without calling real third-party AI providers
+- Keep fixtures seeded and deterministic; avoid snapshot-heavy or CSS-fragile assertions
+- Integrate into Quality Gate workflow: run after unit/lint gates are green, before merge
+
+#### Rationale
+
+Full-stack coverage closes the test pyramid — currently we have strong unit tests but no confirmation that the three services interact correctly end-to-end in a browser context. Browser E2E also catches CSS/routing/state-management issues that unit tests miss.
+
+#### Consequences
+
+- **+** Closes highest-impact testing gap (user journey coverage)
+- **+** Catches integration bugs across frontend/backend/agent at merge time
+- **+** Provides regression-prevention for refactors (e.g., DRY scheduler extraction in #163)
+- **−** Adds CI time (~90s–120s for 5–8 smoke tests)
+- **−** Requires Playwright SDK + test fixtures (minimal; ~20–30 lines of setup)
+
+#### Linked Issues / Backlog
+
+- Issue #163 (Code & Security Audit) — DRY scheduler refactor will benefit from E2E regression suite
+- Will be filed as `F011` backlog card once Phase 4 planning begins
+
+---
+
+### 17. Next Coding Queue — Issue #163 (Security Audit / SWE Best Practices / DRY) + 8 Dependabot PRs (2026-05-28)
+
+**Authors:** Brian (via Copilot CLI), Coordinator  
+**Date:** 2026-05-28  
+**Status:** CAPTURED — post-Phase-3b queue
+
+#### What
+
+After Phase 3b governance scaffolding lands, the next coding update is:
+
+1. **Issue #163** — Code & security audit (squad lead: Cassius)
+2. **Eight Dependabot PRs** — dependency updates across Go, npm, and Python
+
+#### Issue #163 Scope (Refined 2026-05-28T18:36Z)
+
+The original "agentic coding framework" goal is **complete** (Phases 1–3a: Constitution v2.0.0, copilot-instructions, PRD, ADRs, backlog F001–F007, commits 0dbd180 / 2965c31 / 01f5f1a / 5a3fd54). The remaining audit work has **three explicit pillars**:
+
+**Pillar 1: Security Audit**
+- Full codebase review; correlate findings with `security-scan.yml` output (gitleaks + govulncheck + npm audit + pip-audit, landing in Phase 3b)
+- Cross-reference with `docs/threat-model.md`
+- Categorize Critical / High / Medium / Low
+- Open follow-up issues for Critical/High items; apply inline fixes for Low
+- Merge all 8 Dependabot PRs (the visible surface; also check Dependabot alerts tab for any without a PR)
+
+**Pillar 2: Software Engineering Best Practices**
+- Vue: identify "God components" (>300 lines, mixed concerns), verify Composition API + TypeScript, check design tokens (no hardcodes), verify API calls through `client.ts`, check prop-drilling vs. Pinia
+- Go: verify four-layer rule (handler → service → repository → database) across all packages, error handling consistency (sentinel vs. wrapped), context propagation, GORM scope reuse, no raw SQL in handlers, Swagger annotations on all public methods
+- Python (agent): check Pydantic schemas at all boundaries, `app/llm/provider.py` single point of model resolution, structured logging via `app/logging_config.py`
+
+**Pillar 3: DRY Across Subsystems**
+- **Schedulers:** Extract shared base scheduler pattern from `coin_of_day_scheduler.go`, `auction_ending_scheduler.go`, and upcoming `valuation_snapshot_scheduler.go` (F009). Consolidate: daily-trigger loop, per-user opt-in check, admin-settings reader, in-memory + DB idempotency, manual-trigger endpoint pattern.
+- **AI Agents:** Hunt duplicated pipeline scaffolding in `app/teams/` — Search→Format, Search→Verify→Format, Vision→Format. Check for shared StateGraph builder or repeated `create_react_agent` wiring.
+- **Frontend:** Modal wrappers, list-with-pagination components, form-validation helpers — flag any copy-pasted patterns that should be composables.
+- **API handlers:** Repeated boilerplate (parse → call service → translate error → return). Flag top 3–5 highest-value abstractions; let Brian prioritize.
+
+**Deliverable Shape:**
+- Single comment on #163 with Critical/High/Medium/Low findings
+- Follow-up issues opened for Critical/High items
+- All 8 Dependabot PRs merged (or rejected with documented reason)
+- DRY proposal section highlighting top 3–5 highest-value extractions, each with proposed abstraction sketch and blast-radius estimate
+
+#### Dependabot PRs (8 open as of 2026-05-28T18:32Z)
+
+**Go:** #191 (golang.org/x/crypto), #193 (go-webauthn), #194 (golang.org/x/net)  
+**npm:** #192 (axios), #195 (vite-plugin-vue-devtools), #196 (@vitejs/plugin-vue), #197 (vitest), #198 (vue-router)
+
+#### Suggested Approach
+
+1. **Batch Go PRs** (#191/#193/#194) together after single CI green run
+2. **Batch npm PRs** (#192/#195/#196/#197/#198) separately after first batch merges
+3. Review `security-scan.yml` first-run output (gitleaks + govulncheck + npm audit + pip-audit) before declaring audit bullet done
+4. DRY scheduler refactor likely target: shared base scheduler pattern (commits expected: 1–2 for base, 3–4 for migration)
+
+#### Why Captured
+
+User-flagged coding queue survives session boundaries. Next session / Ralph cycle has unambiguous handoff: Phase 3b lands, then pivot to #163.
+
+#### References
+
+- Issue #163 GitHub issue body (refined 2026-05-28)
+- `.github/workflows/security-scan.yml` (phase 3b output)
+- `docs/threat-model.md` (correlate findings)
+- Backlog `F009` (portfolio snapshots / scheduler pattern extraction opportunity)
+- Constitution §17 (Quality Gate), §21 (Definition of Done)
+
+---
+

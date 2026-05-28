@@ -241,7 +241,7 @@ curl -X DELETE http://localhost:8080/api/auth/webauthn/credentials/CREDENTIAL_ID
 
 - The login page **remembers the last username** in `localStorage` and shows a biometric login button when that user has registered WebAuthn credentials.
 - Session data for in-progress ceremonies is stored **in-memory** on the server (a Go `map`). If the server restarts mid-ceremony, the user will need to start the registration or login flow again.
-- **Known limitation:** In-memory ceremony sessions have **no TTL** — abandoned registration/login flows accumulate indefinitely. This is tracked as finding B-7 in the [security analysis](security-analysis.md).
+- **Known limitation:** In-memory ceremony sessions have **no TTL** — abandoned registration/login flows accumulate indefinitely. This is tracked as finding B-7 in the [threat model](threat-model.md#backend-api-findings).
 
 ---
 

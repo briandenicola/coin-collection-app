@@ -1,5 +1,47 @@
 basePath: /api
 definitions:
+  handlers.AIStatusResponse:
+    properties:
+      available:
+        example: true
+        type: boolean
+      message:
+        example: 'Anthropic provider configured (model: claude-sonnet-4-20250514)'
+        type: string
+      model:
+        example: claude-sonnet-4-20250514
+        type: string
+      provider:
+        example: anthropic
+        type: string
+    type: object
+  handlers.AgentChatMessage:
+    properties:
+      content:
+        type: string
+      role:
+        type: string
+    type: object
+  handlers.AgentChatRequest:
+    properties:
+      history:
+        items:
+          $ref: '#/definitions/handlers.AgentChatMessage'
+        type: array
+      message:
+        type: string
+    required:
+    - message
+    type: object
+  handlers.AgentChatResponse:
+    properties:
+      message:
+        type: string
+      suggestions:
+        items:
+          $ref: '#/definitions/handlers.CoinSuggestion'
+        type: array
+    type: object
   handlers.AnalysisResponse:
     properties:
       analysis:
@@ -11,8 +53,20 @@ definitions:
         example: obverse
         type: string
     type: object
+  handlers.AuctionLotListResponse:
+    properties:
+      lots:
+        items:
+          $ref: '#/definitions/models.AuctionLot'
+        type: array
+      total:
+        type: integer
+    type: object
   handlers.AuthResponse:
     properties:
+      refreshToken:
+        example: rt_a1b2c3d4...
+        type: string
       token:
         example: eyJhbGciOiJIUzI1NiIs...
         type: string
@@ -30,6 +84,31 @@ definitions:
       username:
         example: admin
         type: string
+    type: object
+  handlers.BulkActionRequest:
+    properties:
+      action:
+        type: string
+      coinIds:
+        items:
+          type: integer
+        type: array
+      tagId:
+        type: integer
+    required:
+    - action
+    - coinIds
+    type: object
+  handlers.BulkLinkEventRequest:
+    properties:
+      eventId:
+        type: integer
+      lotIds:
+        items:
+          type: integer
+        type: array
+    required:
+    - lotIds
     type: object
   handlers.CategoryCount:
     properties:
@@ -75,6 +154,42 @@ definitions:
         example: 42
         type: integer
     type: object
+  handlers.CoinSuggestion:
+    properties:
+      category:
+        type: string
+      denomination:
+        type: string
+      description:
+        type: string
+      era:
+        type: string
+      estPrice:
+        type: string
+      imageUrl:
+        type: string
+      material:
+        type: string
+      name:
+        type: string
+      ruler:
+        type: string
+      sourceName:
+        type: string
+      sourceUrl:
+        type: string
+    type: object
+  handlers.ConversationSummary:
+    properties:
+      createdAt:
+        type: string
+      id:
+        type: integer
+      title:
+        type: string
+      updatedAt:
+        type: string
+    type: object
   handlers.DeleteAnalysisResponse:
     properties:
       coin:
@@ -98,6 +213,31 @@ definitions:
         example: Image deleted
         type: string
     type: object
+  handlers.ImportLotRequest:
+    properties:
+      auctionHouse:
+        type: string
+      category:
+        type: string
+      currency:
+        type: string
+      currentBid:
+        type: number
+      description:
+        type: string
+      estimate:
+        type: number
+      imageUrl:
+        type: string
+      saleName:
+        type: string
+      title:
+        type: string
+      url:
+        type: string
+    required:
+    - url
+    type: object
   handlers.ImportResponse:
     properties:
       imported:
@@ -106,6 +246,11 @@ definitions:
       message:
         example: Import complete
         type: string
+    type: object
+  handlers.LinkEventRequest:
+    properties:
+      eventId:
+        type: integer
     type: object
   handlers.LogEntry:
     properties:
@@ -168,6 +313,15 @@ definitions:
         example: Password changed
         type: string
     type: object
+  handlers.PurchaseRequest:
+    properties:
+      purchaseDate:
+        type: string
+      purchaseLocation:
+        type: string
+      purchasePrice:
+        type: number
+    type: object
   handlers.ResetPasswordRequest:
     properties:
       newPassword:
@@ -217,6 +371,24 @@ definitions:
       values:
         $ref: '#/definitions/handlers.ValueSummary'
     type: object
+  handlers.SyncWatchlistResponse:
+    properties:
+      lots:
+        items:
+          $ref: '#/definitions/models.AuctionLot'
+        type: array
+      synced:
+        type: integer
+    type: object
+  handlers.UpdateStatusRequest:
+    properties:
+      maxBid:
+        type: number
+      status:
+        type: string
+    required:
+    - status
+    type: object
   handlers.UserDTO:
     properties:
       createdAt:
@@ -247,6 +419,16 @@ definitions:
       username:
         example: admin
         type: string
+    type: object
+  handlers.ValidateNumisBidsRequest:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    required:
+    - password
+    - username
     type: object
   handlers.ValueSummary:
     properties:
@@ -285,6 +467,7 @@ definitions:
     properties:
       name:
         example: My Script
+        maxLength: 100
         type: string
     required:
     - name
@@ -309,8 +492,18 @@ definitions:
     - password
     - username
     type: object
+  handlers.refreshRequest:
+    properties:
+      refreshToken:
+        type: string
+    required:
+    - refreshToken
+    type: object
   handlers.registerRequest:
     properties:
+      email:
+        example: user@example.com
+        type: string
       password:
         example: password123
         minLength: 6
@@ -320,8 +513,24 @@ definitions:
         minLength: 3
         type: string
     required:
+    - email
     - password
     - username
+    type: object
+  models.AgentConversation:
+    properties:
+      createdAt:
+        type: string
+      id:
+        type: integer
+      messages:
+        type: string
+      title:
+        type: string
+      updatedAt:
+        type: string
+      userId:
+        type: integer
     type: object
   models.ApiKey:
     properties:
@@ -340,6 +549,96 @@ definitions:
       userId:
         type: integer
     type: object
+  models.AuctionEvent:
+    properties:
+      auctionHouse:
+        type: string
+      createdAt:
+        type: string
+      endDate:
+        type: string
+      id:
+        type: integer
+      notes:
+        type: string
+      startDate:
+        type: string
+      title:
+        type: string
+      updatedAt:
+        type: string
+      url:
+        type: string
+      userId:
+        type: integer
+    type: object
+  models.AuctionLot:
+    properties:
+      auctionEndTime:
+        type: string
+      auctionHouse:
+        type: string
+      category:
+        $ref: '#/definitions/models.Category'
+      coin:
+        $ref: '#/definitions/models.Coin'
+      coinId:
+        type: integer
+      createdAt:
+        type: string
+      currency:
+        type: string
+      currentBid:
+        type: number
+      description:
+        type: string
+      estimate:
+        type: number
+      event:
+        $ref: '#/definitions/models.AuctionEvent'
+      eventId:
+        type: integer
+      id:
+        type: integer
+      imageUrl:
+        type: string
+      lotNumber:
+        type: integer
+      maxBid:
+        type: number
+      notes:
+        type: string
+      numisBidsUrl:
+        type: string
+      saleDate:
+        type: string
+      saleId:
+        type: string
+      saleName:
+        type: string
+      status:
+        $ref: '#/definitions/models.AuctionLotStatus'
+      title:
+        type: string
+      updatedAt:
+        type: string
+      userId:
+        type: integer
+    type: object
+  models.AuctionLotStatus:
+    enum:
+    - watching
+    - bidding
+    - won
+    - lost
+    - passed
+    type: string
+    x-enum-varnames:
+    - AuctionStatusWatching
+    - AuctionStatusBidding
+    - AuctionStatusWon
+    - AuctionStatusLost
+    - AuctionStatusPassed
   models.Category:
     enum:
     - Roman
@@ -365,12 +664,15 @@ definitions:
       currentValue:
         type: number
       denomination:
+        maxLength: 200
         type: string
       diameterMm:
         type: number
       era:
+        maxLength: 200
         type: string
       grade:
+        maxLength: 100
         type: string
       id:
         type: integer
@@ -378,42 +680,74 @@ definitions:
         items:
           $ref: '#/definitions/models.CoinImage'
         type: array
+      isPrivate:
+        type: boolean
+      isSold:
+        type: boolean
       isWishlist:
         type: boolean
+      listingCheckReason:
+        type: string
+      listingCheckedAt:
+        type: string
+      listingStatus:
+        type: string
       material:
         $ref: '#/definitions/models.Material'
       mint:
+        maxLength: 200
         type: string
       name:
+        maxLength: 200
         type: string
       notes:
+        maxLength: 5000
         type: string
       obverseAnalysis:
         type: string
       obverseDescription:
+        maxLength: 2000
         type: string
       obverseInscription:
+        maxLength: 1000
         type: string
       purchaseDate:
         type: string
       purchaseLocation:
+        maxLength: 500
         type: string
       purchasePrice:
         type: number
       rarityRating:
+        maxLength: 100
         type: string
       referenceText:
+        maxLength: 2000
         type: string
       referenceUrl:
+        maxLength: 2000
         type: string
       reverseAnalysis:
         type: string
       reverseDescription:
+        maxLength: 2000
         type: string
       reverseInscription:
+        maxLength: 1000
         type: string
       ruler:
+        maxLength: 200
         type: string
+      soldDate:
+        type: string
+      soldPrice:
+        type: number
+      soldTo:
+        type: string
+      tags:
+        items:
+          $ref: '#/definitions/models.Tag'
+        type: array
       updatedAt:
         type: string
       userId:
@@ -435,6 +769,51 @@ definitions:
         $ref: '#/definitions/models.ImageType'
       isPrimary:
         type: boolean
+    type: object
+  models.CoinJournal:
+    properties:
+      coinId:
+        type: integer
+      createdAt:
+        type: string
+      entry:
+        type: string
+      id:
+        type: integer
+      userId:
+        type: integer
+    type: object
+  models.CoinValueHistory:
+    properties:
+      coinId:
+        type: integer
+      confidence:
+        type: string
+      id:
+        type: integer
+      recordedAt:
+        type: string
+      userId:
+        type: integer
+      value:
+        type: number
+    type: object
+  models.FeaturedCoin:
+    properties:
+      coin:
+        $ref: '#/definitions/models.Coin'
+      coinId:
+        type: integer
+      createdAt:
+        type: string
+      featuredAt:
+        type: string
+      id:
+        type: integer
+      summary:
+        type: string
+      userId:
+        type: integer
     type: object
   models.ImageType:
     enum:
@@ -464,6 +843,17 @@ definitions:
     - MaterialCopper
     - MaterialElectrum
     - MaterialOther
+  models.Tag:
+    properties:
+      color:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      userId:
+        type: integer
+    type: object
   models.UserRole:
     enum:
     - admin
@@ -472,6 +862,47 @@ definitions:
     x-enum-varnames:
     - RoleAdmin
     - RoleUser
+  models.ValueSnapshot:
+    properties:
+      coinCount:
+        type: integer
+      id:
+        type: integer
+      recordedAt:
+        type: string
+      totalInvested:
+        type: number
+      totalValue:
+        type: number
+      userId:
+        type: integer
+    type: object
+  models.WebAuthnCredential:
+    properties:
+      attestationType:
+        type: string
+      createdAt:
+        type: string
+      credentialId:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      signCount:
+        type: integer
+      userId:
+        type: integer
+    type: object
+  repository.DistributionCell:
+    properties:
+      category:
+        type: string
+      count:
+        type: integer
+      era:
+        type: string
+    type: object
 info:
   contact: {}
   description: REST API for managing an ancient coin collection. Supports coin CRUD,
@@ -479,6 +910,176 @@ info:
   title: Ancient Coins API
   version: "1.0"
 paths:
+  /admin/auction-ending-runs:
+    get:
+      description: Returns paginated history of auction ending check runs.
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List auction ending runs
+      tags:
+      - Admin
+  /admin/auction-ending/run:
+    post:
+      description: Manually triggers an auction ending check for all users. Runs synchronously
+        and returns the run details.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Trigger manual auction ending check
+      tags:
+      - Admin
+  /admin/availability-runs:
+    get:
+      description: Returns paginated history of wishlist availability check runs.
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List availability check runs
+      tags:
+      - Admin
+  /admin/availability-runs/{id}:
+    get:
+      description: Returns a single availability check run with all per-coin results.
+      parameters:
+      - description: Run ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get availability run detail
+      tags:
+      - Admin
+  /admin/coin-of-day/run:
+    post:
+      description: Picks one coin per opted-in user and sends notifications. Runs
+        synchronously.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Trigger manual coin-of-the-day pick
+      tags:
+      - Admin
   /admin/logs:
     get:
       description: Returns recent in-memory application logs, optionally filtered
@@ -724,6 +1325,756 @@ paths:
       summary: Reset user password
       tags:
       - Admin
+  /admin/valuation-runs:
+    get:
+      description: Returns paginated history of scheduled collection valuation runs.
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List valuation runs
+      tags:
+      - Admin
+  /admin/valuation-runs/{id}:
+    get:
+      description: Returns a single valuation run with all per-coin results.
+      parameters:
+      - description: Run ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get valuation run detail
+      tags:
+      - Admin
+  /admin/valuation-runs/{id}/cancel:
+    post:
+      description: Signals a running valuation to stop after the current coin.
+      parameters:
+      - description: Run ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Cancel a valuation run
+      tags:
+      - Admin
+  /admin/valuation-runs/trigger:
+    post:
+      description: Manually triggers a collection valuation for all users. Runs asynchronously.
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Trigger manual valuation
+      tags:
+      - Admin
+  /agent/chat:
+    post:
+      consumes:
+      - application/json
+      description: Send a message to the AI agent. Response is streamed as Server-Sent
+        Events.
+      parameters:
+      - description: Chat message
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.AgentChatRequest'
+      produces:
+      - text/event-stream
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.AgentChatResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Chat with coin search agent (streaming)
+      tags:
+      - Agent
+  /agent/coin-search-prompt:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get coin search prompt
+      tags:
+      - Agent
+  /agent/coin-shows-prompt:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get coin shows prompt
+      tags:
+      - Agent
+  /agent/conversations:
+    get:
+      description: Returns all saved agent conversations for the current user, newest
+        first.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/handlers.ConversationSummary'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List saved conversations
+      tags:
+      - Agent
+    post:
+      consumes:
+      - application/json
+      description: Creates a new conversation or updates an existing one.
+      parameters:
+      - description: Conversation data
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.AgentConversation'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Save conversation
+      tags:
+      - Agent
+  /agent/conversations/{id}:
+    delete:
+      description: Deletes a saved agent conversation.
+      parameters:
+      - description: Conversation ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete conversation
+      tags:
+      - Agent
+    get:
+      description: Returns a saved conversation with its full message history.
+      parameters:
+      - description: Conversation ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.AgentConversation'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get conversation
+      tags:
+      - Agent
+  /agent/models:
+    get:
+      description: Returns a curated list of Anthropic models suitable for the coin
+        search agent.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              type: object
+            type: array
+      security:
+      - BearerAuth: []
+      summary: List available Anthropic models
+      tags:
+      - Agent
+  /agent/portfolio-summary:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get portfolio summary for AI analysis
+      tags:
+      - Agent
+  /agent/valuation-prompt:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get valuation prompt
+      tags:
+      - Agent
+  /ai-status:
+    get:
+      description: Returns whether the configured AI provider (Anthropic or Ollama)
+        is usable for coin analysis.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.AIStatusResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Check AI provider status
+      tags:
+      - Analysis
+  /api/admin/auction-ending/debug:
+    get:
+      description: 'Returns diagnostic info: current time, next 24h window, total
+        lots, lots by status, lots matching the scheduler query, and all BIDDING lots
+        with all their date fields populated'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Debug auction ending scheduler
+      tags:
+      - admin
+  /auctions:
+    get:
+      description: Returns a paginated list of auction lots belonging to the authenticated
+        user.
+      parameters:
+      - description: Filter by status (watching, bidding, won, lost, passed)
+        in: query
+        name: status
+        type: string
+      - description: Search across title, description, auction house
+        in: query
+        name: search
+        type: string
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 50
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      - default: updated_at
+        description: Sort field
+        in: query
+        name: sort
+        type: string
+      - default: desc
+        description: Sort order
+        in: query
+        name: order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.AuctionLotListResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List auction lots
+      tags:
+      - Auctions
+    post:
+      consumes:
+      - application/json
+      description: Creates a new auction lot for tracking.
+      parameters:
+      - description: Auction lot data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.AuctionLot'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.AuctionLot'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create auction lot
+      tags:
+      - Auctions
+  /auctions/{id}:
+    delete:
+      description: Removes an auction lot from tracking.
+      parameters:
+      - description: Auction lot ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete auction lot
+      tags:
+      - Auctions
+    get:
+      description: Returns a single auction lot by ID.
+      parameters:
+      - description: Auction lot ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.AuctionLot'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get auction lot
+      tags:
+      - Auctions
+  /auctions/{id}/convert:
+    post:
+      description: Creates an owned Coin from a won auction lot.
+      parameters:
+      - description: Auction lot ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Coin'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Convert won lot to coin
+      tags:
+      - Auctions
+  /auctions/{id}/event:
+    put:
+      consumes:
+      - application/json
+      description: Sets or clears the calendar event association for an auction lot.
+      parameters:
+      - description: Auction lot ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Event ID (null to unlink)
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.LinkEventRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.AuctionLot'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Link lot to calendar event
+      tags:
+      - Auctions
+  /auctions/{id}/status:
+    put:
+      consumes:
+      - application/json
+      description: Transitions an auction lot to a new status.
+      parameters:
+      - description: Auction lot ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: New status
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.UpdateStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.AuctionLot'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update auction lot status
+      tags:
+      - Auctions
+  /auctions/bulk-link-event:
+    put:
+      consumes:
+      - application/json
+      description: Sets or clears the calendar event for multiple auction lots at
+        once.
+      parameters:
+      - description: Lot IDs and event ID
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.BulkLinkEventRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: integer
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Bulk link lots to calendar event
+      tags:
+      - Auctions
+  /auctions/counts:
+    get:
+      description: Returns a map of status → count for the authenticated user.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              format: int64
+              type: integer
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get auction lot counts by status
+      tags:
+      - Auctions
+  /auctions/import:
+    post:
+      consumes:
+      - application/json
+      description: Scrapes a NumisBids lot page and creates an auction lot entry.
+      parameters:
+      - description: NumisBids lot URL
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.ImportLotRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.AuctionLot'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Import lot from NumisBids URL
+      tags:
+      - Auctions
+  /auctions/sync:
+    post:
+      description: Logs into NumisBids with the user's stored credentials, fetches
+        their watchlist, and upserts each lot.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.SyncWatchlistResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Sync NumisBids watchlist
+      tags:
+      - Auctions
+  /auctions/validate-credentials:
+    post:
+      consumes:
+      - application/json
+      description: Attempts to log in to NumisBids with the provided credentials to
+        verify they are correct.
+      parameters:
+      - description: NumisBids credentials
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.ValidateNumisBidsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: boolean
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Validate NumisBids credentials
+      tags:
+      - Auctions
   /auth/api-keys:
     get:
       description: Returns all API keys for the authenticated user. Key values are
@@ -860,7 +2211,8 @@ paths:
     post:
       consumes:
       - application/json
-      description: Authenticate with username and password to receive a JWT token.
+      description: Authenticate with username and password. Returns access token (15min)
+        and refresh token (30 days).
       parameters:
       - description: Login credentials
         in: body
@@ -913,12 +2265,47 @@ paths:
       summary: Get current user
       tags:
       - User
+  /auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Exchange a valid refresh token for new access and refresh tokens.
+        The old refresh token is revoked (rolling refresh).
+      parameters:
+      - description: Refresh token
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.refreshRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.AuthResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Refresh tokens
+      tags:
+      - Auth
   /auth/register:
     post:
       consumes:
       - application/json
       description: Create a new user account. The first registered user is assigned
-        the admin role.
+        the admin role. Returns access token (15min) and refresh token (30 days).
       parameters:
       - description: Registration credentials
         in: body
@@ -962,6 +2349,214 @@ paths:
       summary: Check setup status
       tags:
       - Auth
+  /auth/webauthn/check:
+    get:
+      description: Returns whether the given username has registered WebAuthn credentials
+        for biometric login.
+      parameters:
+      - description: Username to check
+        in: query
+        name: username
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Check biometric availability
+      tags:
+      - WebAuthn
+  /auth/webauthn/credentials:
+    get:
+      description: Returns all registered biometric credentials for the authenticated
+        user.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.WebAuthnCredential'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List WebAuthn credentials
+      tags:
+      - WebAuthn
+  /auth/webauthn/credentials/{id}:
+    delete:
+      description: Removes a registered biometric credential.
+      parameters:
+      - description: Credential ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete WebAuthn credential
+      tags:
+      - WebAuthn
+  /auth/webauthn/login/begin:
+    post:
+      consumes:
+      - application/json
+      description: Starts biometric authentication for a user. Returns options for
+        navigator.credentials.get().
+      parameters:
+      - description: Username
+        in: body
+        name: body
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Begin WebAuthn login
+      tags:
+      - WebAuthn
+  /auth/webauthn/login/finish:
+    post:
+      consumes:
+      - application/json
+      description: Completes biometric authentication and returns access + refresh
+        tokens.
+      parameters:
+      - description: Credential assertion response
+        in: body
+        name: body
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.AuthResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Finish WebAuthn login
+      tags:
+      - WebAuthn
+  /auth/webauthn/register/begin:
+    post:
+      description: Starts credential registration for the authenticated user. Returns
+        options for navigator.credentials.create().
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Begin WebAuthn registration
+      tags:
+      - WebAuthn
+  /auth/webauthn/register/finish:
+    post:
+      consumes:
+      - application/json
+      description: Completes credential registration. Stores the new credential for
+        future biometric logins.
+      parameters:
+      - description: Credential attestation response
+        in: body
+        name: body
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Finish WebAuthn registration
+      tags:
+      - WebAuthn
   /coins:
     get:
       description: Returns a paginated, filterable list of coins belonging to the
@@ -983,6 +2578,13 @@ paths:
         in: query
         name: wishlist
         type: string
+      - description: Filter by sold status
+        enum:
+        - "true"
+        - "false"
+        in: query
+        name: sold
+        type: string
       - default: 1
         description: Page number
         in: query
@@ -993,6 +2595,23 @@ paths:
         in: query
         name: limit
         type: integer
+      - default: updated_at
+        description: Sort field
+        enum:
+        - created_at
+        - updated_at
+        - current_value
+        in: query
+        name: sort
+        type: string
+      - default: desc
+        description: Sort order
+        enum:
+        - asc
+        - desc
+        in: query
+        name: order
+        type: string
       produces:
       - application/json
       responses:
@@ -1000,6 +2619,10 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/handlers.CoinListResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
         "401":
           description: Unauthorized
           schema:
@@ -1399,6 +3022,303 @@ paths:
       summary: Upload a coin image (base64)
       tags:
       - Images
+  /coins/{id}/journal:
+    get:
+      description: Returns all activity log entries for a coin, newest first.
+      parameters:
+      - description: Coin ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.CoinJournal'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List journal entries
+      tags:
+      - Journal
+    post:
+      consumes:
+      - application/json
+      description: Creates a new activity log entry for a coin.
+      parameters:
+      - description: Coin ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Journal entry
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.CoinJournal'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Add journal entry
+      tags:
+      - Journal
+  /coins/{id}/journal/{entryId}:
+    delete:
+      description: Deletes an activity log entry. Only the entry owner can delete
+        it.
+      parameters:
+      - description: Coin ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Entry ID
+        in: path
+        name: entryId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete journal entry
+      tags:
+      - Journal
+  /coins/{id}/listing-status:
+    put:
+      consumes:
+      - application/json
+      description: Updates the listing status of a coin (e.g., dismiss an unavailable
+        notice).
+      parameters:
+      - description: Coin ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Status update
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update coin listing status
+      tags:
+      - Wishlist
+  /coins/{id}/purchase:
+    post:
+      consumes:
+      - application/json
+      description: Sets isWishlist to false, moving the coin from wishlist to collection.
+        Optionally accepts purchase details.
+      parameters:
+      - description: Coin ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Optional purchase details
+        in: body
+        name: body
+        schema:
+          $ref: '#/definitions/handlers.PurchaseRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Coin'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Mark coin as purchased
+      tags:
+      - Coins
+  /coins/{id}/sell:
+    post:
+      consumes:
+      - application/json
+      description: Sets isSold to true with a sold price and date, moving the coin
+        from collection to sold gallery.
+      parameters:
+      - description: Coin ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Sale details
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Coin'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Mark coin as sold
+      tags:
+      - Coins
+  /coins/{id}/value-history:
+    get:
+      description: Returns value tracking entries for a coin, ordered oldest first.
+      parameters:
+      - description: Coin ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.CoinValueHistory'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get coin value history
+      tags:
+      - Coins
+  /coins/bulk:
+    post:
+      consumes:
+      - application/json
+      description: Performs a bulk action (tag, delete, sell, export) on selected
+        coins.
+      parameters:
+      - description: Bulk action request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.BulkActionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Bulk coin action
+      tags:
+      - Coins
   /extract-text:
     post:
       consumes:
@@ -1435,6 +3355,207 @@ paths:
       summary: Extract text from image
       tags:
       - Analysis
+  /featured-coins/{id}:
+    get:
+      description: Returns one Coin-of-the-Day record (with the populated coin) for
+        the authenticated user.
+      parameters:
+      - description: FeaturedCoin ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.FeaturedCoin'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get a featured coin
+      tags:
+      - FeaturedCoin
+  /featured-coins/latest:
+    get:
+      description: Returns the most recent Coin-of-the-Day record for the authenticated
+        user.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.FeaturedCoin'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get latest featured coin
+      tags:
+      - FeaturedCoin
+  /notifications:
+    get:
+      description: Returns notifications for the current user, newest first.
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List notifications
+      tags:
+      - Notifications
+  /notifications/{id}:
+    delete:
+      description: Deletes a specific notification.
+      parameters:
+      - description: Notification ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete notification
+      tags:
+      - Notifications
+  /notifications/{id}/read:
+    put:
+      description: Marks a specific notification as read.
+      parameters:
+      - description: Notification ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Mark notification read
+      tags:
+      - Notifications
+  /notifications/read-all:
+    put:
+      description: Marks all unread notifications as read.
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Mark all notifications read
+      tags:
+      - Notifications
+  /notifications/unread-count:
+    get:
+      description: Returns the count of unread notifications.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Unread notification count
+      tags:
+      - Notifications
+  /numista/search:
+    get:
+      description: Searches the Numista coin catalog by query string. Requires a Numista
+        API key in admin settings.
+      parameters:
+      - description: Search query
+        in: query
+        name: q
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Search Numista catalog
+      tags:
+      - Numista
   /ollama-status:
     get:
       description: Returns whether the configured Ollama instance is reachable and
@@ -1487,6 +3608,42 @@ paths:
       summary: Proxy an external image
       tags:
       - Images
+  /scrape-image:
+    get:
+      description: Fetches a web page and extracts image URL from og:image, twitter:image,
+        or other meta tags. Useful as a fallback when direct image URLs are unavailable.
+      parameters:
+      - description: Web page URL to scrape
+        in: query
+        name: url
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "502":
+          description: Bad Gateway
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Scrape image URL from a web page
+      tags:
+      - Images
   /stats:
     get:
       description: Returns counts by category/material, total/average values, and
@@ -1505,6 +3662,27 @@ paths:
       security:
       - BearerAuth: []
       summary: Get collection statistics
+      tags:
+      - Coins
+  /stats/distribution:
+    get:
+      description: Returns era × category counts for the heat map visualization.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/repository.DistributionCell'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get collection distribution
       tags:
       - Coins
   /suggestions:
@@ -1565,6 +3743,27 @@ paths:
       summary: Export collection
       tags:
       - User
+  /user/export/catalog:
+    get:
+      description: Generates a PDF catalog with photos, grades, provenance, and valuations.
+      produces:
+      - application/pdf
+      responses:
+        "200":
+          description: PDF document
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Export PDF catalog
+      tags:
+      - User
   /user/import:
     post:
       consumes:
@@ -1600,6 +3799,53 @@ paths:
       summary: Import collection
       tags:
       - User
+  /value-history:
+    get:
+      description: Returns value snapshots over time for charting collection value
+        trends.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.ValueSnapshot'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get value history
+      tags:
+      - Coins
+  /wishlist/check-availability:
+    post:
+      description: Checks all wishlist items with reference URLs to see if they are
+        still available for purchase.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Check wishlist availability
+      tags:
+      - Wishlist
 securityDefinitions:
   ApiKeyAuth:
     description: Enter your API key, e.g. "ak_a1b2c3d4..."

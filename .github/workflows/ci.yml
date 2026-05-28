@@ -1,4 +1,4 @@
-name: CI
+name: Quality Gate
 
 on:
   pull_request:
@@ -6,17 +6,20 @@ on:
   push:
     branches: [main, beta]
 
+permissions:
+  contents: read
+
 jobs:
-  test-api:
-    name: Go Build & Test
+  go-api:
+    name: Go API
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: src/api
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: src/api/go.mod
 
@@ -26,45 +29,72 @@ jobs:
       - name: Vet
         run: go vet ./...
 
-      - name: Architecture tests
-        run: go test -v -run "TestNoDirectDatabase|TestHandlersDoNotUseRawSQL" .
+      - name: Test
+        run: go test -v ./...
 
-  test-web:
-    name: Vue Type Check
+      - name: Verify OpenAPI snapshot
+        shell: bash
+        run: |
+          go install github.com/swaggo/swag/cmd/swag@latest
+          "$(go env GOPATH)/bin/swag" init -g main.go -o ./docs --parseDependency --parseInternal
+          cp docs/swagger.json ../../docs/openapi.json
+
+          if ! git diff --exit-code -- docs/docs.go docs/swagger.json docs/swagger.yaml ../../docs/openapi.json; then
+            echo "docs/openapi.json is out of sync — run 'task openapi' and commit the result"
+            git --no-pager diff -- docs/docs.go docs/swagger.json docs/swagger.yaml ../../docs/openapi.json
+            exit 1
+          fi
+
+  vue-web:
+    name: Vue Web
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: src/web
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
-          node-version: 20
+          node-version: 20.19.0
           cache: npm
           cache-dependency-path: src/web/package-lock.json
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Type check
-        run: npx vue-tsc --noEmit
+      - name: Lint
+        shell: bash
+        run: |
+          if node -e "process.exit(require('./package.json').scripts?.lint ? 0 : 1)"; then
+            npm run lint
+          else
+            echo "No lint script defined; skipping."
+          fi
 
-  test-agent:
-    name: Python Agent Lint & Test
+      - name: Type check
+        run: npm run type-check
+
+      - name: Build
+        run: npm run build
+
+  python-agent:
+    name: Python Agent
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: src/agent
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
         with:
-          python-version: "3.12"
+          python-version: '3.12'
 
       - name: Install dependencies
-        run: pip install -e ".[dev]"
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
 
       - name: Lint
         run: ruff check app/ tests/

@@ -243,3 +243,17 @@ Upload photos of a coin and click **Analyze with AI** on the coin detail page. T
 ### Custom Prompts
 
 Admins can customize the AI analysis prompt in **Admin → AI Configuration → Analysis Prompt**. Leave blank to use the built-in numismatic analysis prompt. A custom prompt receives the coin images and should instruct the model on what analysis to perform.
+
+
+---
+
+## Pre-commit hooks
+
+Install the local hook runner once:
+
+```sh
+pip install pre-commit
+pre-commit install
+```
+
+This enables the repo hooks in [`.pre-commit-config.yaml`](../.pre-commit-config.yaml), including secret scanning and quick language-specific checks before each commit.

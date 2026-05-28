@@ -19,7 +19,7 @@
 - [ ] 5. Linters clean (`go vet`, `ruff check`)
 - [ ] 6. New service methods have ≥1 unit test
 - [ ] 7. Public handlers have Swagger annotations
-- [ ] 8. If API changed: `swag` regenerated + root `openapi.yaml` updated *(when Phase 3 lands)*
+- [ ] 8. If API changed: `task openapi` run and `docs/openapi.json` updated
 - [ ] 9. If material design choice: ADR added in `docs/adr/` *(when Phase 3 lands)*
 - [ ] 10. Active `specs/NNN-*/tasks.md` items checked off
 - [ ] 11. `.squad/decisions/inbox/` written if cross-cutting decision made

@@ -1,0 +1,38 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-merge-conflict
+      - id: mixed-line-ending
+
+  - repo: https://github.com/zricethezav/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+        args: [--config, .gitleaks.toml]
+
+  - repo: local
+    hooks:
+      - id: ruff-agent
+        name: ruff (src/agent)
+        entry: bash -c 'cd src/agent && python -m ruff check app/ tests/'
+        language: system
+        files: ^src/agent/.*\.py$
+        pass_filenames: false
+
+      - id: go-fmt-api
+        name: go fmt (src/api)
+        entry: bash -c 'cd src/api && go fmt ./...'
+        language: system
+        files: ^src/api/.*\.go$
+        pass_filenames: false
+
+      - id: go-vet-api
+        name: go vet (src/api)
+        entry: bash -c 'cd src/api && go vet ./...'
+        language: system
+        files: ^src/api/.*\.go$
+        pass_filenames: false

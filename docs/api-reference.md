@@ -1,6 +1,6 @@
 # API Reference
 
-Complete REST API reference for Ancient Coins. All endpoints are served under the `/api` prefix (e.g., `http://localhost:8080/api/coins`). Interactive documentation is also available via Swagger UI at `/swagger/index.html`.
+Complete REST API reference for Ancient Coins. All endpoints are served under the `/api` prefix (e.g., `http://localhost:8080/api/coins`). Interactive documentation is also available via Swagger UI at `/swagger/index.html`, and the committed review artifact lives at `docs/openapi.json`.
 
 ## Authentication
 

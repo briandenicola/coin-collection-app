@@ -267,7 +267,7 @@ All services MUST follow these security baselines:
 
 **Rationale**: Security defaults prevent common attack vectors (XSS,
 CSRF, injection, DoS) and reduce the blast radius of vulnerabilities.
-Source: `docs/security-analysis.md`.
+Source: `docs/security-principles.md`, `docs/threat-model.md`.
 
 ### XII. Authentication & Token Policy
 
@@ -358,7 +358,7 @@ Source: `docs/social-feature.md`.
 
 **Rationale**: Supply chain attacks are a growing vector. Pinning and
 branch protection prevent unauthorized code from reaching production.
-Source: `docs/security-analysis.md`.
+Source: `docs/threat-model.md`, `docs/incident-response.md`.
 
 ### XVI. Account Lifecycle
 
@@ -522,10 +522,13 @@ The following documents constitute the canonical documentation surface.
 | Product Requirements (PRD) | `docs/prd.md` | ⏳ Phase 3 | Lead |
 | Architecture overview | `docs/ARCHITECTURE.md` | ✅ exists | Lead |
 | Software Design Document | `docs/SDD.md` | ✅ exists | Lead |
-| Architecture Decision Records | `docs/adr/NNNN-*.md` | ⏳ Phase 3 | Lead |
-| Threat model (STRIDE) | `docs/threat-model.md` | ⏳ Phase 3 (split from `security-analysis.md`) | Lead |
-| Security baseline / controls catalog | `docs/security-baseline.md` | ⏳ Phase 3 (split from `security-analysis.md`) | Lead |
-| API reference | `docs/api-reference.md` + root `openapi.yaml` | ✅ exists; ⏳ root `openapi.yaml` Phase 3 | Backend |
+| Architecture Decision Records | `docs/adr/NNNN-*.md` | ✅ exists (0001–0004) | Lead |
+| Security principles | `docs/security-principles.md` | ✅ exists | Lead |
+| Threat model | `docs/threat-model.md` | ✅ exists | Lead |
+| Incident response playbook | `docs/incident-response.md` | ✅ exists | Lead |
+| Testing strategy | `docs/testing.md` | ✅ exists | Tester |
+| External references index | `docs/references.md` | ✅ exists | Lead |
+| API reference | `docs/api-reference.md` + `docs/openapi.json` | ✅ exists (generated via `task openapi`) | Backend |
 | Authentication design | `docs/authentication.md` | ✅ exists | Backend |
 | Deployment runbook | `docs/deployment.md` | ✅ exists | Lead |
 | Getting started / onboarding | `docs/getting-started.md` | ✅ exists | Lead |

@@ -874,10 +874,14 @@ The system implements a multi-layered authentication strategy:
 
 ### 8.3 CI/CD Pipeline
 
-**Workflow: `ci.yml`** (Pull requests + pushes to `main`/`beta`):
-1. Go: `go build` → `go vet` → architecture tests
-2. Vue: `npm ci` → `npx vue-tsc --noEmit`
-3. Python: `pip install` → `ruff check` → `pytest`
+**Workflow: `ci.yml`** (`name: Quality Gate`; pull requests + pushes to `main`/`beta`):
+1. Go: `go build ./...` → `go vet ./...` → `go test -v ./...` → regenerate Swagger and fail if `docs/openapi.json` or generated Swagger artifacts drift
+2. Vue: `npm ci` → `npm run lint` (when defined) → `npm run type-check` → `npm run build`
+3. Python: `pip install -e ".[dev]"` → `ruff check app/ tests/` → `pytest tests/ -v`
+
+**Workflow: `security-scan.yml`** (PRs to `main`/`beta`, weekly schedule, manual trigger):
+- `gitleaks`, `govulncheck`, `npm audit --audit-level=high`, and `pip-audit`
+- Scan steps are advisory-first (`continue-on-error: true`) so findings are reported without blocking PRs while thresholds are tuned
 
 **Workflow: `docker-publish.yml`** (Push to `main`):
 - Builds and pushes both container images to Docker Hub
@@ -910,11 +914,10 @@ The system implements a multi-layered authentication strategy:
 
 | Layer | Tool | Scope |
 |---|---|---|
-| Go API | `go test` | Architecture rule enforcement (import constraints, no raw SQL in handlers) |
-| Vue Frontend | `vue-tsc` | TypeScript type checking (stricter in Docker build) |
+| Go API | `go build` / `go vet` / `go test -v ./...` | Full compile + static analysis + unit and architecture coverage |
+| Vue Frontend | `npm run lint` / `npm run type-check` / `npm run build` | ESLint, TypeScript checks, and Docker-stricter production build |
 | Python Agent | `pytest` | API endpoint validation (12 tests: 6 API + 6 streaming) |
 | Python Agent | `ruff` | Linting |
-| Go API | `go vet` | Static analysis |
 
 ### 9.2 Architecture Tests
 
@@ -929,10 +932,13 @@ The `architecture_test.go` file enforces structural rules via AST analysis:
 cd src/api && go build ./... && go vet ./... && go test -v ./...
 
 # Vue Frontend
-cd src/web && npm run build && npx vue-tsc --noEmit
+cd src/web && npm run lint && npm run type-check && npm run build
 
 # Python Agent
-cd src/agent && ruff check app/ tests/ && pytest tests/ -q
+cd src/agent && pip install -e ".[dev]" && ruff check app/ tests/ && pytest tests/ -v
+
+# OpenAPI snapshot
+task openapi
 
 # Full build
 task build    # Builds API + web
@@ -949,7 +955,8 @@ task test     # Runs Go tests
 AncientCoins/
 ├── .github/
 │   ├── workflows/
-│   │   ├── ci.yml                    # CI pipeline
+│   │   ├── ci.yml                    # Quality Gate workflow
+│   │   ├── security-scan.yml         # Advisory security scans
 │   │   ├── docker-publish.yml        # Production image push
 │   │   └── docker-publish-beta.yml   # Beta image push
 │   └── dependabot.yml                # Dependency updates
@@ -957,12 +964,16 @@ AncientCoins/
 │   ├── ARCHITECTURE.md               # Architecture reference
 │   ├── SDD.md                        # This document
 │   ├── api-reference.md              # Full API reference
+│   ├── openapi.json                  # Committed OpenAPI review artifact
 │   ├── authentication.md             # Auth design
 │   ├── deployment.md                 # Deployment guide
 │   ├── features.md                   # Feature catalog
 │   ├── getting-started.md            # First-launch guide
 │   ├── pwa-guide.md                  # PWA usage guide
-│   ├── security-analysis.md          # Security review
+│   ├── security-principles.md        # Security controls and baseline
+│   ├── threat-model.md               # Security findings and risk inventory
+│   ├── incident-response.md          # Security incident playbook
+│   ├── references.md                 # External references and standards
 │   └── social-feature.md             # Social feature design
 ├── src/
 │   ├── api/                          # Go API
@@ -1039,5 +1050,8 @@ Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 | Feature Catalog | `docs/features.md` | Complete feature inventory |
 | Getting Started | `docs/getting-started.md` | First-launch walkthrough |
 | PWA Guide | `docs/pwa-guide.md` | PWA installation and mobile UX |
-| Security Analysis | `docs/security-analysis.md` | Security review and findings |
+| Security Principles | `docs/security-principles.md` | Security controls and baseline |
+| Threat Model | `docs/threat-model.md` | Security findings and risk inventory |
+| Incident Response | `docs/incident-response.md` | Security incident playbook |
+| References | `docs/references.md` | External standards, services, and tooling index |
 | Social Feature Design | `docs/social-feature.md` | Social feature specification |

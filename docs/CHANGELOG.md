@@ -23,7 +23,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Desktop layout** — Sticky image sidebar with 2-column dashboard; sticky action bar at top: 61px
 - **Mobile/PWA** — Removed sticky positioning leak; single-column layout preserved
 - **formatCurrency** — Shared utility in `@/utils/format.ts` adopted across all components (replaced 6 local copies)
-- **Documentation overhaul** — Updated ARCHITECTURE.md, SDD.md, features.md, social-feature.md, security-analysis.md, authentication.md, deployment.md, getting-started.md, copilot-instructions.md
+- **Documentation overhaul** — Updated ARCHITECTURE.md, SDD.md, features.md, social-feature.md, security-principles.md, threat-model.md, incident-response.md, references.md, authentication.md, deployment.md, getting-started.md, copilot-instructions.md
 
 ### Fixed
 

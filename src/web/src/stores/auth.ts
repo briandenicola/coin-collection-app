@@ -78,13 +78,13 @@ export const useAuthStore = defineStore('auth', () => {
       if (error instanceof DOMException) {
         switch (error.name) {
           case 'NotAllowedError':
-            throw new Error('Biometric authentication was cancelled or timed out')
+            throw new Error('Biometric authentication was cancelled or timed out', { cause: error })
           case 'InvalidStateError':
-            throw new Error('No matching biometric credential found')
+            throw new Error('No matching biometric credential found', { cause: error })
           case 'SecurityError':
-            throw new Error('Biometric authentication is not available on this device')
+            throw new Error('Biometric authentication is not available on this device', { cause: error })
           default:
-            throw new Error(`Biometric authentication failed: ${error.message}`)
+            throw new Error(`Biometric authentication failed: ${error.message}`, { cause: error })
         }
       }
       // Re-throw other errors (axios errors, etc.)

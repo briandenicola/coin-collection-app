@@ -65,7 +65,10 @@ Run `task --list` to see all targets.
 | Getting started              | [`docs/getting-started.md`](docs/getting-started.md)       |
 | PWA guide                    | [`docs/pwa-guide.md`](docs/pwa-guide.md)                   |
 | Social feature spec          | [`docs/social-feature.md`](docs/social-feature.md)         |
-| Security analysis            | [`docs/security-analysis.md`](docs/security-analysis.md)   |
+| Security principles         | [`docs/security-principles.md`](docs/security-principles.md) |
+| Threat model                | [`docs/threat-model.md`](docs/threat-model.md)             |
+| Incident response           | [`docs/incident-response.md`](docs/incident-response.md)   |
+| References                  | [`docs/references.md`](docs/references.md)                 |
 | Software design doc          | [`docs/SDD.md`](docs/SDD.md)                               |
 | Architecture decision records| [`docs/adr/`](docs/adr/)                                   |
 | Feature specs (in-flight)    | [`specs/`](specs/)                                         |
