@@ -40,3 +40,5 @@
 
 - **2026-05-22:** Auction-ending scheduler shipped end-to-end: manual trigger + log table + debug endpoint + TZ/case fix. Brian's lot #8325 should now alert.
 
+
+- **2026-05-28:** Constitution v2.0.0 landed today. Read `.specify/memory/constitution.md` before next task. Key changes: (1) §0 Hierarchy of Authority defines 8-tier document precedence (Constitution → PRD → specs → plans → tasks → backlog → decisions → agent judgment), (2) §17 Quality Gate now gates every PR (includes go vet/test/vue-tsc/ruff/pytest), (3) §21 Definition of Done is a 14-item checklist in `.github/pull_request_template.md` that you must satisfy on every PR, (4) §18 AI Agent Operating Rules forbids `SESSION-NOTES.md` and `.copilot-state.md` — the Squad handoff surface is `.squad/log/` + per-agent history + `.squad/decisions.md`. Governance scaffolding added: SECURITY.md, CODEOWNERS, issue/PR templates. copilot-instructions restructured to cite the constitution rather than restate principles. No code changes to API/frontend/agent yet — Phase 2 starts with retroactive `specs/001-foundation/` seeding.

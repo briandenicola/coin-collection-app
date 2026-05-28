@@ -2,7 +2,161 @@
 
 ## Active Decisions
 
-### 1. Code Review & Quality Assessment (2026-04-24)
+### 1. Governance Restructure — tech-inventory alignment (2026-05-28)
+
+**Authors:** Maximus (Lead/Architect), Brian  
+**Date:** 2026-05-28  
+**Status:** ACCEPTED — Phase 1 landed  
+
+#### What
+Adopted tech-inventory governance philosophy (operational scaffolding adapted to Go/Vue/Python). Constitution v1.1.0 → v2.0.0 with eight new operational sections (§0–§23): Hierarchy of Authority, Quality Gate, AI Agent Operating Rules, Documentation Requirements, Audit Cadence, Definition of Done, Amendment Process, Revision History. All 16 original Principles preserved verbatim.
+
+#### Key Decisions Captured
+- Constitution MAJOR version bump: v1.1.0 → v2.0.0 (16 principles untouched; operational restructure warrants MAJOR)
+- Seed `specs/001-foundation/` retroactively (Phase 2 work)
+- `docs/prd.md` becomes product source of truth
+- Split `docs/security-analysis.md` → `docs/security-baseline.md` + `docs/threat-model.md` (Phase 3)
+- Signed commits NOT required (single-developer hobby project); Conventional Commits + Co-authored-by trailer remain mandatory
+- Reject signed commits per Brian's confirmation
+
+#### Consequences
+- All future features originate as `specs/_backlog/F0NN-*.md`, promote to `specs/NNN-*/spec.md`, follow SpecKit pipeline
+- PRs gated on §17 Quality Gate + §21 Definition of Done (14-item checklist)
+- Squad handoff via Scribe: `.squad/log/` + per-agent `history.md` + `.squad/decisions.md`
+- §18 forbids `SESSION-NOTES.md` and `.copilot-state.md`
+
+#### Impact
+Establishes unambiguous document hierarchy, single Definition of Done, mechanically enforceable quality gate. Enables cross-repo governance consistency with tech-inventory while preserving Go/Vue/Python idioms.
+
+---
+
+### 2. copilot-instructions Restructure + PR Template (2026-05-28)
+
+**Author:** Maximus (Lead/Architect)  
+**Date:** 2026-05-28  
+**Status:** ACCEPTED — Phase 1 landed  
+
+#### What
+1. `.github/copilot-instructions.md` restructured to cite the constitution rather than restate it. Added **Document Hierarchy** (§0), **Session Protocol** (§18 Always/Never/Handoff), **Constitution Compliance** (points to PR template §21). Architecture rules defer to Principle I + X; security cites Principles XI/XII/XIII; commit convention cites §17 + Principle VIII.
+
+2. `.github/pull_request_template.md` created with **Summary**, **Constitution self-check** (Principle + operational section flag), **Linked work**, then the §21 Definition of Done as a 14-item executable checklist.
+
+#### Rationale
+- Constitution v2.0.0 is single source of truth; previous copilot-instructions duplicated principle text (drift risk)
+- Citation style keeps docs terse; forces agents to authoritative file
+- Day-to-day operational material (Build/Test/Lint, design tokens, chip/button classes, "Adding a New API Feature", endpoints) preserved — that's muscle memory
+- PR template is cheapest enforcement surface for §21; GitHub UI blocks merge until each DoD item examined
+
+#### Impact
+Agents read constitution once for principles/governance; PR template gates every merge on §21 self-check. Reduces documentation drift and makes quality requirements visible on every PR.
+
+---
+
+### 3. Governance Scaffolding — SECURITY.md, CODEOWNERS, Templates (2026-05-28)
+
+**Authors:** Scribe, Maximus  
+**Date:** 2026-05-28  
+**Status:** ACCEPTED — Phase 1 landed  
+
+#### What
+Created governance infrastructure files:
+- **SECURITY.md** — Security policy, 30-day disclosure window, responsible disclosure contact
+- **.github/CODEOWNERS** — Team routing for review (TBD allocation per sprint planning)
+- **.github/ISSUE_TEMPLATE/bug.md** — Bug report template with reproduction steps, expected/actual behavior, environment
+- **.github/ISSUE_TEMPLATE/feature.md** — Feature request template with use case, acceptance criteria, success metrics
+
+#### Rationale
+- Formalized security policy establishes trust and legal clarity
+- CODEOWNERS automates review routing, prevents single-person merge
+- Issue templates standardize problem report format (faster triage, fewer "what do you mean" back-and-forths)
+- Templates are cheap organizational wins; fit "operations scaffolding" theme
+
+#### Impact
+Security reporters know where to send disclosures; maintainers can enforce review gates; users file better-structured issues. Establishes codified organizational boundaries.
+
+---
+
+### 4. Five User Decisions — tech-inventory Alignment Direction (2026-05-28)
+
+**Author:** Brian (via Squad coordinator)  
+**Date:** 2026-05-28  
+**Status:** ACCEPTED — Phase 1 planning confirmed  
+
+#### Decision 1: Constitution Version Bump
+**What:** v1.1.0 → v2.0.0 (MAJOR)  
+**Why:** §17 Quality Gate, §21 DoD, §0 Hierarchy materially change agent behavior
+
+#### Decision 2: Retroactive Spec for v1.0
+**What:** Yes — seed `specs/001-foundation/` documenting existing v1.0 feature surface  
+**Why:** Validates new SpecKit on-disk workflow end-to-end
+
+#### Decision 3: PRD as Product Source of Truth
+**What:** `docs/prd.md` becomes authoritative; README trimmed to setup/architecture/links  
+**Why:** Cross-repo consistency, decouples product intent from build instructions
+
+#### Decision 4: Security Analysis Split
+**What:** Split into `docs/security-baseline.md` (controls) + `docs/threat-model.md` (STRIDE); keep `docs/security-analysis.md` as deprecated redirect stub  
+**Why:** Matches tech-inventory pattern; STRIDE warrants its own doc
+
+#### Decision 5: Signed Commits on main
+**What:** SKIP — single-developer hobby project  
+**Why:** No team contributors; Conventional Commits + Co-authored-by trailer remain mandatory
+
+#### Impact
+Confirmed Phase 1 scope boundaries; Phase 2–4 deliverables queued. No ambiguity on version bumping, spec seeding, or security doc refactoring.
+
+---
+
+### 5. Microsoft Foundry Agent Service Migration (January 2025)
+
+**Status:** NO-GO Recommendation (awaiting team review)  
+**Proposed by:** Maximus (Lead/Architect)  
+**Date:** January 2025  
+**Spike Document:** `docs/spikes/foundry-agent-service.md`
+
+#### What
+Recommend NO-GO on migrating the Ancient Coins agent service from Python/LangGraph to Microsoft Foundry Agent Service (C# Agent Framework SDK).
+
+#### Analysis
+**Current:** Python/FastAPI + LangGraph; 10 multi-agent teams; stateless; SSE streaming; Anthropic + Ollama support  
+**Candidate:** Azure Foundry Agent Service; C# Agent Framework SDK; managed operations; stateful sessions; Claude models via Azure
+
+**Pros:**
+- ✅ Managed scaling, deployment, monitoring
+- ✅ Enterprise support (Entra ID, RBAC, VNet, Azure compliance)
+- ✅ Claude models via Azure billing consolidation
+- ✅ Comparable streaming and orchestration
+
+**Cons:**
+- ❌ 3–4 month migration ($115k labor)
+- ❌ Complete rewrite (Python → C#, LangGraph → MAF patterns)
+- ❌ High risk: web search tool availability uncertain, Claude quota issues in preview
+- ❌ +20% operational overhead ($50–100/month vs. free self-hosted)
+- ❌ Team skill mismatch (Python/Go/TS vs. C#/.NET learning curve)
+- ❌ Stateful design mismatch with current stateless architecture
+- ❌ SSE progress reporting degrades without additional engineering
+
+**Risks:**
+- **High:** Web search tool availability blocker for 40% of teams
+- **High:** Claude in preview with documented quota exhaustion
+- **Medium:** SearXNG integration unclear; loses Ollama option
+- **Medium:** UX regression without rich progress events
+
+#### Decision
+**NO-GO at this time.** Current Python/LangGraph meets all requirements with lower operational complexity. Reconsider if: (1) strategic Azure lock-in required, (2) enterprise support becomes critical, (3) Claude exits preview with guaranteed quotas, (4) team grows 3x, (5) Foundry ships exclusive features.
+
+**Alternative (Low-Risk):** Stay on Python/LangGraph; incrementally migrate Anthropic API calls to Azure AI Services endpoints (serverless). Benefits: billing consolidation, Entra ID, quota management. **No code rewrite** — configuration only.
+
+#### Impact
+Continue Python/LangGraph development; optimize observability and caching. Revisit annually.
+
+---
+
+## Previous Decisions (Archive)
+
+## Active Decisions
+
+### 6. Code Review & Quality Assessment (2026-04-24)
 
 **Authors:** Maximus (Architect), Cassius (Backend), Aurelia (Frontend), Brutus (Testing)  
 **Date:** 2026-04-24  
@@ -55,7 +209,7 @@ Establishes baseline quality metrics and prioritized backlog. Guides sprint plan
 
 ---
 
-### 2. P0 Fixes — Admin Route Guard & v-html (2026-07-22)
+### 7. P0 Fixes — Admin Route Guard & v-html (2026-07-22)
 
 **Author:** Aurelia (Frontend Dev)  
 **Date:** 2026-07-22  
@@ -73,7 +227,7 @@ Admin routes now protected. Can close code review backlog items #1–2.
 
 ---
 
-### 3. Activity Journal Scroll Limit & Auction Schedule UI (2026-05-01)
+### 8. Activity Journal Scroll Limit & Auction Schedule UI (2026-05-01)
 
 **Author:** Aurelia (Frontend Dev)  
 **Date:** 2026-05-01  

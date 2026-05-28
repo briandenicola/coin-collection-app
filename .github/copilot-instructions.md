@@ -14,6 +14,30 @@ Ancient Coins is a full-stack PWA for managing a personal ancient coin collectio
 | Agent | Python 3.12, FastAPI, LangGraph, LangChain | `src/agent/` |
 | Build | Multi-stage Docker (2 containers) | `Dockerfile`, `src/agent/Dockerfile` |
 
+## Document Hierarchy
+
+All decisions must respect the Hierarchy of Authority defined in `.specify/memory/constitution.md` §0. When in doubt, walk the list top-down: **Constitution → PRD → active spec → plan → tasks → backlog → `.squad/decisions.md` → agent judgment.**
+
+Resolution rule: when two sources disagree, the higher-ranked one wins, and the lower-ranked source must be updated to match (or an amendment proposed per §22).
+
+## Session Protocol
+
+Operational rules for every AI agent (Copilot CLI, Coding Agent, Squad). Full text in `.specify/memory/constitution.md` §18.
+
+### Always
+- Read the constitution, `.squad/decisions.md`, the active `specs/NNN-*/spec.md`, your agent charter in `.squad/agents/<you>/charter.md`, and any relevant `.squad/skills/` entries **before editing code**.
+- Quote spec section IDs (e.g., `§17`, Principle I) in commit messages and PR descriptions.
+- Run the Quality Gate locally (see §17) before declaring a task done.
+
+### Never
+- Invent file paths, package names, APIs, or facts — re-read or grep first.
+- Retroactively modify a locked file (constitution, landed spec, merged ADR) without an amendment per §22.
+- Bypass a reviewer rejection. **Strict Lockout** (§18.2): once a reviewer marks `BLOCK`, the change does not ship until the block is explicitly cleared by that reviewer.
+
+### Session Handoff
+- Scribe writes `.squad/log/{timestamp}-*.md` and merges `.squad/decisions/inbox/` → `.squad/decisions.md` at the end of each batch.
+- **Do NOT introduce `SESSION-NOTES.md` or `.copilot-state.md`** — constitution §18 forbids these. The `.squad/log/` + `decisions.md` pair is the canonical handoff surface.
+
 ## Build, Test, and Lint
 
 A [Taskfile](../Taskfile.yml) wraps common commands. Run `task --list` to see all targets.
@@ -47,7 +71,7 @@ task lint-agent                         # Python lint
 
 ## Architecture
 
-See `docs/ARCHITECTURE.md` for full details. For binding project principles, see the **Project Constitution** at `.specify/memory/constitution.md` — all code changes must comply with its 16 principles.
+See `docs/ARCHITECTURE.md` for full details. For binding project principles, see the **Project Constitution** at `.specify/memory/constitution.md`.
 
 ### Go API — Layered Architecture
 
@@ -55,15 +79,7 @@ See `docs/ARCHITECTURE.md` for full details. For binding project principles, see
 Handler → Service → Repository → Database
 ```
 
-**Rules (enforced by `architecture_test.go`):**
-
-1. **Only `main.go` imports the `database` package.** All other packages receive `*gorm.DB` or a repository/service via constructor injection.
-2. **Handlers are thin.** Parse request, call service/repo, return response. No business logic, no raw SQL.
-3. **Services contain business logic.** Orchestrate repos, enforce domain rules. HTTP-agnostic (no `gin.Context`).
-4. **Repositories own all DB access.** Every GORM query lives in `src/api/repository/`.
-5. **Multi-step writes use transactions** (`r.db.Transaction()`).
-6. **Never leak internal errors to clients.** Log server-side, return generic messages.
-7. **Go API contains zero LLM/agent logic.** All AI inference is proxied to the Python agent service.
+The full rule set lives in constitution **Principle I (Layered Architecture)** and is enforced by `architecture_test.go` (see **Principle X**). Quick reference table below for the import rules.
 
 **Package import rules:**
 
@@ -266,9 +282,22 @@ All chips use `border-radius: var(--radius-full)`. Active state: `background: va
 
 ## Commit Convention
 
-Use conventional prefixes: `feat:`, `fix:`, `docs:`, `refactor:`, `chore:`
+Conventional Commits and the `Co-authored-by: Copilot` trailer are gated by constitution **§17 Quality Gate** and **Principle VIII**. Prefixes: `feat:`, `fix:`, `docs:`, `refactor:`, `chore:`. Trailer (required on every AI-assisted commit):
 
-Always include the co-author trailer:
 ```
 Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 ```
+
+## Security Baseline
+
+Security rules are normative in the constitution — do not restate them, comply with them:
+
+- **Principle XI (Security Hardening)** — input validation, secret handling, output encoding.
+- **Principle XII (Authentication & Token Policy)** — JWT issuance, refresh, revocation, storage.
+- **Principle XIII (PWA / Mobile Interaction Rules)** — CSP, service worker scope, offline boundaries.
+
+Any deviation requires an ADR (§22) before merge.
+
+## Constitution Compliance
+
+Every PR self-checks the constitution. In the PR description, cite the **Principle(s)** and **operational section(s)** affected (e.g., "Principle I + §17"). The **Quality Gate (§17)** and **Definition of Done (§21)** are enforced on every PR — see `.github/pull_request_template.md` for the 14-item DoD checklist.

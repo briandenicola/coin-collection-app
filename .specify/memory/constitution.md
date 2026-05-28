@@ -1,24 +1,64 @@
 <!--
   Sync Impact Report
   ==================
-  Version change: 1.0.0 → 1.1.0 (gap closure)
-  Modified principles: None
+  Version change: 1.1.0 → 2.0.0 (MAJOR — governance restructure)
+  Modified principles: NONE (Principles I–XVI preserved verbatim)
   Added sections:
-    - XI. Security Hardening
-    - XII. Authentication & Token Policy
-    - XIII. PWA / Mobile Interaction Rules
-    - XIV. Social & Privacy Model
-    - XV. Supply Chain & CI Integrity
-    - XVI. Account Lifecycle
-  Removed sections: None
+    - §0 Hierarchy of Authority
+    - §17 Quality Gate
+    - §18 AI Agent Operating Rules
+    - §19 Documentation Requirements
+    - §20 Audit & Continuous Improvement
+    - §21 Definition of Done
+    - §22 Amendment Process (formalized; supersedes prior Governance §3)
+    - §23 Revision History
+  Removed sections: NONE
+    - Prior "Governance" content folded into §22 (amendment procedure) and
+      §17 (quality gate). All unique guidance preserved.
   Templates requiring updates:
-    - .specify/templates/plan-template.md ✅ compatible (Constitution Check section)
-    - .specify/templates/spec-template.md ✅ compatible (FR/SC sections align)
-    - .specify/templates/tasks-template.md ✅ compatible (phase structure aligns)
+    - ⚠ .github/copilot-instructions.md — add Document Hierarchy + Session
+      Protocol blocks pointing to §0 and §18 (Round 2, Maximus)
+    - ⚠ .github/pull_request_template.md — add DoD checklist from §21
+      (Round 2)
+    - ✅ .specify/templates/plan-template.md — compatible
+    - ✅ .specify/templates/spec-template.md — compatible
+    - ✅ .specify/templates/tasks-template.md — compatible
+    - ⚠ .specify/templates/agent-file-template.md — verify path references
   Follow-up TODOs: None
 -->
 
 # Ancient Coins Constitution
+
+> **This document is the non-negotiable contract for how this project is built.**
+> Every AI agent session must read this file first. Every PR must comply.
+> Deviations require an explicit, documented waiver (ADR) under §22.
+
+**Project**: Ancient Coins (self-hosted personal collection PWA)
+**Version**: 2.0.0
+**Ratified**: 2026-04-28
+**Last Amended**: 2026-05-28
+
+## §0. Hierarchy of Authority
+
+When two artifacts conflict, the higher-authority document wins. Lower-authority
+artifacts MUST be updated to match within the same PR, or the conflict MUST be
+escalated to amend the higher artifact (see §22).
+
+Ordered list of governing artifacts, highest authority first:
+
+1. **This Constitution** — `.specify/memory/constitution.md`
+2. **Product Requirements** — `docs/prd.md`
+3. **Active Feature Spec** — `specs/NNN-*/spec.md`
+4. **Active Implementation Plan** — `specs/NNN-*/plan.md`
+5. **Active Task List** — `specs/NNN-*/tasks.md`
+6. **Backlog Card** — `specs/_backlog/F0NN-*.md`
+7. **Project Decisions Ledger** — `.squad/decisions.md`
+8. **Agent Judgment** (lowest) — MUST be voiced in the PR description or in
+   `.squad/decisions/inbox/`; never silently assumed.
+
+If a lower document contradicts a higher one, stop and raise it through the
+Amendment Process (§22) or — for non-constitutional artifacts — via
+`.squad/decisions/inbox/`.
 
 ## Core Principles
 
@@ -385,39 +425,207 @@ task test                    # Go tests
 task up-all                  # all dev servers
 ```
 
-### Quality Gates
+## §17. Quality Gate
 
-- All Go architecture tests MUST pass (`architecture_test.go`).
-- Docker `vue-tsc --build` MUST pass (stricter than local).
-- Python `ruff check` and `pytest` MUST pass for agent changes.
-- Conventional commit format MUST be used.
+Every PR MUST pass the following checklist before merge. Items marked
+"Phase 3" are not yet configured in CI — they become blocking when the
+relevant tooling lands.
 
-## Governance
+- [ ] `go vet ./...` clean
+- [ ] `go test ./...` green (includes `architecture_test.go` from
+      Principle X)
+- [ ] `vue-tsc --build` clean (Docker-equivalent strictness — see
+      Principle IV)
+- [ ] `npm run build` green
+- [ ] `ruff check app/ tests/` clean (when agent code is touched)
+- [ ] `pytest tests/ -v` green (when agent code is touched)
+- [ ] `gitleaks` scan clean *(Phase 3 — once `.gitleaks.toml` lands)*
+- [ ] `trivy` container scan: no High/Critical
+      *(Phase 3 — once `security-scan.yml` lands)*
+- [ ] Conventional Commits format (see Principle VIII)
+- [ ] `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`
+      trailer present when AI-assisted
+- [ ] Constitution self-check noted in PR description — cite the
+      relevant Principle or section
+- [ ] Definition of Done checklist (§21) checked in the PR
 
-1. **Supremacy**: This constitution supersedes all other development
-   practices for the Ancient Coins project. In case of conflict between
-   this document and any other guide, this document prevails.
+**Signed commits are NOT required.** This is a single-developer hobby
+project; the Conventional Commits format and Co-authored-by trailer are
+the workflow signals we rely on.
 
-2. **Runtime Guidance**: `.github/copilot-instructions.md` contains
-   detailed runtime development guidance (design tokens, code
-   conventions, API recipes). It MUST remain consistent with this
-   constitution. If a conflict is discovered, amend the guidance file
-   to match.
+## §18. AI Agent Operating Rules
 
-3. **Amendment Procedure**:
-   - Any principle change MUST be documented with a version bump.
-   - Adding or materially expanding a principle = MINOR bump.
-   - Removing or redefining a principle = MAJOR bump.
-   - Wording clarifications or typo fixes = PATCH bump.
-   - Every amendment MUST update `Last Amended` date.
+### 18.1 Always
 
-4. **Compliance Review**: All PRs and code reviews MUST verify
-   compliance with these principles. Automated enforcement
-   (`architecture_test.go`, linters, type checkers) is preferred
-   over manual review.
+- Read this constitution at session start.
+- Check `.squad/decisions.md` for recent project-wide decisions.
+- Check the active feature spec (`specs/NNN-*/spec.md`,
+  `plan.md`, `tasks.md`) before writing code.
+- Read your own agent charter (`.squad/agents/<name>/charter.md`) and
+  recent `history.md` entries.
+- Check `.copilot/skills/` for any skill that matches the task.
+- Cite this constitution by Principle or section when making a design
+  decision.
+- Run the full Quality Gate (§17) before declaring a task done.
 
-5. **Complexity Justification**: Any deviation from these principles
-   MUST be explicitly justified in the PR description and tracked in
-   the plan's Complexity Tracking table.
+### 18.2 Never
 
-**Version**: 1.1.0 | **Ratified**: 2026-04-28 | **Last Amended**: 2026-04-28
+- Invent facts, file paths, package names, APIs, or library symbols.
+  When uncertain, read the file or run a search.
+- Modify locked files: agent charters (`.squad/agents/*/charter.md`),
+  append-only logs retroactively (`.squad/log/**`,
+  `.squad/agents/*/history.md`, `.squad/decisions.md`,
+  `.squad/orchestration-log/**`).
+- Bypass a reviewer rejection (Strict Lockout — see
+  `.squad/agents/brutus/charter.md`). A rejected PR is rejected until
+  the reviewer explicitly clears it.
+- Disable lint rules, weaken tests, or use `any` / `@ts-ignore` /
+  `nolint` without an inline justification comment.
+- Commit secrets, `.env` files, or generated build artifacts.
+
+### 18.3 Context Discipline
+
+- Load only the files needed for the current task. Reference larger
+  documents by path; do not paste their contents into chat unless
+  required.
+- Record cross-cutting decisions in `.squad/decisions/inbox/`, not in
+  chat replies that will be lost.
+- One feature per session — do not juggle multiple specs.
+- Prefer `grep` / `glob` over reading whole files when looking for a
+  symbol.
+
+### 18.4 Drift Recovery
+
+If work begins to diverge from the active spec:
+
+1. **Stop** — do not silently re-scope.
+2. Commit any working code as a WIP commit on the feature branch.
+3. Write a current-state note to `.squad/decisions/inbox/` describing
+   the drift and your proposed adjustment.
+4. Wait for Lead (Maximus) acknowledgment before continuing.
+
+### 18.5 Session Handoff
+
+Session handoff is owned by **Scribe** via `.squad/log/` and per-agent
+`.squad/agents/<name>/history.md`. Agents MUST NOT introduce
+`SESSION-NOTES.md`, `.copilot-state.md`, or any other flat session-log
+file — that pattern is explicitly superseded by the Squad ceremony
+system documented in `.squad/ceremonies.md`.
+
+## §19. Documentation Requirements
+
+The following documents constitute the canonical documentation surface.
+✅ exists today; ⏳ Phase 3 = scheduled deliverable, not yet present.
+
+| Document | Path | Status | Owner |
+|----------|------|--------|-------|
+| Product Requirements (PRD) | `docs/prd.md` | ⏳ Phase 3 | Lead |
+| Architecture overview | `docs/ARCHITECTURE.md` | ✅ exists | Lead |
+| Software Design Document | `docs/SDD.md` | ✅ exists | Lead |
+| Architecture Decision Records | `docs/adr/NNNN-*.md` | ⏳ Phase 3 | Lead |
+| Threat model (STRIDE) | `docs/threat-model.md` | ⏳ Phase 3 (split from `security-analysis.md`) | Lead |
+| Security baseline / controls catalog | `docs/security-baseline.md` | ⏳ Phase 3 (split from `security-analysis.md`) | Lead |
+| API reference | `docs/api-reference.md` + root `openapi.yaml` | ✅ exists; ⏳ root `openapi.yaml` Phase 3 | Backend |
+| Authentication design | `docs/authentication.md` | ✅ exists | Backend |
+| Deployment runbook | `docs/deployment.md` | ✅ exists | Lead |
+| Getting started / onboarding | `docs/getting-started.md` | ✅ exists | Lead |
+| Feature surface | `docs/features.md` | ✅ exists | Product |
+| Testing strategy | `docs/testing.md` | ⏳ Phase 3 (extracted from copilot-instructions) | Lead |
+| References / prior art | `docs/references.md` | ⏳ Phase 3 | Lead |
+| Changelog | `docs/CHANGELOG.md` | ✅ exists | Lead |
+| Operational runbooks | `docs/runbooks/` | ⏳ Phase 3 stretch | Lead |
+
+ADRs use the Nygard format (Context / Decision / Status / Consequences).
+ADR `0001` will retroactively record this constitution as the governing
+contract when Phase 3 begins.
+
+## §20. Audit & Continuous Improvement
+
+### 20.1 Cadence
+
+- **Weekly**: run `/audit` (the `speckit.analyze` prompt). Maximus
+  drives the analysis; Brutus reviews findings. File issues for any
+  High/Critical drift between constitution and code.
+- **Per-release**: regenerate SBOM, re-review the threat model.
+- **Quarterly**: PRD review — verify what we are building still matches
+  the documented product intent.
+- **Annually**: full dependency major-version review and restore drill.
+
+### 20.2 Artifacts
+
+- Audit reports are appended to `docs/audits/YYYY-MM-DD.md`
+  (create the folder when the first audit runs).
+- ADRs are preserved indefinitely in `docs/adr/`.
+- Squad ceremony logs in `.squad/log/` provide institutional memory.
+
+## §21. Definition of Done
+
+A task is **done** only when every item below is true. Mirror this
+checklist in the PR description.
+
+1. **Code compiles**: `go build ./...`, `npm run build`, and
+   `pip install -e ".[dev]"` succeed.
+2. **Architecture tests green**: `go test -run TestArchitecture ./...`
+   passes (Principle X).
+3. **Unit tests pass**: `go test ./...` and `pytest tests/` pass for
+   any touched module.
+4. **Type checks pass**: `vue-tsc --build` and Go's compiler are clean
+   (Principle IV).
+5. **Linters clean**: `go vet ./...` and `ruff check app/ tests/` are
+   clean.
+6. **Test coverage**: every new service method has ≥ 1 unit test.
+7. **Swagger**: every new or modified public handler has Swagger
+   annotations (Principle VII).
+8. **API contract sync**: if the API surface changed, `swag` is
+   regenerated AND the root `openapi.yaml` is updated (Phase 3).
+9. **ADR**: if a material design choice was made, an ADR is added in
+   `docs/adr/`.
+10. **Tasks checked off**: the active `specs/NNN-*/tasks.md` items for
+    this work are checked off.
+11. **Decisions captured**: any cross-cutting decision is written to
+    `.squad/decisions/inbox/`.
+12. **Secrets scan clean**: no credentials, tokens, or API keys in the
+    diff.
+13. **Commit hygiene**: Conventional Commit prefix and (when
+    AI-assisted) `Co-authored-by: Copilot` trailer present.
+14. **PR self-check**: PR description cites the relevant Constitution
+    Principle(s) and lists this DoD as a checklist.
+
+## §22. Amendment Process
+
+This section supersedes the prior brief amendment language. Constitution
+changes follow a deliberate, auditable process.
+
+1. **Propose** — Open an ADR (`docs/adr/NNNN-*.md`) with status
+   `PROPOSED` describing the change and rationale.
+2. **PR** — Submit the constitution change PR alongside the ADR; the PR
+   description MUST link the ADR.
+3. **Semver bump** — Update the version in the file header and the
+   Sync Impact Report:
+   - **MAJOR**: a Principle is removed or renumbered; a
+     backward-incompatible governance change; restructuring of
+     operational sections.
+   - **MINOR**: a Principle is added; a new operational section is
+     added; existing guidance is materially expanded.
+   - **PATCH**: typo, clarification, or non-semantic edit.
+4. **Sync Impact Report** — Update the HTML-comment header at the top
+   of this file (modified principles, added/removed sections, templates
+   needing follow-up, TODOs).
+5. **Revision History** — Append a row to §23.
+6. **Announce** — On merge, announce the change in `.squad/decisions.md`.
+7. **ADR status** — Transition the ADR from `PROPOSED` to `ACCEPTED`.
+
+Automated enforcement (`architecture_test.go`, linters, type checkers)
+is always preferred over manual review. Deviations from any Principle
+MUST be explicitly justified in the PR description and tracked in the
+plan's Complexity Tracking table.
+
+## §23. Revision History
+
+| Version | Date | Author | Summary | ADR |
+|---------|------|--------|---------|-----|
+| 1.0.0 | 2026-04-28 | Brian | Initial 10-principle constitution covering layered architecture, DI, service boundaries, typing, design tokens, AI isolation, schemas, commits, UI/UX, and architecture enforcement. | — |
+| 1.1.0 | 2026-04-28 | Brian | Gap closure: added Principles XI–XVI (Security Hardening, Authentication & Token Policy, PWA/Mobile Rules, Social & Privacy, Supply Chain & CI, Account Lifecycle). | — |
+| 2.0.0 | 2026-05-28 | Maximus (approved by Brian) | Added §0 Hierarchy of Authority, §17 Quality Gate, §18 AI Agent Operating Rules, §19 Documentation Requirements, §20 Audit & Continuous Improvement, §21 Definition of Done, §22 Amendment Process, §23 Revision History. All 16 Principles (I–XVI) preserved verbatim. | ADR 0001 (to be added in Phase 3) |
+
+**Version**: 2.0.0 | **Ratified**: 2026-04-28 | **Last Amended**: 2026-05-28
