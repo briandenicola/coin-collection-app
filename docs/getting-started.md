@@ -1,6 +1,6 @@
 # Getting Started Guide
 
-This guide walks you through setting up Ancient Coins for the first time, adding your first coin, and using the import/export features to manage your collection data.
+This guide walks you through setting up Ancient Coins for the first time, adding your first coin, and importing your collection with JSON or CSV.
 
 ## First-Time Setup
 
@@ -30,6 +30,8 @@ docker compose up           # production (two containers)
 Navigate to `http://localhost:5173` (development) or `http://localhost:8080` (Docker).
 
 Click **Register** and create your account. The **first user** to register is automatically assigned the **admin** role. All subsequent users will be regular users.
+
+After login, new accounts will see a **Getting Started** prompt. You can always reopen the same guide from the sidebar via **Getting Started** or in **Settings → Help**.
 
 ### 3. Configure Settings (Admin)
 
@@ -104,6 +106,40 @@ The import/export feature lets you back up your collection or migrate data betwe
 3. Your browser will download a JSON file containing all your coins
 
 The export includes every field for each coin in your collection. Image files are **not** included in the export — only the image metadata (file paths, types).
+
+### CSV Import (Recommended for first-time users)
+
+CSV is the easiest way to import from spreadsheets. In the app, open **Settings → Data** and download the **CSV Template**.
+
+#### Required and Common Columns
+
+| Column | Required | Example |
+| --- | --- | --- |
+| `name` | **Yes** | `Augustus Denarius` |
+| `category` | No | `Roman` |
+| `material` | No | `Silver` |
+| `denomination` | No | `Denarius` |
+| `ruler` | No | `Augustus` |
+| `era` | No | `27 BC - 14 AD` |
+| `mint` | No | `Rome` |
+| `weightGrams` | No | `3.82` |
+| `diameterMm` | No | `19.5` |
+| `grade` | No | `VF` |
+| `purchasePrice` | No | `450` |
+| `currentValue` | No | `600` |
+| `purchaseDate` | No | `2024-03-15` |
+| `purchaseLocation` | No | `Heritage Auctions` |
+| `isWishlist` | No | `false` |
+
+Boolean columns accept `true/false`, `yes/no`, or `1/0`. Date columns should use `YYYY-MM-DD`.
+
+#### CSV Example
+
+```csv
+name,category,material,denomination,ruler,era,mint,weightGrams,diameterMm,grade,purchasePrice,currentValue,purchaseDate,purchaseLocation,isWishlist
+Augustus Denarius,Roman,Silver,Denarius,Augustus,27 BC - 14 AD,Rome,3.82,19.5,VF,450,600,2024-03-15,Heritage Auctions,false
+Constantius II Follis,Roman,Bronze,Follis,Constantius II,337-361 AD,Antioch,2.90,18.1,F,35,45,2025-01-20,Local Show,false
+```
 
 ### Import File Format
 
@@ -199,9 +235,9 @@ The import endpoint accepts a **JSON array of coin objects**. Each object follow
 ### Importing via the UI
 
 1. Navigate to **Settings**
-2. Under **Import / Export**, click **Choose File** and select your JSON file
-3. Click **Import Collection**
-4. A success message will show how many coins were imported
+2. Under **Import / Export**, click **Import** and select a `.csv` or `.json` file
+3. The file is imported immediately after selection
+4. A success message shows how many coins were imported
 
 ### Importing via the API
 

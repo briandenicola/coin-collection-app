@@ -53,6 +53,10 @@
             <Settings :size="20" />
             <span>Settings</span>
           </router-link>
+          <button class="sidebar-link" @click="openOnboardingGuide">
+            <BookOpen :size="20" />
+            <span>Getting Started</span>
+          </button>
           <router-link v-if="auth.isAdmin" to="/admin" class="sidebar-link" active-class="active" @click="sidebarOpen = false">
             <ShieldCheck :size="20" />
             <span>Admin</span>
@@ -85,7 +89,7 @@
     <!-- Email prompt modal for legacy users -->
     <div v-if="showEmailPrompt" class="modal-overlay" @click.self="dismissEmailPrompt">
       <div class="modal card">
-        <h3>📧 Add Your Email</h3>
+        <h3>Add Your Email</h3>
         <p>An email address is now required. Please add yours to continue using all features.</p>
         <div class="form-group" style="margin: 1rem 0">
           <input v-model="promptEmail" type="email" class="form-input" placeholder="you@example.com" />
@@ -93,6 +97,17 @@
         <div class="modal-actions">
           <button class="btn btn-secondary" @click="dismissEmailPrompt">Later</button>
           <button class="btn btn-primary" @click="savePromptEmail" :disabled="!promptEmail">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="showOnboardingPrompt" class="modal-overlay" @click.self="dismissOnboardingPrompt">
+      <div class="modal card">
+        <h3>Welcome to Coin Collection</h3>
+        <p>Start with the Getting Started guide to download the CSV template, build your file, and import your first collection.</p>
+        <div class="modal-actions">
+          <button class="btn btn-secondary" @click="dismissOnboardingPrompt">Not now</button>
+          <button class="btn btn-primary" @click="openOnboardingGuide">Open Guide</button>
         </div>
       </div>
     </div>
@@ -106,7 +121,7 @@
 import { ref, computed, watch, nextTick, onMounted, onUnmounted, markRaw, type Component } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
-import { Landmark, Bookmark, BadgeDollarSign, BarChart3, CirclePlus, Settings, ShieldCheck, LogOut, Users as UsersIcon, Clock, Bot, Gavel, X, Bell, CalendarDays, Share2, GripVertical } from 'lucide-vue-next'
+import { Landmark, Bookmark, BadgeDollarSign, BarChart3, CirclePlus, Settings, ShieldCheck, LogOut, Users as UsersIcon, Clock, Bot, Gavel, X, Bell, CalendarDays, Share2, GripVertical, BookOpen } from 'lucide-vue-next'
 import { updateProfile, getMe } from '@/api/client'
 import { useNotifications } from '@/composables/useNotifications'
 import { useBulkSelect } from '@/composables/useBulkSelect'
@@ -133,7 +148,9 @@ const { isPwa } = usePwa()
 const showChat = ref(false)
 const sidebarOpen = ref(false)
 const showEmailPrompt = ref(false)
+const showOnboardingPrompt = ref(false)
 const promptEmail = ref('')
+const onboardingPromptKey = ref('')
 const editMode = ref(false)
 const navRef = ref<HTMLElement | null>(null)
 let sortableInstance: Sortable | null = null
@@ -268,19 +285,43 @@ onMounted(async () => {
     startPolling()
     try {
       const res = await getMe()
-      if (res.data.emailMissing) {
+      const data = res.data
+      onboardingPromptKey.value = `onboardingPromptSeen:${data.id}`
+
+      if (data.emailMissing) {
         const dismissed = localStorage.getItem('emailPromptDismissed')
-        if (!dismissed || Date.now() - parseInt(dismissed) > 7 * 24 * 60 * 60 * 1000) {
+        if (!dismissed || Date.now() - Number.parseInt(dismissed, 10) > 7 * 24 * 60 * 60 * 1000) {
           showEmailPrompt.value = true
         }
+      } else if (shouldShowOnboardingPrompt(data.createdAt, onboardingPromptKey.value)) {
+        showOnboardingPrompt.value = true
       }
     } catch { /* ignore */ }
   }
 })
 
+function shouldShowOnboardingPrompt(createdAt: string, storageKey: string): boolean {
+  if (!storageKey || localStorage.getItem(storageKey) === 'true') {
+    return false
+  }
+  const createdAtMs = Date.parse(createdAt)
+  if (Number.isNaN(createdAtMs)) {
+    return false
+  }
+  const ageMs = Date.now() - createdAtMs
+  return ageMs >= 0 && ageMs <= 14 * 24 * 60 * 60 * 1000
+}
+
 function dismissEmailPrompt() {
   showEmailPrompt.value = false
   localStorage.setItem('emailPromptDismissed', Date.now().toString())
+}
+
+function dismissOnboardingPrompt() {
+  showOnboardingPrompt.value = false
+  if (onboardingPromptKey.value) {
+    localStorage.setItem(onboardingPromptKey.value, 'true')
+  }
 }
 
 async function savePromptEmail() {
@@ -290,6 +331,12 @@ async function savePromptEmail() {
     showEmailPrompt.value = false
     localStorage.removeItem('emailPromptDismissed')
   } catch { /* ignore */ }
+}
+
+function openOnboardingGuide() {
+  dismissOnboardingPrompt()
+  sidebarOpen.value = false
+  router.push({ path: '/settings', query: { tab: 'help' } })
 }
 
 function handleLogout() {

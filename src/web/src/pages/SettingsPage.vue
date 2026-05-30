@@ -93,7 +93,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, type Component } from 'vue'
+import { ref, computed, onMounted, watch, type Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import PullToRefresh from '@/components/PullToRefresh.vue'
@@ -144,6 +144,7 @@ const baseTabs = [
   { id: 'conversations', label: 'Conversations' },
   { id: 'help', label: 'Help' },
 ]
+const validTabIds = baseTabs.map(t => t.id).concat('admin')
 const tabs = computed(() => {
   if (isPwa && auth.isAdmin) {
     return [
@@ -159,8 +160,17 @@ const tabs = computed(() => {
   return baseTabs
 })
 
-if (route.query.tab && baseTabs.map(t => t.id).concat('admin').includes(route.query.tab as string)) {
-  activeTab.value = route.query.tab as string
+function applyTabFromRoute(tabValue: unknown) {
+  if (typeof tabValue !== 'string' || !validTabIds.includes(tabValue)) {
+    return
+  }
+  if (tabValue === 'admin') {
+    if (auth.isAdmin) {
+      router.push('/admin')
+    }
+    return
+  }
+  activeTab.value = tabValue
 }
 
 function selectTab(tabId: string) {
@@ -169,7 +179,14 @@ function selectTab(tabId: string) {
     return
   }
   activeTab.value = tabId
+  router.replace({ query: { ...route.query, tab: tabId } })
 }
+
+applyTabFromRoute(route.query.tab)
+
+watch(() => route.query.tab, (tab) => {
+  applyTabFromRoute(tab)
+})
 
 function handleProcessSaved(savedCoinId: number) {
   router.push(`/edit/${savedCoinId}`)

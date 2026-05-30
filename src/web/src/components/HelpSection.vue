@@ -6,6 +6,45 @@
     </p>
 
     <details class="help-accordion" open>
+      <summary class="help-summary">Getting Started in the App</summary>
+      <div class="help-content">
+        <p>If this is a new account, you can open this guide from the first-login prompt or anytime from the sidebar under <strong>Getting Started</strong>.</p>
+
+        <h4>Recommended First Steps</h4>
+        <ol>
+          <li>Create your account and open <strong>Settings → Data</strong>.</li>
+          <li>Download the <strong>CSV Template</strong>.</li>
+          <li>Fill in your coins in spreadsheet software (Excel, Google Sheets, Numbers), then export as CSV.</li>
+          <li>Import the CSV from <strong>Settings → Data → Import</strong>.</li>
+          <li>Review imported coins and upload photos from each coin detail page.</li>
+        </ol>
+
+        <h4>CSV Columns</h4>
+        <p>Only <code>name</code> is required. All other fields are optional.</p>
+        <table class="help-table">
+          <thead>
+            <tr><th>Column</th><th>Type</th><th>Notes</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>name</code></td><td>text</td><td>Required</td></tr>
+            <tr><td><code>category</code></td><td>text</td><td>Roman, Greek, Byzantine, Modern, Other</td></tr>
+            <tr><td><code>material</code></td><td>text</td><td>Gold, Silver, Bronze, Copper, Electrum, Other</td></tr>
+            <tr><td><code>denomination</code>, <code>ruler</code>, <code>era</code>, <code>mint</code>, <code>grade</code></td><td>text</td><td>Free text fields</td></tr>
+            <tr><td><code>weightGrams</code>, <code>diameterMm</code>, <code>purchasePrice</code>, <code>currentValue</code></td><td>number</td><td>Use decimal values</td></tr>
+            <tr><td><code>purchaseDate</code>, <code>soldDate</code></td><td>date</td><td>Use <code>YYYY-MM-DD</code></td></tr>
+            <tr><td><code>isWishlist</code>, <code>isSold</code>, <code>isPrivate</code></td><td>boolean</td><td>Use true/false</td></tr>
+            <tr><td><code>notes</code>, <code>referenceUrl</code>, <code>referenceText</code></td><td>text</td><td>Optional metadata</td></tr>
+          </tbody>
+        </table>
+
+        <h4>CSV Example</h4>
+        <pre class="help-code">name,category,material,denomination,ruler,era,mint,weightGrams,diameterMm,grade,purchasePrice,currentValue,purchaseDate,purchaseLocation,isWishlist
+Augustus Denarius,Roman,Silver,Denarius,Augustus,27 BC - 14 AD,Rome,3.82,19.5,VF,450,600,2024-03-15,Heritage Auctions,false
+Constantius II Follis,Roman,Bronze,Follis,Constantius II,337-361 AD,Antioch,2.90,18.1,F,35,45,2025-01-20,Local Show,false</pre>
+      </div>
+    </details>
+
+    <details class="help-accordion">
       <summary class="help-summary">Types of Ancient Coins</summary>
       <div class="help-content">
         <p>Ancient coins span thousands of years across many civilizations. Here are the major categories:</p>
@@ -379,6 +418,11 @@
   padding: 0;
 }
 
+.help-content ol {
+  margin: 0 0 0.75rem 1.25rem;
+  padding: 0;
+}
+
 .help-content li {
   margin-bottom: 0.35rem;
 }
@@ -438,5 +482,16 @@
 
 .help-table tr:last-child td {
   border-bottom: none;
+}
+
+.help-code {
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem;
+  font-size: 0.8rem;
+  color: var(--text-primary);
+  overflow-x: auto;
+  white-space: pre;
 }
 </style>
