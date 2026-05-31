@@ -26,6 +26,7 @@
                 :src="`/uploads/${obverseImage.filePath}`"
                 alt="Obverse"
                 class="hero-image"
+                @click="openLightbox(obverseImage)"
               />
               <div v-else class="hero-placeholder">
                 <span class="placeholder-label">Obverse</span>
@@ -38,6 +39,7 @@
                 :src="`/uploads/${reverseImage.filePath}`"
                 alt="Reverse"
                 class="hero-image"
+                @click="openLightbox(reverseImage)"
               />
               <div v-else class="hero-placeholder">
                 <span class="placeholder-label">Reverse</span>
@@ -134,6 +136,14 @@
 
     <SellModal v-if="showSellModal && coin" :coin="coin" @close="showSellModal = false" @confirm="confirmSell" />
     <PurchaseModal v-if="showPurchaseModal && coin" :coin="coin" @close="showPurchaseModal = false" @confirm="confirmPurchase" />
+    <ImageLightbox
+      v-if="lightboxImage && coin"
+      :coin-id="coin.id"
+      :image-path="lightboxImage.filePath"
+      :image-type="lightboxImage.imageType"
+      @close="lightboxImage = null"
+      @saved="handleImageSaved"
+    />
   </div>
 </template>
 
@@ -143,6 +153,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useCoinsStore } from '@/stores/coins'
 import SellModal from '@/components/SellModal.vue'
 import PurchaseModal from '@/components/PurchaseModal.vue'
+import ImageLightbox from '@/components/ImageLightbox.vue'
 import CoinDetailHeaderActions from '@/components/coin/CoinDetailHeaderActions.vue'
 import CoinTagsSection from '@/components/coin/CoinTagsSection.vue'
 import CoinDetailMetadataTable from '@/components/coin/CoinDetailMetadataTable.vue'
@@ -154,6 +165,7 @@ import { deleteCoin, purchaseCoin, sellCoin } from '@/api/client'
 import { useDialog } from '@/composables/useDialog'
 import { sanitizeExternalUrl } from '@/composables/useSafeExternalLink'
 import { useCoinDetailMetadataRows } from '@/composables/useCoinDetailMetadataRows'
+import type { CoinImage } from '@/types'
 
 const { showConfirm, showAlert } = useDialog()
 const route = useRoute()
@@ -162,6 +174,7 @@ const store = useCoinsStore()
 
 const showSellModal = ref(false)
 const showPurchaseModal = ref(false)
+const lightboxImage = ref<CoinImage | null>(null)
 
 const coin = computed(() => store.currentCoin)
 const safeReferenceUrl = computed(() => sanitizeExternalUrl(coin.value?.referenceUrl))
@@ -185,6 +198,14 @@ function refreshCoin() {
   if (coin.value) {
     store.fetchCoin(coin.value.id)
   }
+}
+
+function openLightbox(image: CoinImage) {
+  lightboxImage.value = image
+}
+
+function handleImageSaved() {
+  refreshCoin()
 }
 
 async function confirmPurchase(data: { purchasePrice?: number; purchaseDate?: string; purchaseLocation?: string }) {
@@ -253,6 +274,12 @@ async function confirmSell(soldPrice: number | null, soldTo: string) {
   width: 100%;
   height: 100%;
   object-fit: contain;
+  cursor: pointer;
+  transition: opacity var(--transition-fast);
+}
+
+.hero-image:hover {
+  opacity: 0.85;
 }
 
 .hero-placeholder {
