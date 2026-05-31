@@ -122,14 +122,19 @@ func NewCollectionToolsService(
 }
 
 // ShouldHandleCollection returns true when the prompt is a collection read/write intent.
+// Catches both explicit collection references ("my collection", "my coins") and
+// ownership-question patterns ("do I have any X", "which of my coins", etc.)
 func (s *CollectionToolsService) ShouldHandleCollection(message string) bool {
 	lower := strings.ToLower(strings.TrimSpace(message))
 	if lower == "" {
 		return false
 	}
 
+	// Exclude queries that belong to other teams (coin_search, coin_shows, auction_search, price_trends)
+	// BUT be careful with "buy" → "to buy" is shopping, "did I buy" is ownership history
+	// AND "dealer" alone isn't enough → "dealer listings" is shopping, "from that dealer" is history
 	searchTokens := []string{
-		"for sale", "buy", "dealer", "listing", "vcoins", "ma-shops",
+		"for sale", "to buy", "dealer listing", "vcoins", "ma-shops",
 		"coin show", "upcoming show", "auction", "near me",
 	}
 	for _, token := range searchTokens {
@@ -138,6 +143,7 @@ func (s *CollectionToolsService) ShouldHandleCollection(message string) bool {
 		}
 	}
 
+	// Explicit collection/possession noun tokens
 	collectionTokens := []string{
 		"my collection", "my coins", "i own", "holdings", "wishlist", "sold coins",
 		"coin #", "coin id", "how many", "top ", "total value", "update ", "change ", "set ",
@@ -145,6 +151,23 @@ func (s *CollectionToolsService) ShouldHandleCollection(message string) bool {
 	}
 	for _, token := range collectionTokens {
 		if strings.Contains(lower, token) {
+			return true
+		}
+	}
+
+	// Ownership-question patterns: "do I have", "do I own", "have I got", "is there a ... in my"
+	ownershipPatterns := []string{
+		"do i have", "do i own", "have i got", "have i gotten",
+		"did i buy", "which of my", "show me my", "find in my",
+		"any of my", "are any of my", "is there a", "are there any",
+	}
+	for _, pattern := range ownershipPatterns {
+		if strings.Contains(lower, pattern) {
+			// Additional heuristic: if combined with "coins" or first-person possessive context, it's likely collection-read
+			// "do I have any moose coins" → collection
+			// "is there a denarius in my collection" → collection
+			// But "do i have to pay shipping" → not collection (would be filtered contextually by LLM, but gate should pass likely collection queries)
+			// We lean toward matching these because the Python fallback can handle edge cases if mis-routed.
 			return true
 		}
 	}
