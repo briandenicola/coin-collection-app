@@ -4386,6 +4386,388 @@
                 }
             }
         },
+        "/internal/tools/collection_summary": {
+            "post": {
+                "description": "Retrieve aggregate statistics for the authenticated user's collection",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Internal"
+                ],
+                "summary": "Get collection aggregate summary",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer {internal_token}",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "summary: aggregate summary",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/internal/tools/commit_update": {
+            "post": {
+                "description": "Commit a previously created proposal with explicit confirmation",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Internal"
+                ],
+                "summary": "Commit an update proposal",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer {internal_token}",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Proposal ID, token, and confirmation",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.CommitUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "result: commit result",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/internal/tools/get_coin": {
+            "post": {
+                "description": "Retrieve a coin from the authenticated user's collection",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Internal"
+                ],
+                "summary": "Get a single coin by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer {internal_token}",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Coin ID",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.GetCoinRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "coin: coin summary",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/internal/tools/propose_update": {
+            "post": {
+                "description": "Create a proposal to update allowlisted fields on a coin",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Internal"
+                ],
+                "summary": "Create an update proposal",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer {internal_token}",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Coin ID and changes",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ProposeUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "proposal: proposal preview with token",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/internal/tools/search_my_collection": {
+            "post": {
+                "description": "Search the authenticated user's collection by query filters",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Internal"
+                ],
+                "summary": "Search user's collection",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer {internal_token}",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Search parameters",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.SearchMyCollectionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "coins: array of coin summaries",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/internal/tools/top_coins_by_value": {
+            "post": {
+                "description": "Retrieve the top coins by current value from the authenticated user's collection",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Internal"
+                ],
+                "summary": "Get top coins by current value",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer {internal_token}",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Limit (default 3, max 10)",
+                        "name": "body",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.TopCoinsByValueRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "coins: array of coin summaries",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/notifications": {
             "get": {
                 "security": [
@@ -5122,9 +5504,6 @@
         "handlers.AgentChatResponse": {
             "type": "object",
             "properties": {
-                "collection": {
-                    "$ref": "#/definitions/services.CollectionChatResponse"
-                },
                 "message": {
                     "type": "string"
                 },
@@ -5430,6 +5809,25 @@
                 }
             }
         },
+        "handlers.CommitUpdateRequest": {
+            "type": "object",
+            "required": [
+                "confirm",
+                "proposal_id",
+                "token"
+            ],
+            "properties": {
+                "confirm": {
+                    "type": "boolean"
+                },
+                "proposal_id": {
+                    "type": "string"
+                },
+                "token": {
+                    "type": "string"
+                }
+            }
+        },
         "handlers.ConversationSummary": {
             "type": "object",
             "properties": {
@@ -5470,6 +5868,17 @@
                 "text": {
                     "type": "string",
                     "example": "CAESAR AVGVSTVS"
+                }
+            }
+        },
+        "handlers.GetCoinRequest": {
+            "type": "object",
+            "required": [
+                "coin_id"
+            ],
+            "properties": {
+                "coin_id": {
+                    "type": "integer"
                 }
             }
         },
@@ -5747,6 +6156,22 @@
                 }
             }
         },
+        "handlers.ProposeUpdateRequest": {
+            "type": "object",
+            "required": [
+                "changes",
+                "coin_id"
+            ],
+            "properties": {
+                "changes": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "coin_id": {
+                    "type": "integer"
+                }
+            }
+        },
         "handlers.PurchaseRequest": {
             "type": "object",
             "properties": {
@@ -5771,6 +6196,20 @@
                     "type": "string",
                     "minLength": 6,
                     "example": "newpass456"
+                }
+            }
+        },
+        "handlers.SearchMyCollectionRequest": {
+            "type": "object",
+            "required": [
+                "query"
+            ],
+            "properties": {
+                "limit": {
+                    "type": "integer"
+                },
+                "query": {
+                    "type": "string"
                 }
             }
         },
@@ -5843,6 +6282,14 @@
                     }
                 },
                 "synced": {
+                    "type": "integer"
+                }
+            }
+        },
+        "handlers.TopCoinsByValueRequest": {
+            "type": "object",
+            "properties": {
+                "limit": {
                     "type": "integer"
                 }
             }
@@ -6690,26 +7137,6 @@
                 }
             }
         },
-        "services.CollectionAggregateSummary": {
-            "type": "object",
-            "properties": {
-                "totalCoins": {
-                    "type": "integer"
-                },
-                "totalCurrentUsd": {
-                    "type": "number"
-                },
-                "totalPurchaseUsd": {
-                    "type": "number"
-                },
-                "totalSold": {
-                    "type": "integer"
-                },
-                "totalWishlist": {
-                    "type": "integer"
-                }
-            }
-        },
         "services.CollectionChatContext": {
             "type": "object",
             "properties": {
@@ -6718,119 +7145,6 @@
                 },
                 "route": {
                     "type": "string"
-                }
-            }
-        },
-        "services.CollectionChatResponse": {
-            "type": "object",
-            "properties": {
-                "disambiguation": {
-                    "$ref": "#/definitions/services.CollectionDisambiguation"
-                },
-                "errorCode": {
-                    "type": "string"
-                },
-                "kind": {
-                    "type": "string"
-                },
-                "message": {
-                    "type": "string"
-                },
-                "proposal": {
-                    "$ref": "#/definitions/services.CollectionProposalPreview"
-                },
-                "readResult": {
-                    "$ref": "#/definitions/services.CollectionReadResult"
-                }
-            }
-        },
-        "services.CollectionCoinSummary": {
-            "type": "object",
-            "properties": {
-                "category": {
-                    "type": "string"
-                },
-                "currentValue": {
-                    "type": "number"
-                },
-                "era": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "material": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "ruler": {
-                    "type": "string"
-                }
-            }
-        },
-        "services.CollectionDisambiguation": {
-            "type": "object",
-            "properties": {
-                "candidates": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/services.CollectionCoinSummary"
-                    }
-                },
-                "message": {
-                    "type": "string"
-                }
-            }
-        },
-        "services.CollectionProposalPreview": {
-            "type": "object",
-            "properties": {
-                "changedFields": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "changes": {
-                    "type": "object",
-                    "additionalProperties": {}
-                },
-                "coinId": {
-                    "type": "integer"
-                },
-                "coinName": {
-                    "type": "string"
-                },
-                "expiresAt": {
-                    "type": "string"
-                },
-                "proposalId": {
-                    "type": "string"
-                },
-                "proposalToken": {
-                    "type": "string"
-                }
-            }
-        },
-        "services.CollectionReadResult": {
-            "type": "object",
-            "properties": {
-                "aggregate": {
-                    "$ref": "#/definitions/services.CollectionAggregateSummary"
-                },
-                "coins": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/services.CollectionCoinSummary"
-                    }
-                },
-                "resultType": {
-                    "type": "string"
-                },
-                "total": {
-                    "type": "integer"
                 }
             }
         }

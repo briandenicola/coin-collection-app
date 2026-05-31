@@ -37,8 +37,6 @@ definitions:
     type: object
   handlers.AgentChatResponse:
     properties:
-      collection:
-        $ref: '#/definitions/services.CollectionChatResponse'
       message:
         type: string
       suggestions:
@@ -248,6 +246,19 @@ definitions:
       sourceUrl:
         type: string
     type: object
+  handlers.CommitUpdateRequest:
+    properties:
+      confirm:
+        type: boolean
+      proposal_id:
+        type: string
+      token:
+        type: string
+    required:
+    - confirm
+    - proposal_id
+    - token
+    type: object
   handlers.ConversationSummary:
     properties:
       createdAt:
@@ -275,6 +286,13 @@ definitions:
       text:
         example: CAESAR AVGVSTVS
         type: string
+    type: object
+  handlers.GetCoinRequest:
+    properties:
+      coin_id:
+        type: integer
+    required:
+    - coin_id
     type: object
   handlers.ImageDeletedResponse:
     properties:
@@ -465,6 +483,17 @@ definitions:
         example: Password changed
         type: string
     type: object
+  handlers.ProposeUpdateRequest:
+    properties:
+      changes:
+        additionalProperties: {}
+        type: object
+      coin_id:
+        type: integer
+    required:
+    - changes
+    - coin_id
+    type: object
   handlers.PurchaseRequest:
     properties:
       purchaseDate:
@@ -482,6 +511,15 @@ definitions:
         type: string
     required:
     - newPassword
+    type: object
+  handlers.SearchMyCollectionRequest:
+    properties:
+      limit:
+        type: integer
+      query:
+        type: string
+    required:
+    - query
     type: object
   handlers.SettingInput:
     properties:
@@ -530,6 +568,11 @@ definitions:
           $ref: '#/definitions/models.AuctionLot'
         type: array
       synced:
+        type: integer
+    type: object
+  handlers.TopCoinsByValueRequest:
+    properties:
+      limit:
         type: integer
     type: object
   handlers.UpdateStatusRequest:
@@ -1111,99 +1154,12 @@ definitions:
       era:
         type: string
     type: object
-  services.CollectionAggregateSummary:
-    properties:
-      totalCoins:
-        type: integer
-      totalCurrentUsd:
-        type: number
-      totalPurchaseUsd:
-        type: number
-      totalSold:
-        type: integer
-      totalWishlist:
-        type: integer
-    type: object
   services.CollectionChatContext:
     properties:
       activeCoinId:
         type: integer
       route:
         type: string
-    type: object
-  services.CollectionChatResponse:
-    properties:
-      disambiguation:
-        $ref: '#/definitions/services.CollectionDisambiguation'
-      errorCode:
-        type: string
-      kind:
-        type: string
-      message:
-        type: string
-      proposal:
-        $ref: '#/definitions/services.CollectionProposalPreview'
-      readResult:
-        $ref: '#/definitions/services.CollectionReadResult'
-    type: object
-  services.CollectionCoinSummary:
-    properties:
-      category:
-        type: string
-      currentValue:
-        type: number
-      era:
-        type: string
-      id:
-        type: integer
-      material:
-        type: string
-      name:
-        type: string
-      ruler:
-        type: string
-    type: object
-  services.CollectionDisambiguation:
-    properties:
-      candidates:
-        items:
-          $ref: '#/definitions/services.CollectionCoinSummary'
-        type: array
-      message:
-        type: string
-    type: object
-  services.CollectionProposalPreview:
-    properties:
-      changedFields:
-        items:
-          type: string
-        type: array
-      changes:
-        additionalProperties: {}
-        type: object
-      coinId:
-        type: integer
-      coinName:
-        type: string
-      expiresAt:
-        type: string
-      proposalId:
-        type: string
-      proposalToken:
-        type: string
-    type: object
-  services.CollectionReadResult:
-    properties:
-      aggregate:
-        $ref: '#/definitions/services.CollectionAggregateSummary'
-      coins:
-        items:
-          $ref: '#/definitions/services.CollectionCoinSummary'
-        type: array
-      resultType:
-        type: string
-      total:
-        type: integer
     type: object
 info:
   contact: {}
@@ -4063,6 +4019,268 @@ paths:
       summary: Get latest featured coin
       tags:
       - FeaturedCoin
+  /internal/tools/collection_summary:
+    post:
+      consumes:
+      - application/json
+      description: Retrieve aggregate statistics for the authenticated user's collection
+      parameters:
+      - description: Bearer {internal_token}
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'summary: aggregate summary'
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get collection aggregate summary
+      tags:
+      - Internal
+  /internal/tools/commit_update:
+    post:
+      consumes:
+      - application/json
+      description: Commit a previously created proposal with explicit confirmation
+      parameters:
+      - description: Bearer {internal_token}
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Proposal ID, token, and confirmation
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CommitUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'result: commit result'
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Commit an update proposal
+      tags:
+      - Internal
+  /internal/tools/get_coin:
+    post:
+      consumes:
+      - application/json
+      description: Retrieve a coin from the authenticated user's collection
+      parameters:
+      - description: Bearer {internal_token}
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Coin ID
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.GetCoinRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'coin: coin summary'
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get a single coin by ID
+      tags:
+      - Internal
+  /internal/tools/propose_update:
+    post:
+      consumes:
+      - application/json
+      description: Create a proposal to update allowlisted fields on a coin
+      parameters:
+      - description: Bearer {internal_token}
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Coin ID and changes
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.ProposeUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'proposal: proposal preview with token'
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Create an update proposal
+      tags:
+      - Internal
+  /internal/tools/search_my_collection:
+    post:
+      consumes:
+      - application/json
+      description: Search the authenticated user's collection by query filters
+      parameters:
+      - description: Bearer {internal_token}
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Search parameters
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.SearchMyCollectionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'coins: array of coin summaries'
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Search user's collection
+      tags:
+      - Internal
+  /internal/tools/top_coins_by_value:
+    post:
+      consumes:
+      - application/json
+      description: Retrieve the top coins by current value from the authenticated
+        user's collection
+      parameters:
+      - description: Bearer {internal_token}
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Limit (default 3, max 10)
+        in: body
+        name: body
+        schema:
+          $ref: '#/definitions/handlers.TopCoinsByValueRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'coins: array of coin summaries'
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get top coins by current value
+      tags:
+      - Internal
   /notifications:
     get:
       description: Returns notifications for the current user, newest first.
