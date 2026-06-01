@@ -128,3 +128,44 @@ Issue #216 established distinct visual weight for action buttons:
 | Card background | `--bg-card` | #16213e |
 | Input background | `--bg-input` | #1e2a4a |
 | Transition | `--transition-fast` | 0.2s ease |
+
+### API Key Scope Management (Issue #218, T022/T023)
+
+**Location:** API key management UI is in `SettingsDataSection.vue` (Data Management settings section).
+
+**Scope control pattern:**
+- Chip-based toggle selector using global `.chip` class
+- Two options: "Read" (default) and "Read/Write"
+- Positioned between name input and generate button
+- State: `apiKeyScope = ref<'read' | 'read,write'>('read')`
+- Resets to "read" after successful key generation
+
+**Create payload contract:**
+- `generateApiKey(name: string, scope?: 'read' | 'read,write')`
+- Optional `scope` field passed to `POST /auth/api-keys`
+- Backend defaults to "read" when omitted
+
+**Capability display:**
+- Small `.chip-sm` badge next to key name in list
+- Two variants:  
+  - Read: Blue accent (`rgba(59, 130, 246, 0.1)` bg, `#3b82f6` text)
+  - Read/Write: Gold accent (`--accent-gold-glow` bg, `--accent-gold` text/border)
+- Helper functions: `capabilityLabel()` → "Read" | "Read/Write", `capabilityClass()` → CSS class
+- Badge uses design tokens and `.chip-sm` sizing (0.75rem font, 0.15rem 0.5rem padding)
+
+### In-App External Tool Server Documentation (Issue #218, 2026-06-01)
+
+**Location:** `src/web/src/components/HelpSection.vue` — new accordion titled "Connecting AI Tools (External Tool Server)".
+
+**Structure:** Three-perspective documentation (Admin, User, Developer) in a single accordion:
+- **For Admins:** How to enable the server via Admin Settings (`ExternalToolServerEnabled`), default-off security posture, what to tell users about scoped API keys and journaled writes
+- **For Users:** Step-by-step guide to create scoped API keys (read vs read/write), import the OpenAPI URL into external clients (OpenWebUI, LibreChat, n8n), and understand the two-phase write confirmation flow
+- **For Developers:** Base path `/api/v1/tools/*`, `X-API-Key` auth, six available tools (four read, two write), OpenAPI spec endpoint, mcpo wrapper for MCP compatibility, security model (tenant isolation, rate limiting, field allowlist)
+
+**Content source:** `docs/external-tool-server.md` — authoritative technical reference.
+
+**Styling:** Uses existing `.help-accordion`, `.help-content`, `.help-table`, `.help-code` classes. No emojis, no hardcoded values. Includes table of six tools with capability requirements.
+
+**Placement:** Inserted immediately before "Helpful Resources" accordion — positioned as an app-setup topic rather than coin-collecting content.
+
+**Validation:** `npm run build` (type-check passed), `npm run lint` (HelpSection.vue warnings fixed, exit 0).
