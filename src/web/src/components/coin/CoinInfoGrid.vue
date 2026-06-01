@@ -36,10 +36,6 @@
       <span class="info-label">Grade</span>
       <span class="info-value gold">{{ grade }}</span>
     </div>
-    <div class="info-card" v-if="rarityRating">
-      <span class="info-label">Rarity / RIC</span>
-      <span class="info-value">{{ rarityRating }}</span>
-    </div>
   </div>
 </template>
 
@@ -56,7 +52,6 @@ defineProps<{
   weightGrams?: number | null
   diameterMm?: number | null
   grade?: string | null
-  rarityRating?: string | null
 }>()
 </script>
 

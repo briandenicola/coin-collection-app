@@ -74,15 +74,9 @@
             <input v-model.number="form.diameterMm" class="form-input" type="number" step="0.1" />
           </div>
         </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">Grade</label>
-            <input v-model="form.grade" class="form-input" placeholder="e.g. VF, EF, MS-65" />
-          </div>
-          <div class="form-group">
-            <label class="form-label">Rarity Rating (RIC)</label>
-            <input v-model="form.rarityRating" class="form-input" placeholder="e.g. RIC 207" />
-          </div>
+        <div class="form-group">
+          <label class="form-label">Grade</label>
+          <input v-model="form.grade" class="form-input" placeholder="e.g. VF, EF, MS-65" />
         </div>
       </fieldset>
 

@@ -102,14 +102,6 @@ export function useCoinDetailMetadataRows(coin: Coin | null) {
       })
     }
 
-    if (coin.rarityRating) {
-      result.push({
-        key: 'rarity',
-        label: 'Rarity / RIC',
-        value: coin.rarityRating,
-      })
-    }
-
     // Purchase location (full-width last row, optional link)
     if (coin.purchaseLocation) {
       const safeUrl = sanitizeExternalUrl(coin.referenceUrl)
