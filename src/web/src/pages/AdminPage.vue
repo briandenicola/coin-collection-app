@@ -36,10 +36,6 @@
       </aside>
 
       <div class="settings-content">
-        <header class="settings-content-header card">
-          <h2>{{ activeTabMeta.label }}</h2>
-        </header>
-
         <!-- Users Tab -->
         <AdminUsersSection
           v-if="activeTab === 'users'"
@@ -231,11 +227,6 @@ const tabGroups = computed(() => ([
     items: tabs.filter(tab => tab.group === 'operations'),
   },
 ]))
-const fallbackTab = tabs[0] as AdminTab
-const activeTabMeta = computed(() => {
-  const active = tabs.find(tab => tab.id === activeTab.value) ?? fallbackTab
-  return active
-})
 
 // Users
 const users = ref<UserInfo[]>([])
@@ -438,19 +429,6 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-}
-
-.settings-content-header {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  margin: 0;
-}
-
-.settings-content-header h2 {
-  margin: 0;
-  font-size: 1.5rem;
-  color: var(--text-heading);
 }
 
 @media (max-width: 980px) {
