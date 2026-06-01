@@ -320,6 +320,10 @@ const obverseFile = ref<File | null>(null)
 const reverseFile = ref<File | null>(null)
 const cardFile = ref<File | null>(null)
 
+// Track which images came from camera (for circleClip flag)
+const obverseFromCamera = ref(false)
+const reverseFromCamera = ref(false)
+
 const cameraVideo = ref<HTMLVideoElement | null>(null)
 const cameraStream = ref<MediaStream | null>(null)
 const cameraError = ref('')
@@ -548,6 +552,39 @@ function stopCamera() {
   videoReady.value = false
 }
 
+/**
+ * Compute the source rectangle from a raw video frame that corresponds
+ * to the displayed portion when using object-fit: cover.
+ * Returns { sx, sy, sw, sh } in native video coordinates.
+ */
+function computeCoverCropRect(
+  videoWidth: number,
+  videoHeight: number,
+  displayWidth: number,
+  displayHeight: number
+): { sx: number; sy: number; sw: number; sh: number } {
+  const videoAspect = videoWidth / (videoHeight || 1)
+  const displayAspect = displayWidth / (displayHeight || 1)
+
+  let sx: number, sy: number, sw: number, sh: number
+
+  if (videoAspect > displayAspect) {
+    // Video is wider than display → crop horizontally
+    sh = videoHeight
+    sw = sh * displayAspect
+    sy = 0
+    sx = (videoWidth - sw) / 2
+  } else {
+    // Video is taller than display → crop vertically
+    sw = videoWidth
+    sh = sw / displayAspect
+    sx = 0
+    sy = (videoHeight - sh) / 2
+  }
+
+  return { sx, sy, sw, sh }
+}
+
 async function captureFromCamera(target?: CaptureTarget) {
   const video = cameraVideo.value
   if (!video || !cameraReady.value || video.videoWidth === 0 || video.videoHeight === 0) {
@@ -556,22 +593,52 @@ async function captureFromCamera(target?: CaptureTarget) {
   }
   
   const actualTarget = target ?? nextCaptureTarget.value
+
+  // Get displayed video box dimensions (object-fit: cover uses these)
+  const displayWidth = video.clientWidth ?? 0
+  const displayHeight = video.clientHeight ?? 0
+  
+  if (displayWidth === 0 || displayHeight === 0) {
+    cameraError.value = 'Could not determine video display size.'
+    return
+  }
+
+  // Compute the cover-crop region that matches what the user sees on screen
+  const { sx, sy, sw, sh } = computeCoverCropRect(
+    video.videoWidth,
+    video.videoHeight,
+    displayWidth,
+    displayHeight
+  )
   
   const canvas = document.createElement('canvas')
-  canvas.width = video.videoWidth
-  canvas.height = video.videoHeight
+  canvas.width = sw
+  canvas.height = sh
   const context = canvas.getContext('2d')
   if (!context) return
-  context.drawImage(video, 0, 0, canvas.width, canvas.height)
+
+  // Draw only the displayed region (cover-cropped) to the canvas
+  context.drawImage(video, sx, sy, sw, sh, 0, 0, sw, sh)
+  
   const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92))
   if (!blob) {
     cameraError.value = 'Could not capture image from camera.'
     return
   }
   const file = new File([blob], `${actualTarget}-${Date.now()}.jpg`, { type: 'image/jpeg' })
-  if (actualTarget === 'obverse') obverseFile.value = file
-  if (actualTarget === 'reverse') reverseFile.value = file
-  if (actualTarget === 'card') cardFile.value = file
+  
+  // Store file and mark as camera-captured for circleClip flag
+  if (actualTarget === 'obverse') {
+    obverseFile.value = file
+    obverseFromCamera.value = true
+  }
+  if (actualTarget === 'reverse') {
+    reverseFile.value = file
+    reverseFromCamera.value = true
+  }
+  if (actualTarget === 'card') {
+    cardFile.value = file
+  }
   
   // Update next capture target
   updateNextCaptureTarget()
@@ -589,8 +656,14 @@ function updateNextCaptureTarget() {
 
 function onObservationFile(target: CaptureTarget, event: Event) {
   const file = (event.target as HTMLInputElement).files?.[0] ?? null
-  if (target === 'obverse') obverseFile.value = file
-  if (target === 'reverse') reverseFile.value = file
+  if (target === 'obverse') {
+    obverseFile.value = file
+    obverseFromCamera.value = false // Manual upload, not camera
+  }
+  if (target === 'reverse') {
+    reverseFile.value = file
+    reverseFromCamera.value = false // Manual upload, not camera
+  }
   if (target === 'card') cardFile.value = file
   updateNextCaptureTarget()
 }
@@ -609,8 +682,14 @@ function triggerFileInput(target: CaptureTarget) {
 }
 
 function clearCapturedImage(target: CaptureTarget) {
-  if (target === 'obverse') obverseFile.value = null
-  if (target === 'reverse') reverseFile.value = null
+  if (target === 'obverse') {
+    obverseFile.value = null
+    obverseFromCamera.value = false
+  }
+  if (target === 'reverse') {
+    reverseFile.value = null
+    reverseFromCamera.value = false
+  }
   if (target === 'card') cardFile.value = null
   updateNextCaptureTarget()
 }
@@ -651,10 +730,12 @@ async function confirmDraft() {
     })
     const coinID = response.data.coinId
     if (obverseFile.value) {
-      await uploadImage(coinID, obverseFile.value, 'obverse', true)
+      // Pass circleClip=true ONLY if this obverse was camera-captured
+      await uploadImage(coinID, obverseFile.value, 'obverse', true, obverseFromCamera.value)
     }
     if (reverseFile.value) {
-      await uploadImage(coinID, reverseFile.value, 'reverse', false)
+      // Pass circleClip=true ONLY if this reverse was camera-captured
+      await uploadImage(coinID, reverseFile.value, 'reverse', false, reverseFromCamera.value)
     }
     router.push(`/coin/${coinID}`)
   } catch (error) {

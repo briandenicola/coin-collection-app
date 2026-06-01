@@ -370,11 +370,14 @@ export const saveConversation = (data: { id?: number; title: string; messages: s
 export const deleteConversation = (id: number) => api.delete(`/agent/conversations/${id}`)
 
 // Images
-export const uploadImage = (coinId: number, file: File, imageType: string, isPrimary: boolean) => {
+export const uploadImage = (coinId: number, file: File, imageType: string, isPrimary: boolean, circleClip?: boolean) => {
   const formData = new FormData()
   formData.append('image', file)
   formData.append('imageType', imageType)
   formData.append('isPrimary', String(isPrimary))
+  if (circleClip) {
+    formData.append('circleClip', 'true')
+  }
   return api.post<CoinImage>(`/coins/${coinId}/images`, formData)
 }
 export const deleteImage = (coinId: number, imageId: number) =>
