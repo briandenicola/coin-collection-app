@@ -99,7 +99,7 @@ async function handleSubmit() {
       }
     }
 
-    router.replace(`/coin/${coinId}`)
+    router.back()
   } catch {
     await showAlert('Failed to update coin', { title: 'Error' })
   } finally {
