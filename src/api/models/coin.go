@@ -76,7 +76,7 @@ type Coin struct {
 	ListingCheckedAt   *time.Time       `json:"listingCheckedAt"`
 	ListingCheckReason string           `gorm:"type:text" json:"listingCheckReason"`
 	StorageLocationID  *uint            `json:"storageLocationId"`
-	StorageLocation    *StorageLocation `gorm:"foreignKey:StorageLocationID" json:"storageLocation"`
+	StorageLocation    *StorageLocation `gorm:"foreignKey:StorageLocationID;constraint:-" json:"storageLocation"`
 	IsPrivate          bool             `gorm:"default:false" json:"isPrivate"`
 	UserID             uint             `gorm:"not null" json:"userId"`
 	User               User             `gorm:"foreignKey:UserID" json:"-"`
