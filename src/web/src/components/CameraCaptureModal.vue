@@ -79,6 +79,8 @@ const cameraVideo = ref<HTMLVideoElement | null>(null)
 const cameraStream = ref<MediaStream | null>(null)
 const cameraError = ref('')
 const videoReady = ref(false)
+// eslint-disable-next-line no-undef
+const permissionStatus = ref<PermissionStatus | null>(null)
 
 const cameraReady = computed(() => {
   return cameraStream.value !== null && videoReady.value && !cameraError.value
@@ -90,6 +92,35 @@ async function startCamera() {
     cameraError.value = 'Camera access is unavailable on this device.'
     return
   }
+  
+  // Progressive enhancement: check permission state if API available
+  // This allows instant camera start when granted, or precise error when denied
+  if (navigator.permissions?.query) {
+    try {
+      // eslint-disable-next-line no-undef
+      const status = await navigator.permissions.query({ name: 'camera' as PermissionName })
+      permissionStatus.value = status
+      
+      // If denied, show actionable message and don't call getUserMedia
+      if (status.state === 'denied') {
+        cameraError.value = 'Camera access is blocked. Please enable it in your browser or site settings.'
+        return
+      }
+      
+      // Listen for permission changes while modal is open
+      status.onchange = () => {
+        if (status.state === 'granted' && cameraError.value && !cameraStream.value) {
+          // User re-granted while modal open — clear error and retry
+          cameraError.value = ''
+          startCamera()
+        }
+      }
+    } catch (_error) {
+      // Permissions API unavailable or query failed — fall through to getUserMedia
+      // (Some browsers/contexts don't support camera query)
+    }
+  }
+  
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: { ideal: 'environment' } },
@@ -132,6 +163,12 @@ function stopCamera() {
   }
   cameraStream.value = null
   videoReady.value = false
+  
+  // Clean up permission status listener
+  if (permissionStatus.value) {
+    permissionStatus.value.onchange = null
+    permissionStatus.value = null
+  }
 }
 
 /**
