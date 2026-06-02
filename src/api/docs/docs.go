@@ -7951,6 +7951,9 @@ const docTemplate = `{
                 "currentValue": {
                     "type": "number"
                 },
+                "currentValueUpdatedAt": {
+                    "type": "string"
+                },
                 "denomination": {
                     "type": "string",
                     "maxLength": 200

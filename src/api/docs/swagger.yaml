@@ -969,6 +969,8 @@ definitions:
         type: string
       currentValue:
         type: number
+      currentValueUpdatedAt:
+        type: string
       denomination:
         maxLength: 200
         type: string
