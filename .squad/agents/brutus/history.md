@@ -19,3 +19,4 @@
 - **2026-05-31:** #216 Principle V token remediation executed under Strict Lockout: added design tokens and replaced flagged hardcoded colors; lint/build clean; Maximus later approved.
 - **2026-06-01:** #218 polish validation approved: capability middleware tests added, Go build/vet/test clean, frontend build/lint clean, quickstart scenarios A/B/C and negative scenarios N1-N6 traced to code.
 - **2026-06-01:** #218 BLOCK resolution applied: all Gin context type assertions in external tool handlers now use comma-ok guards returning 401/403 instead of risking panic; Go build/vet/test clean.
+- **2026-06-01:** "Assign Location" bulk action feature — Cassius backend + Aurelia frontend parallel implementation verified aligned (POST /coins/bulk with action:assign-location); nil-safe NULL updates; BulkLocationPickerModal and BulkActionBar extension; all tests pass.

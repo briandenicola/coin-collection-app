@@ -2,6 +2,91 @@
 
 ## Active Decisions
 
+### Decision: Bulk Assign Storage Location Action
+
+**Date:** 2026-06-01  
+**Agents:** Cassius (Backend), Aurelia (Frontend)  
+**Status:** Implemented  
+**Coordination:** Parallel development with aligned API contract
+
+## Context
+
+Per Brian's request, added a new bulk coin operation to assign storage locations to multiple coins at once, mirroring existing tag/mark-sold patterns.
+
+## Decision
+
+Implement a multi-select "Assign Location" action in the bulk coin operations flow.
+
+## Implementation
+
+### Backend (Cassius)
+
+**Endpoint:** `POST /coins/bulk` (existing endpoint)
+- **New action:** `"assign-location"`
+- **New request field:** `storageLocationId` (nullable `uint`)
+- **Response:** `{ "message": "Storage location assigned", "affected": <int> }`
+
+**Handler:** `handlers/bulk.go`
+- Added `StorageLocationID *uint` field to `BulkActionRequest`
+- New case `"assign-location"` validates location ownership via `storageLocationRepo.ExistsByID`, returns 404 if not found or not owned by user
+- Calls new repository method to apply assignment
+
+**Repository:** `repository/coin_repository.go`
+- Added `BulkAssignLocation(coinIDs []uint, storageLocationID *uint, userID uint)` method
+- Uses `.Update("storage_location_id", storageLocationID)` to correctly handle nil → SQL NULL (not `.Updates` map, which would skip nil values)
+
+**Wiring:** `main.go` line 256
+- Constructor now takes `StorageLocationRepository` as third parameter
+- Swagger annotations updated to include `"assign-location"` in supported actions
+
+**Validation:** All Go tests pass (build, vet, test, architecture rules)
+
+### Frontend (Aurelia)
+
+**New Component:** `BulkLocationPickerModal.vue`
+- Modal pattern mirroring `BulkTagPickerModal.vue`
+- Displays all user storage locations as selectable buttons
+- "No location" option emits `null` to clear assignment
+- Empty state: "No storage locations. Create them in Settings first."
+- Uses design tokens only; MapPin icon from lucide-vue-next
+
+**BulkActionBar.vue Changes**
+- Added "Assign Location" button (MapPin icon)
+- Emits new `location` event
+- Positioned between Tag and Mark Sold buttons
+
+**API Client (`client.ts`)**
+- Extended `bulkAction()` signature to accept optional params: `opts?: { tagId?: number; storageLocationId?: number | null }`
+- Backward compatible with existing `bulkTag` calls
+- `null` value clears location
+
+**CollectionPage.vue Wiring**
+- Loads storage locations on mount
+- Handles `@location` event to open picker
+- `bulkAssignLocation()` posts to `/coins/bulk` with `action: "assign-location"`, `storageLocationId`
+- Resets picker when exiting select mode
+
+**Validation:** All TypeScript checks and build pass; no new lint warnings
+
+## Architecture Compliance
+
+- ✅ Backend: Principle I (layered architecture), DI constructor injection, sentinel errors, thin handler
+- ✅ Frontend: Design tokens only, no emojis, dark theme, PWA-compatible, follows existing UX patterns
+- ✅ API contract verified aligned between agents during parallel development
+- ✅ All tests pass (backend: build/vet/test; frontend: type-check/build/lint)
+
+## Alternatives Considered
+
+1. **Add to existing tag action** — Rejected: storage location is distinct from tags; users need separate picker UI
+2. **Admin-only** — Rejected: matches existing user-scoped bulk operations pattern
+3. **Separate endpoint** — Rejected: consistent with existing bulk action dispatcher pattern
+
+## User Directives
+
+- **2026-06-01:** Add "Assign Location" as new multi-select bulk action alongside Tag/Mark Sold/Delete — implemented
+
+---
+
 ### Decision: Legacy Reference Migration Endpoint
 
 **Date:** 2026-06-01  

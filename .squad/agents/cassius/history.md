@@ -180,3 +180,7 @@ Completed backend deployment of catalog registry feature in parallel with Aureli
 **Frontend integration:** Aurelia built dropdown UI sourced from `GET /catalogs` with legacy fallback, new `AdminCatalogsSection.vue` CRUD interface, and help text updates. Commit 0de29af.
 
 **OpenAPI:** Coordinator regenerated for GET/admin /catalogs + invoiceNumber. Commit 100087f. All three commits pushed to origin/main.
+
+## Learnings
+
+- **Bulk Assign Storage Location (2026-06-01):** Added `"assign-location"` action to the existing bulk coin operations (`POST /coins/bulk`). Request body now accepts an optional `storageLocationId` field (nullable uint). When action is `"assign-location"`, the handler validates ownership of the location (if non-null/non-zero) via `StorageLocationRepository.ExistsByID`, then calls the new `CoinRepository.BulkAssignLocation(coinIDs, storageLocationID, userID)` method. The repository method uses GORM `.Update("storage_location_id", storageLocationID)` to correctly handle nil pointer writes as SQL NULL (GORM's `.Updates()` with a map can skip nil/zero values). A nil or omitted `storageLocationId` clears the location on all selected coins. Response follows the existing bulk action pattern: `{ "message": "Storage location assigned", "affected": <int> }`. Wiring: `BulkHandler` constructor now takes `StorageLocationRepository` as third parameter, wired in `main.go` line 256.
