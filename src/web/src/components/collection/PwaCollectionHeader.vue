@@ -22,10 +22,10 @@
             <EraFilter :model-value="selectedEra" @update:model-value="$emit('update:selectedEra', $event)" />
           </div>
           <div v-if="userTags.length" class="pwa-menu-section">
-            <span class="pwa-menu-label">Tag</span>
+            <span class="pwa-menu-label">Set</span>
             <select :value="selectedTag" @change="$emit('update:selectedTag', ($event.target as HTMLSelectElement).value)" class="tag-filter-select pwa-tag-select">
-              <option value="">All Tags</option>
-              <option v-for="tag in userTags" :key="tag.id" :value="String(tag.id)">{{ tag.name }}</option>
+              <option value="">All Sets</option>
+              <option v-for="tag in userTags" :key="tag.filterValue" :value="tag.filterValue">{{ tag.name }}</option>
             </select>
           </div>
           <div class="pwa-menu-section">
@@ -60,7 +60,7 @@
 </template>
 
 <script setup lang="ts">
-import type { ImageType, Tag } from '@/types'
+import type { CollectionSetOption, ImageType } from '@/types'
 import CategoryFilter from '@/components/CategoryFilter.vue'
 import EraFilter from '@/components/collection/EraFilter.vue'
 import SearchBar from '@/components/SearchBar.vue'
@@ -74,7 +74,7 @@ defineProps<{
   selectedCategory: string
   selectedEra: string
   selectedTag: string
-  userTags: Tag[]
+  userTags: CollectionSetOption[]
   sortKey: string
   viewMode: 'grid' | 'swipe'
   gridSide: ImageType | null
@@ -123,7 +123,7 @@ defineEmits<{
   width: 40px;
   height: 40px;
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
+  border-radius:var(--radius-sm);
   background: var(--bg-card);
   color: var(--text-secondary);
   cursor: pointer;
@@ -144,7 +144,7 @@ defineEmits<{
   z-index: 100;
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
+  border-radius:var(--radius-md);
   padding: 1rem;
   min-width: 260px;
   display: flex;
@@ -193,7 +193,7 @@ defineEmits<{
 .tag-filter-select {
   padding: 0.35rem 0.5rem;
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
+  border-radius:var(--radius-sm);
   background: var(--bg-card);
   color: var(--text-primary);
   font-size: 0.85rem;
@@ -231,7 +231,7 @@ defineEmits<{
 .view-toggle {
   display: flex;
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
+  border-radius:var(--radius-sm);
   overflow: hidden;
 }
 

@@ -4958,6 +4958,684 @@ paths:
       summary: Scrape image URL from a web page
       tags:
       - Images
+  /sets:
+    get:
+      description: Get all sets for the authenticated user with aggregate summaries
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              sets:
+                items:
+                  type: object
+                type: array
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List user sets
+      tags:
+      - sets
+    post:
+      consumes:
+      - application/json
+      description: Create a new coin set
+      parameters:
+      - description: Set creation data
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            color:
+              type: string
+            description:
+              type: string
+            icon:
+              type: string
+            name:
+              type: string
+            parentSetId:
+              type: number
+            setType:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create a set
+      tags:
+      - sets
+  /sets/{id}:
+    delete:
+      description: Delete a set and all its memberships
+      parameters:
+      - description: Set ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete a set
+      tags:
+      - sets
+    get:
+      description: Get detailed information and aggregates for a specific set
+      parameters:
+      - description: Set ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get set details
+      tags:
+      - sets
+    put:
+      consumes:
+      - application/json
+      description: Update set metadata
+      parameters:
+      - description: Set ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Updated fields
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            color:
+              type: string
+            description:
+              type: string
+            name:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update a set
+      tags:
+      - sets
+  /sets/{id}/analytics:
+    get:
+      description: Get ROI and velocity analytics for a set
+      parameters:
+      - description: Set ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get set analytics
+      tags:
+      - sets
+  /sets/{id}/coins:
+    get:
+      description: Get all coins that belong to a specific set
+      parameters:
+      - description: Set ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              coins:
+                items:
+                  type: object
+                type: array
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List coins in a set
+      tags:
+      - sets
+    post:
+      consumes:
+      - application/json
+      description: Add a coin to a manual set (not smart sets)
+      parameters:
+      - description: Set ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Coin to add
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            coinId:
+              type: integer
+            notes:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Add coin to set
+      tags:
+      - sets
+  /sets/{id}/coins/{coinId}:
+    delete:
+      description: Remove a coin from a manual set (not smart sets)
+      parameters:
+      - description: Set ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Coin ID
+        in: path
+        name: coinId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Remove coin from set
+      tags:
+      - sets
+  /sets/{id}/completion:
+    get:
+      description: Get completion metrics including target count, completed count,
+        and missing targets
+      parameters:
+      - description: Set ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              completedTargets:
+                type: integer
+              completionPercentage:
+                type: number
+              missingTargets:
+                items:
+                  type: object
+                type: array
+              totalTargets:
+                type: integer
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get set completion
+      tags:
+      - sets
+  /sets/{id}/snapshot:
+    post:
+      description: Capture a manual valuation snapshot for a set
+      parameters:
+      - description: Set ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create set snapshot
+      tags:
+      - sets
+  /sets/{id}/trends:
+    get:
+      description: Get valuation snapshots for a set
+      parameters:
+      - description: Set ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 'Range: 1m, 3m, 1y, all'
+        in: query
+        name: range
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              snapshots:
+                items:
+                  type: object
+                type: array
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get set trends
+      tags:
+      - sets
+  /sets/compare:
+    post:
+      consumes:
+      - application/json
+      description: Compare set performance over a selected range
+      parameters:
+      - description: Sets to compare
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            range:
+              type: string
+            setIds:
+              items:
+                type: integer
+              type: array
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              sets:
+                items:
+                  type: object
+                type: array
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Compare sets
+      tags:
+      - sets
+  /sets/import-csv:
+    post:
+      consumes:
+      - application/json
+      description: Create a defined or goal set using custom CSV target definitions
+      parameters:
+      - description: Set data and CSV content
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            color:
+              type: string
+            csv:
+              type: string
+            description:
+              type: string
+            name:
+              type: string
+            setType:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create set from CSV
+      tags:
+      - sets
+  /sets/preview-smart:
+    post:
+      consumes:
+      - application/json
+      description: Preview matching coins before saving a smart set
+      parameters:
+      - description: Smart criteria
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Preview smart set
+      tags:
+      - sets
+  /sets/templates:
+    get:
+      description: Get all available built-in set templates for popular collecting
+        series
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              templates:
+                items:
+                  type: object
+                type: array
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List set templates
+      tags:
+      - sets
   /stats:
     get:
       description: Returns counts by category/material, total/average values, and

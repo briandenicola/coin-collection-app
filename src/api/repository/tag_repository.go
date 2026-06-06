@@ -172,3 +172,21 @@ func (r *TagRepository) BulkAttachToCoin(coinIDs []uint, tagID, userID uint) (in
 	})
 	return affected, err
 }
+
+// ListWithOpenSets returns tags as compatible open sets for migration support.
+// This method provides compatibility during the transition from tags to sets.
+func (r *TagRepository) ListWithOpenSets(userID uint) ([]models.Tag, []models.CoinSet, error) {
+	tags, err := r.List(userID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Get existing open sets
+	var sets []models.CoinSet
+	err = r.db.Where("user_id = ? AND set_type = ?", userID, models.CoinSetTypeOpen).Find(&sets).Error
+	if err != nil {
+		return tags, nil, err
+	}
+
+	return tags, sets, nil
+}

@@ -13,8 +13,8 @@
         <CategoryFilter :model-value="selectedCategory" @update:model-value="$emit('update:selectedCategory', $event)" />
         <EraFilter :model-value="selectedEra" @update:model-value="$emit('update:selectedEra', $event)" />
         <select v-if="userTags.length" :value="selectedTag" @change="$emit('update:selectedTag', ($event.target as HTMLSelectElement).value)" class="tag-filter-select">
-          <option value="">All Tags</option>
-          <option v-for="tag in userTags" :key="tag.id" :value="String(tag.id)">{{ tag.name }}</option>
+          <option value="">All Sets</option>
+          <option v-for="tag in userTags" :key="tag.filterValue" :value="tag.filterValue">{{ tag.name }}</option>
         </select>
       </div>
       <div class="toolbar-right">
@@ -36,7 +36,7 @@
 </template>
 
 <script setup lang="ts">
-import type { ImageType, Tag } from '@/types'
+import type { CollectionSetOption, ImageType } from '@/types'
 import CategoryFilter from '@/components/CategoryFilter.vue'
 import EraFilter from '@/components/collection/EraFilter.vue'
 import SearchBar from '@/components/SearchBar.vue'
@@ -49,7 +49,7 @@ defineProps<{
   selectedCategory: string
   selectedEra: string
   selectedTag: string
-  userTags: Tag[]
+  userTags: CollectionSetOption[]
   sortKey: string
   gridSide: ImageType | null
 }>()
@@ -93,7 +93,7 @@ defineEmits<{
 
 .collection-header :deep(.search-input) {
   padding: 0.75rem 2.5rem;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
 }
 
 .header-sort {
@@ -121,7 +121,7 @@ defineEmits<{
 .tag-filter-select {
   padding: 0.35rem 0.5rem;
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
+  border-radius:var(--radius-sm);
   background: var(--bg-card);
   color: var(--text-primary);
   font-size: 0.85rem;

@@ -18,6 +18,7 @@ type CoinListFilters struct {
 	Wishlist  *bool
 	Sold      *bool
 	TagID     *uint
+	SetID     *uint
 	SortField string
 	SortOrder string
 	Seed      *int // for SortField == "random"; deterministic per-seed shuffle
@@ -188,6 +189,9 @@ func (r *CoinRepository) List(userID uint, filters CoinListFilters) ([]models.Co
 	}
 	if filters.TagID != nil {
 		query = query.Where("id IN (SELECT coin_id FROM coin_tags WHERE tag_id = ?)", *filters.TagID)
+	}
+	if filters.SetID != nil {
+		query = query.Where("id IN (SELECT coin_id FROM coin_set_memberships WHERE set_id = ?)", *filters.SetID)
 	}
 	if filters.Search != "" {
 		term := "%" + filters.Search + "%"

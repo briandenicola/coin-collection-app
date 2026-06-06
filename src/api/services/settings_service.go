@@ -38,6 +38,8 @@ const (
 	SettingCollectionHealthSnapshotsEnabled   = "CollectionHealthSnapshotsEnabled"
 	SettingCollectionHealthSnapshotsStartTime = "CollectionHealthSnapshotsStartTime"
 	SettingExternalToolServerEnabled          = "ExternalToolServerEnabled"
+	SettingSetSnapshotEnabled                 = "SetSnapshotEnabled"
+	SettingSetSnapshotStartTime               = "SetSnapshotStartTime"
 )
 
 const DefaultObversePrompt = `You are an expert numismatist specializing in ancient and modern coins. Analyze the obverse (front) of this coin and provide:
@@ -94,6 +96,8 @@ var settingDefaults = map[string]string{
 	SettingCollectionHealthSnapshotsEnabled:   "false",
 	SettingCollectionHealthSnapshotsStartTime: "04:30",
 	SettingExternalToolServerEnabled:          "false",
+	SettingSetSnapshotEnabled:                 "false",
+	SettingSetSnapshotStartTime:               "04:00",
 }
 
 // SettingsService provides access to application settings backed by the database.

@@ -27,8 +27,14 @@ tasks:
     cmds:
       - go install github.com/swaggo/swag/cmd/swag@latest
       - '"$(go env GOPATH)/bin/swag" init -g main.go -o ./docs --parseDependency --parseInternal'
-      - cp docs/swagger.json ../../docs/openapi.json
-      - test -s ../../docs/openapi.json
+      - cmd: cp docs/swagger.json ../../docs/openapi.json
+        platforms: [linux, darwin]
+      - cmd: powershell -NoProfile -Command "Copy-Item 'docs/swagger.json' '../../docs/openapi.json' -Force"
+        platforms: [windows]
+      - cmd: test -s ../../docs/openapi.json
+        platforms: [linux, darwin]
+      - cmd: powershell -NoProfile -Command "if (-not (Test-Path '../../docs/openapi.json')) { exit 1 }"
+        platforms: [windows]
 
   build-web:
     desc: Build the Vue frontend

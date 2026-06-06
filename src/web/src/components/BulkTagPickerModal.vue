@@ -2,19 +2,19 @@
   <Teleport to="body">
     <div v-if="open" class="modal-backdrop" @click="$emit('close')">
       <div class="modal-content tag-picker-modal" @click.stop>
-        <h3>Apply Tag</h3>
+        <h3>Apply Set</h3>
         <div v-if="tags.length" class="tag-picker-list">
           <button
             v-for="tag in tags"
             :key="tag.id"
             class="tag-picker-item"
-            @click="$emit('select', tag.id)"
+            @click="$emit('select', tag.filterValue)"
           >
             <span class="tag-swatch" :style="{ background: tag.color }"></span>
             {{ tag.name }}
           </button>
         </div>
-        <p v-else class="empty-tags">No tags. Create tags in Settings first.</p>
+        <p v-else class="empty-tags">No sets available. Create sets first.</p>
         <button class="btn btn-secondary btn-sm" style="margin-top: 0.75rem;" @click="$emit('close')">Cancel</button>
       </div>
     </div>
@@ -22,15 +22,15 @@
 </template>
 
 <script setup lang="ts">
-import type { Tag } from '@/types'
+import type { CollectionSetOption } from '@/types'
 
 defineProps<{
   open: boolean
-  tags: Tag[]
+  tags: CollectionSetOption[]
 }>()
 
 defineEmits<{
-  select: [tagId: number]
+  select: [target: string]
   close: []
 }>()
 </script>
@@ -49,7 +49,7 @@ defineEmits<{
 .modal-content {
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
+  border-radius:var(--radius-md);
   padding: 1.5rem;
   max-width: 320px;
   width: 90%;
@@ -75,7 +75,7 @@ defineEmits<{
   gap: 0.5rem;
   padding: 0.5rem 0.75rem;
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
+  border-radius:var(--radius-sm);
   background: var(--bg-primary);
   color: var(--text-primary);
   cursor: pointer;
@@ -91,7 +91,7 @@ defineEmits<{
 .tag-swatch {
   width: 12px;
   height: 12px;
-  border-radius: 50%;
+  border-radius:50%;
   flex-shrink: 0;
 }
 

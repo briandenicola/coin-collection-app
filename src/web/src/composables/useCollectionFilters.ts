@@ -1,8 +1,8 @@
 import { ref, onBeforeUnmount, onMounted, watch } from 'vue'
 import { useCoinsStore } from '@/stores/coins'
-import { getTags } from '@/api/client'
+import { getSets, getTags } from '@/api/client'
 import { usePwa } from '@/composables/usePwa'
-import type { Tag } from '@/types'
+import type { CollectionSetOption } from '@/types'
 
 const RANDOM_SEED_KEY = 'coins:randomSeed'
 const PWA_RESUME_THRESHOLD_MS = 30_000
@@ -34,15 +34,32 @@ export function useCollectionFilters() {
   const page = ref(1)
   const sortKey = ref(store.activeSortKey || localStorage.getItem('defaultSort') || 'updated_at_desc')
   const selectedTag = ref('')
-  const userTags = ref<Tag[]>([])
+  const userTags = ref<CollectionSetOption[]>([])
 
   let debounceTimer: ReturnType<typeof setTimeout>
   let hiddenAt = 0
 
   async function fetchUserTags() {
     try {
-      const res = await getTags()
-      userTags.value = res.data?.tags ?? []
+      const [tagRes, setRes] = await Promise.all([getTags(), getSets()])
+      const tagOptions = (tagRes.data?.tags ?? []).map((tag) => ({
+        id: tag.id,
+        name: tag.name,
+        color: tag.color,
+        filterValue: `tag:${tag.id}`,
+        source: 'tag' as const,
+      }))
+      const tagNames = new Set(tagOptions.map((tag) => tag.name.trim().toLowerCase()))
+      const setOptions = (setRes.data?.sets ?? [])
+        .filter((set) => set.setType === 'open' && !tagNames.has(set.name.trim().toLowerCase()))
+        .map((set) => ({
+          id: set.id,
+          name: set.name,
+          color: set.color,
+          filterValue: `set:${set.id}`,
+          source: 'set' as const,
+        }))
+      userTags.value = [...tagOptions, ...setOptions]
     } catch { /* ignore */ }
   }
 
@@ -66,11 +83,17 @@ export function useCollectionFilters() {
       }
     }
 
+    const selectedSetFilter = selectedTag.value.startsWith('set:') ? selectedTag.value.slice(4) : undefined
+    const selectedTagFilter = selectedTag.value.startsWith('tag:')
+      ? selectedTag.value.slice(4)
+      : selectedSetFilter ? undefined : selectedTag.value || undefined
+
     store.fetchCoins({
       category: selectedCategory.value || undefined,
       era: selectedEra.value || undefined,
       search: search.value || undefined,
-      tag: selectedTag.value || undefined,
+      tag: selectedTagFilter,
+      set: selectedSetFilter,
       wishlist: 'false',
       sold: 'false',
       page: page.value,

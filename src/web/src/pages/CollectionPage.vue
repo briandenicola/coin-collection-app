@@ -55,7 +55,7 @@
       :is-pwa="isPwa"
       :view-mode="viewMode"
       :grid-side="gridSide"
-      :has-filters="!!(search || selectedCategory || selectedEra)"
+      :has-filters="!!(search || selectedCategory || selectedEra || selectedTag)"
       @select-all="selectAll"
       @deselect-all="deselectAll"
       @toggle-coin-select="toggleCoinSelect"
@@ -100,7 +100,7 @@ import { ref, watch, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCoinsStore } from '@/stores/coins'
 import type { ImageType, HealthQuickAction, StorageLocation } from '@/types'
-import { bulkAction, getStorageLocations } from '@/api/client'
+import { addCoinToSet, bulkAction, getStorageLocations } from '@/api/client'
 import { usePullToRefresh } from '@/composables/usePullToRefresh'
 import { useBulkSelect } from '@/composables/useBulkSelect'
 import { usePwa } from '@/composables/usePwa'
@@ -265,16 +265,22 @@ async function bulkSell() {
   }
 }
 
-async function bulkTag(tagId: number) {
+async function bulkTag(target: string) {
   try {
-    await bulkAction([...selectedCoinIds.value], 'tag', { tagId })
+    if (target.startsWith('set:')) {
+      const setId = Number(target.slice(4))
+      await Promise.all([...selectedCoinIds.value].map((coinId) => addCoinToSet(setId, { coinId })))
+    } else {
+      const tagId = Number(target.startsWith('tag:') ? target.slice(4) : target)
+      await bulkAction([...selectedCoinIds.value], 'tag', { tagId })
+    }
     showTagPicker.value = false
     selectedCoinIds.value = new Set()
     selectMode.value = false
     bulkSelectActive.value = false
     loadCoins()
   } catch {
-    alert('Failed to apply tag')
+    alert('Failed to apply set')
   }
 }
 
@@ -314,7 +320,7 @@ onUnmounted(() => {
   padding: 0.4rem 1rem;
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-full);
+  border-radius:var(--radius-full);
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
   z-index: 100;
   pointer-events: none;
@@ -331,7 +337,7 @@ onUnmounted(() => {
   height: 18px;
   border: 2px solid var(--border-subtle);
   border-top-color: var(--accent-gold);
-  border-radius: 50%;
+  border-radius:50%;
 }
 
 .pull-indicator.refreshing .pull-spinner {

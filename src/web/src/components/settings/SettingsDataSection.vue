@@ -3,8 +3,8 @@
     <h2>Data Management</h2>
     <div class="lookup-manager-grid">
       <section class="lookup-manager" aria-labelledby="tags-heading">
-        <h3 id="tags-heading">Tags</h3>
-        <p class="setting-desc">Create custom tags to organize and filter your coins.</p>
+        <h3 id="tags-heading">Tags and Open Sets</h3>
+        <p class="setting-desc">Legacy tags remain supported. New open sets can be managed from the Sets page.</p>
 
         <div class="tag-create-form">
           <input

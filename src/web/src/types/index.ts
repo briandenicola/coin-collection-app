@@ -146,6 +146,167 @@ export interface StorageLocation {
   sortOrder?: number
 }
 
+export interface CollectionSetOption {
+  id: number
+  name: string
+  color: string
+  filterValue: string
+  source: 'tag' | 'set'
+}
+
+export type CoinSetType = 'open' | 'defined' | 'smart' | 'goal'
+
+export interface CoinSet {
+  id: number
+  userId: number
+  name: string
+  description?: string
+  color: string
+  icon?: string
+  setType: CoinSetType
+  parentSetId?: number | null
+  targetCompletionDate?: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CoinSetSummary {
+  id: number
+  name: string
+  color: string
+  icon?: string
+  setType: CoinSetType
+  coinCount: number
+  totalValue: number
+  completionPercentage?: number | null
+  valueChangePercent?: number | null
+}
+
+export interface CoinSetDetail extends CoinSetSummary {
+  description?: string
+  parentSetId?: number | null
+  targetCompletionDate?: string | null
+  totalInvested: number
+  avgValuePerCoin?: number | null
+  highestValueCoinId?: number | null
+}
+
+export interface CreateCoinSetRequest {
+  name: string
+  description?: string
+  color?: string
+  icon?: string
+  setType: CoinSetType
+  parentSetId?: number | null
+  targetCompletionDate?: string | null
+  smartCriteria?: Record<string, unknown> | null
+  templateId?: string | null
+}
+
+export interface CreateCoinSetFromCsvRequest extends CreateCoinSetRequest {
+  csv: string
+}
+
+export type UpdateCoinSetRequest = Partial<CreateCoinSetRequest>
+
+export interface AddCoinToSetRequest {
+  coinId: number
+  notes?: string
+}
+
+// US2: Defined/Goal Sets and Completion
+export interface CoinSetTarget {
+  id: number
+  setId: number
+  label: string
+  year?: number | null
+  mintMark?: string | null
+  denomination?: string | null
+  country?: string | null
+  material?: string | null
+  matchRules?: Record<string, unknown> | null
+  sortOrder: number
+  createdAt?: string
+}
+
+export interface CoinSetCompletion {
+  totalTargets: number
+  completedTargets: number
+  completionPercentage: number
+  missingTargets: CoinSetTarget[]
+}
+
+export interface CoinSetTemplate {
+  id: string
+  name: string
+  category: string
+  description: string
+  version: number
+  targets?: CoinSetTemplateTarget[]
+}
+
+export interface CoinSetTemplateTarget {
+  label: string
+  year?: number | null
+  mintMark?: string | null
+  denomination?: string | null
+  country?: string | null
+  material?: string | null
+  sortOrder: number
+}
+
+// US3: Snapshots and Trends
+export interface CoinSetSnapshot {
+  id?: number
+  setId?: number
+  userId?: number
+  snapshotDate: string
+  totalValue: number
+  totalInvested: number
+  coinCount: number
+  completionPercentage?: number | null
+  avgValuePerCoin?: number | null
+  highestValueCoinId?: number | null
+}
+
+export interface CoinSetAnalytics {
+  roiPercent?: number | null
+  bestPerformerCoinId?: number | null
+  worstPerformerCoinId?: number | null
+  acquisitionRatePerMonth?: number | null
+  projectedCompletionDate?: string | null
+}
+
+export interface CoinSetComparison {
+  setId: number
+  name: string
+  startValue: number
+  endValue: number
+  valueChange: number
+  valueChangePercent: number
+  completionChange?: number | null
+}
+
+export type SmartCriteriaOperator = 'and' | 'or'
+export type SmartCriteriaRuleOp = 'eq' | 'neq' | 'contains' | 'startsWith' | 'in' | 'between' | 'gte' | 'lte' | 'isNull' | 'isNotNull'
+
+export interface SmartCriteriaRule {
+  field: string
+  op: SmartCriteriaRuleOp
+  value?: unknown
+}
+
+export interface SmartCriteriaGroup {
+  operator: SmartCriteriaOperator
+  rules: Array<SmartCriteriaRule | SmartCriteriaGroup>
+}
+
+export interface SmartSetPreview {
+  coinIds: number[]
+  coinCount: number
+  totalValue: number
+}
+
 export type Category = 'Roman' | 'Greek' | 'Byzantine' | 'Modern' | 'Other'
 export type Material = 'Gold' | 'Silver' | 'Bronze' | 'Copper' | 'Electrum' | 'Other'
 export type ImageType = 'obverse' | 'reverse' | 'detail' | 'other'
@@ -700,7 +861,7 @@ export interface AuctionEndingRun {
 export interface Notification {
   id: number
   userId: number
-  type: 'wishlist_unavailable' | 'friend_new_coin' | 'follow_request' | 'coin_of_day' | 'api_key_rotation_required'
+  type: 'wishlist_unavailable' | 'friend_new_coin' | 'follow_request' | 'coin_of_day' | 'api_key_rotation_required' | 'set_milestone'
   title: string
   message: string
   referenceId: number

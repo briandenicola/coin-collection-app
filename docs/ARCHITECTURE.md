@@ -200,7 +200,7 @@ Three route groups with distinct auth levels:
 | Group | Prefix | Auth | Example Routes |
 |-------|--------|------|----------------|
 | `api` (public) | `/api` | None (rate-limited) | `/auth/login`, `/auth/register`, `/auth/refresh`, `/auth/webauthn/*`, `/showcase/:slug` |
-| `protected` | `/api` | JWT or API Key | `/coins`, `/coins/bulk`, `/agent/chat`, `/agent/status`, `/auctions`, `/stats`, `/social/*`, `/notifications`, `/calendar/*`, `/alerts`, `/reminders`, `/showcases/*`, `/api-keys` |
+| `protected` | `/api` | JWT or API Key | `/coins`, `/coins/bulk`, `/sets`, `/agent/chat`, `/agent/status`, `/auctions`, `/stats`, `/social/*`, `/notifications`, `/calendar/*`, `/alerts`, `/reminders`, `/showcases/*`, `/api-keys` |
 | `admin` | `/api/admin` | JWT + admin role | `/users`, `/settings`, `/logs`, `/availability-runs`, `/valuation-runs`, `/valuation-runs/trigger`, `/test-anthropic`, `/test-searxng` |
 
 ### Shared GORM Scopes
@@ -520,6 +520,11 @@ SQLite via GORM. All tables are auto-migrated from Go model structs in `database
 | `CoinImage` | `coin_images` | CoinID, FilePath, ImageType (obverse/reverse/detail), IsPrimary | → Coin |
 | `Tag` | `tags` | UserID, Name, Color | |
 | `CoinTag` | `coin_tags` | CoinID, TagID | Join table |
+| `CoinSet` | `coin_sets` | UserID, Name, Color, SetType (`open`/`defined`/`smart`/`goal`), SmartCriteria, TargetCompletionDate | → User, → []CoinSetMembership, → []CoinSetTarget |
+| `CoinSetMembership` | `coin_set_memberships` | SetID, CoinID, Notes | Join table for manual set membership |
+| `CoinSetTarget` | `coin_set_targets` | SetID, Label, Year, MintMark, Denomination, Country, Material, MatchRules, SortOrder | Target slots for defined/goal completion |
+| `CoinSetValuationSnapshot` | `coin_set_valuation_snapshots` | SetID, UserID, SnapshotDate, TotalValue, TotalInvested, CoinCount, CompletionPercentage | Time-series trend data |
+| `CoinSetMilestoneAlert` | `coin_set_milestone_alerts` | SetID, UserID, Metric, Threshold, Direction, LastTriggeredAt | Snapshot-triggered milestone notifications |
 | `CoinJournal` | `coin_journals` | CoinID, UserID, Entry, CreatedAt | |
 | `CoinValueHistory` | `coin_value_histories` | CoinID, UserID, Value, Confidence, RecordedAt | |
 | `ValueSnapshot` | `value_snapshots` | UserID, TotalValue, TotalInvested, CoinCount, RecordedAt | |

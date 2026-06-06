@@ -412,7 +412,7 @@ onUnmounted(() => {
 
 .nav-title {
   font-family: 'Cinzel', serif;
-  font-size: 1.1rem;
+  font-size: 1.2rem;
   color: var(--accent-gold);
   font-weight: 600;
   white-space: nowrap;
@@ -451,7 +451,7 @@ onUnmounted(() => {
   border-radius: 8px;
   background: var(--accent-gold);
   color: var(--bg-primary);
-  font-size: 0.65rem;
+  font-size: 0.7rem;
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -499,7 +499,7 @@ onUnmounted(() => {
 
 .sidebar-title {
   font-family: 'Cinzel', serif;
-  font-size: 1.05rem;
+  font-size: 1rem;
   color: var(--accent-gold);
   font-weight: 600;
   flex: 1;
@@ -551,7 +551,7 @@ onUnmounted(() => {
   gap: 0.75rem;
   padding: 0.7rem 1.25rem;
   color: var(--text-secondary);
-  font-size: 0.92rem;
+  font-size: 0.9rem;
   text-decoration: none;
   transition: all var(--transition-fast);
   border: none;

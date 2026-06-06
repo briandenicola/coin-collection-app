@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Coin, CoinListResponse, CoinImage, AuthResponse, StatsResponse, UserInfo, AppSettings, LogEntry, ApiKey, WebAuthnCredentialInfo, ValueSnapshot, CoinJournal, NumistaSearchResponse, AgentChatMessage, AgentChatAppContext, CoinSuggestion, CollectionChatResponse, FollowUser, PublicProfile, CoinComment, CoinRating, LimitedCoin, ValueEstimate, CoinValueHistory, PortfolioSummary, AuctionLot, AuctionLotListResponse, AvailabilityRunSummary, AvailabilityRun, NotificationListResponse, Tag, StorageLocation, ValuationRun, AuctionEndingRun, CalendarEventDetail, FeaturedCoin, CollectionHealthSummary, CoinHealthListResponse, CoinHealthItem, AdminHealthSummaryResponse, CoinReference, CoinReferenceInput, CoinMutationPayload, IntakeDraft, IntakeCommitRequest, IntakeCommitResponse, LegacyMigrationResult, CatalogRegistry } from '@/types'
+import type { Coin, CoinListResponse, CoinImage, AuthResponse, StatsResponse, UserInfo, AppSettings, LogEntry, ApiKey, WebAuthnCredentialInfo, ValueSnapshot, CoinJournal, NumistaSearchResponse, AgentChatMessage, AgentChatAppContext, CoinSuggestion, CollectionChatResponse, FollowUser, PublicProfile, CoinComment, CoinRating, LimitedCoin, ValueEstimate, CoinValueHistory, PortfolioSummary, AuctionLot, AuctionLotListResponse, AvailabilityRunSummary, AvailabilityRun, NotificationListResponse, Tag, StorageLocation, ValuationRun, AuctionEndingRun, CalendarEventDetail, FeaturedCoin, CollectionHealthSummary, CoinHealthListResponse, CoinHealthItem, AdminHealthSummaryResponse, CoinReference, CoinReferenceInput, CoinMutationPayload, IntakeDraft, IntakeCommitRequest, IntakeCommitResponse, LegacyMigrationResult, CatalogRegistry, CoinSetSummary, CoinSetDetail, CreateCoinSetRequest, UpdateCoinSetRequest, AddCoinToSetRequest, CoinSetTemplate, CoinSetCompletion, CreateCoinSetFromCsvRequest, CoinSetSnapshot, CoinSetAnalytics, CoinSetComparison, SmartCriteriaGroup, SmartSetPreview } from '@/types'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
@@ -111,6 +111,7 @@ export const getCoins = (params?: {
   wishlist?: string
   sold?: string
   tag?: string
+  set?: string
   page?: number
   limit?: number
   sort?: string
@@ -197,6 +198,26 @@ export const adminCreateCatalog = (payload: { catalog: string; displayName: stri
 export const adminUpdateCatalog = (id: number, payload: { catalog: string; displayName: string; era: string; volumeRequired: boolean }) =>
   api.put<CatalogRegistry>(`/admin/catalogs/${id}`, payload)
 export const adminDeleteCatalog = (id: number) => api.delete(`/admin/catalogs/${id}`)
+
+// Sets
+export const getSets = () => api.get<{ sets: CoinSetSummary[] }>('/sets')
+export const getSet = (id: number) => api.get<CoinSetDetail>(`/sets/${id}`)
+export const createSet = (data: CreateCoinSetRequest) => api.post<CoinSetDetail>('/sets', data)
+export const updateSet = (id: number, data: UpdateCoinSetRequest) => api.put<CoinSetDetail>(`/sets/${id}`, data)
+export const deleteSet = (id: number) => api.delete(`/sets/${id}`)
+export const getCoinsInSet = (id: number) => api.get<{ coins: Coin[] }>(`/sets/${id}/coins`)
+export const addCoinToSet = (setId: number, data: AddCoinToSetRequest) => api.post(`/sets/${setId}/coins`, data)
+export const removeCoinFromSet = (setId: number, coinId: number) => api.delete(`/sets/${setId}/coins/${coinId}`)
+
+// US2: Templates and Completion
+export const getSetTemplates = () => api.get<{ templates: CoinSetTemplate[] }>('/sets/templates')
+export const getSetCompletion = (setId: number) => api.get<CoinSetCompletion>(`/sets/${setId}/completion`)
+export const createSetFromCsv = (data: CreateCoinSetFromCsvRequest) => api.post<CoinSetDetail>('/sets/import-csv', data)
+export const createSetSnapshot = (setId: number) => api.post<CoinSetSnapshot>(`/sets/${setId}/snapshot`)
+export const getSetTrends = (setId: number, range = '1y') => api.get<{ snapshots: CoinSetSnapshot[] }>(`/sets/${setId}/trends`, { params: { range } })
+export const getSetAnalytics = (setId: number) => api.get<CoinSetAnalytics>(`/sets/${setId}/analytics`)
+export const compareSets = (setIds: number[], range = '1y') => api.post<{ sets: CoinSetComparison[] }>('/sets/compare', { setIds, range })
+export const previewSmartSet = (criteria: SmartCriteriaGroup) => api.post<SmartSetPreview>('/sets/preview-smart', criteria)
 
 // Bulk Operations
 export const bulkAction = (

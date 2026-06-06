@@ -1,0 +1,403 @@
+openapi: 3.0.3
+info:
+  title: Coin Sets API
+  version: 0.1.0
+  description: Draft contract for issue #240 coin sets with completion and trend tracking.
+paths:
+  /api/sets:
+    get:
+      summary: List sets for the authenticated user
+      responses:
+        "200":
+          description: User set list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sets:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/CoinSetSummary"
+    post:
+      summary: Create a set
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCoinSetRequest"
+      responses:
+        "201":
+          description: Created set
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoinSetDetail"
+  /api/sets/{id}:
+    get:
+      summary: Get set details
+      parameters:
+        - $ref: "#/components/parameters/SetID"
+      responses:
+        "200":
+          description: Set details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoinSetDetail"
+    put:
+      summary: Update a set
+      parameters:
+        - $ref: "#/components/parameters/SetID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCoinSetRequest"
+      responses:
+        "200":
+          description: Updated set
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoinSetDetail"
+    delete:
+      summary: Delete a set
+      parameters:
+        - $ref: "#/components/parameters/SetID"
+      responses:
+        "200":
+          description: Set deleted
+  /api/sets/{id}/coins:
+    get:
+      summary: List coins in a set
+      parameters:
+        - $ref: "#/components/parameters/SetID"
+      responses:
+        "200":
+          description: Set coins
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  coins:
+                    type: array
+                    items:
+                      type: object
+    post:
+      summary: Add a coin to a manual set
+      parameters:
+        - $ref: "#/components/parameters/SetID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [coinId]
+              properties:
+                coinId:
+                  type: integer
+                notes:
+                  type: string
+      responses:
+        "200":
+          description: Coin added
+  /api/sets/{id}/coins/{coinId}:
+    delete:
+      summary: Remove a coin from a manual set
+      parameters:
+        - $ref: "#/components/parameters/SetID"
+        - name: coinId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Coin removed
+  /api/sets/{id}/completion:
+    get:
+      summary: Get completion checklist and metrics
+      parameters:
+        - $ref: "#/components/parameters/SetID"
+      responses:
+        "200":
+          description: Completion result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SetCompletion"
+  /api/sets/{id}/trends:
+    get:
+      summary: Get set trend snapshots
+      parameters:
+        - $ref: "#/components/parameters/SetID"
+        - name: range
+          in: query
+          schema:
+            type: string
+            enum: [1m, 3m, 1y, all]
+            default: 1y
+      responses:
+        "200":
+          description: Trend data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  snapshots:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/SetSnapshot"
+  /api/sets/{id}/analytics:
+    get:
+      summary: Get analytics for a set
+      parameters:
+        - $ref: "#/components/parameters/SetID"
+      responses:
+        "200":
+          description: Set analytics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SetAnalytics"
+  /api/sets/{id}/snapshot:
+    post:
+      summary: Capture a manual valuation snapshot
+      parameters:
+        - $ref: "#/components/parameters/SetID"
+      responses:
+        "201":
+          description: Created snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SetSnapshot"
+  /api/sets/templates:
+    get:
+      summary: List built-in set templates
+      responses:
+        "200":
+          description: Template list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  templates:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/SetTemplate"
+  /api/sets/compare:
+    post:
+      summary: Compare multiple sets
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [setIds]
+              properties:
+                setIds:
+                  type: array
+                  minItems: 2
+                  maxItems: 6
+                  items:
+                    type: integer
+                range:
+                  type: string
+                  enum: [1m, 3m, 1y, all]
+                  default: 1y
+      responses:
+        "200":
+          description: Comparison result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sets:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/SetComparison"
+components:
+  parameters:
+    SetID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+  schemas:
+    CoinSetType:
+      type: string
+      enum: [open, defined, smart, goal]
+    CreateCoinSetRequest:
+      type: object
+      required: [name, setType]
+      properties:
+        name:
+          type: string
+          maxLength: 80
+        description:
+          type: string
+          maxLength: 2000
+        color:
+          type: string
+        icon:
+          type: string
+        setType:
+          $ref: "#/components/schemas/CoinSetType"
+        parentSetId:
+          type: integer
+          nullable: true
+        targetCompletionDate:
+          type: string
+          format: date
+          nullable: true
+        smartCriteria:
+          type: object
+          nullable: true
+        templateId:
+          type: string
+          nullable: true
+    UpdateCoinSetRequest:
+      allOf:
+        - $ref: "#/components/schemas/CreateCoinSetRequest"
+    CoinSetSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        color:
+          type: string
+        icon:
+          type: string
+        setType:
+          $ref: "#/components/schemas/CoinSetType"
+        coinCount:
+          type: integer
+        totalValue:
+          type: number
+        completionPercentage:
+          type: number
+          nullable: true
+        valueChangePercent:
+          type: number
+          nullable: true
+    CoinSetDetail:
+      allOf:
+        - $ref: "#/components/schemas/CoinSetSummary"
+        - type: object
+          properties:
+            description:
+              type: string
+            parentSetId:
+              type: integer
+              nullable: true
+            targetCompletionDate:
+              type: string
+              format: date
+              nullable: true
+            totalInvested:
+              type: number
+            avgValuePerCoin:
+              type: number
+              nullable: true
+            highestValueCoinId:
+              type: integer
+              nullable: true
+    SetCompletion:
+      type: object
+      properties:
+        setId:
+          type: integer
+        targetCount:
+          type: integer
+        completedCount:
+          type: integer
+        completionPercentage:
+          type: number
+        missingTargets:
+          type: array
+          items:
+            type: object
+    SetSnapshot:
+      type: object
+      properties:
+        snapshotDate:
+          type: string
+          format: date
+        totalValue:
+          type: number
+        totalInvested:
+          type: number
+        coinCount:
+          type: integer
+        completionPercentage:
+          type: number
+          nullable: true
+        avgValuePerCoin:
+          type: number
+          nullable: true
+        highestValueCoinId:
+          type: integer
+          nullable: true
+    SetAnalytics:
+      type: object
+      properties:
+        roiPercent:
+          type: number
+          nullable: true
+        bestPerformerCoinId:
+          type: integer
+          nullable: true
+        worstPerformerCoinId:
+          type: integer
+          nullable: true
+        acquisitionRatePerMonth:
+          type: number
+          nullable: true
+        projectedCompletionDate:
+          type: string
+          format: date
+          nullable: true
+    SetTemplate:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        category:
+          type: string
+        targetCount:
+          type: integer
+        version:
+          type: integer
+    SetComparison:
+      type: object
+      properties:
+        setId:
+          type: integer
+        name:
+          type: string
+        startValue:
+          type: number
+        endValue:
+          type: number
+        valueChange:
+          type: number
+        valueChangePercent:
+          type: number
+        completionChange:
+          type: number
+          nullable: true

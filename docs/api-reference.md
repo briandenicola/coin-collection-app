@@ -2016,6 +2016,166 @@ Detach a tag from a coin.
 
 ---
 
+## Coin Sets
+
+Coin sets organize coins into named groups. All set endpoints require authentication and are scoped to the current user.
+
+Set types:
+
+| Type | Behavior |
+| ---- | -------- |
+| `open` | Manual collection of coins. Existing tags are backfilled into compatible open sets. |
+| `defined` | Manual set with target slots and completion tracking. |
+| `goal` | Defined set with an optional target completion date. |
+| `smart` | Dynamic set populated from validated criteria; manual add/remove is not allowed. |
+
+### GET /api/sets
+
+List set summaries for the authenticated user. The API migrates legacy tags into open sets before returning results.
+
+**Response:**
+
+```json
+{
+  "sets": [
+    {
+      "id": 1,
+      "name": "Twelve Caesars",
+      "color": "#c9a84c",
+      "setType": "defined",
+      "coinCount": 8,
+      "totalValue": 1250.0,
+      "completionPercentage": 66.7
+    }
+  ]
+}
+```
+
+### POST /api/sets
+
+Create an open, defined, goal, or smart set.
+
+**Request Body:**
+
+```json
+{
+  "name": "Silver Denarii",
+  "description": "Republican and imperial silver denarii",
+  "color": "#c9a84c",
+  "setType": "smart",
+  "smartCriteria": {
+    "operator": "and",
+    "rules": [
+      { "field": "material", "op": "eq", "value": "Silver" },
+      { "field": "denomination", "op": "contains", "value": "Denarius" }
+    ]
+  }
+}
+```
+
+| Field | Type | Required | Description |
+| ----- | ---- | -------- | ----------- |
+| `name` | string | Yes | Set name, unique per user |
+| `description` | string | No | Set notes |
+| `color` | string | No | Hex display color |
+| `setType` | string | Yes | `open`, `defined`, `goal`, or `smart` |
+| `templateId` | string | No | Built-in template ID for defined/goal sets |
+| `targetCompletionDate` | string | No | Goal target date (`YYYY-MM-DD`) |
+| `smartCriteria` | object | Conditional | Required for smart sets |
+
+### POST /api/sets/import-csv
+
+Create a defined or goal set from CSV target definitions.
+
+**Request Body:**
+
+```json
+{
+  "name": "Lincoln Wheat Cents",
+  "setType": "defined",
+  "csv": "Label,Year,MintMark,Denomination,Country,Material\n1909-S VDB,1909,S,Cent,United States,Copper"
+}
+```
+
+### GET /api/sets/templates
+
+List built-in target templates available for defined and goal sets.
+
+### GET /api/sets/:id
+
+Get set details, summary value, completion metadata when applicable, and display metadata.
+
+### PUT /api/sets/:id
+
+Update set metadata and criteria. Smart criteria are validated before persistence.
+
+### DELETE /api/sets/:id
+
+Delete a set and its memberships, targets, snapshots, and alerts.
+
+### GET /api/sets/:id/coins
+
+List coins in a set. Smart sets return derived matches from their criteria.
+
+### POST /api/sets/:id/coins
+
+Add a coin to an open, defined, or goal set.
+
+**Request Body:**
+
+```json
+{ "coinId": 42, "notes": "Upgrade candidate" }
+```
+
+### DELETE /api/sets/:id/coins/:coinId
+
+Remove a coin from an open, defined, or goal set.
+
+### GET /api/sets/:id/completion
+
+Return completion metrics for defined and goal sets.
+
+**Response:**
+
+```json
+{
+  "totalTargets": 12,
+  "completedTargets": 8,
+  "completionPercentage": 66.7,
+  "missingTargets": []
+}
+```
+
+### POST /api/sets/:id/snapshot
+
+Capture or replace today's valuation snapshot for the set.
+
+### GET /api/sets/:id/trends
+
+Return valuation snapshots for a set. Supports `?range=1m`, `3m`, `1y`, or `all`.
+
+### GET /api/sets/:id/analytics
+
+Return ROI, acquisition-rate, and performer metrics for a set.
+
+### POST /api/sets/compare
+
+Compare up to five sets over a range.
+
+**Request Body:**
+
+```json
+{ "setIds": [1, 2], "range": "1y" }
+```
+
+### POST /api/sets/preview-smart
+
+Preview smart set criteria without saving the set.
+
+**Request Body:** A smart criteria object using whitelisted fields and operators.
+
+---
+
 ## Bulk Operations
 
 ### POST /api/coins/bulk

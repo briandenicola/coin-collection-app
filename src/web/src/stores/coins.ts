@@ -26,6 +26,7 @@ export const useCoinsStore = defineStore('coins', () => {
     wishlist?: string
     sold?: string
     tag?: string
+    set?: string
     page?: number
     sort?: string
     order?: string

@@ -150,6 +150,12 @@ func (h *CoinHandler) List(c *gin.Context) {
 			filters.TagID = &v
 		}
 	}
+	if s := c.Query("set"); s != "" {
+		if setID, err := strconv.ParseUint(s, 10, 64); err == nil {
+			v := uint(setID)
+			filters.SetID = &v
+		}
+	}
 
 	coins, total, err := h.repo.List(userID, filters)
 	if err != nil {

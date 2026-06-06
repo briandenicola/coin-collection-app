@@ -171,6 +171,19 @@ const router = createRouter({
       component: () => import('@/pages/CalendarPage.vue'),
       meta: { requiresAuth: true },
     },
+    // Set routes - placeholder for Phase 2 and Phase 3 implementation
+    {
+      path: '/sets',
+      name: 'sets',
+      component: () => import('@/pages/SetsPage.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/sets/:id',
+      name: 'set-detail',
+      component: () => import('@/pages/SetDetailPage.vue'),
+      meta: { requiresAuth: true },
+    },
   ],
 })
 
