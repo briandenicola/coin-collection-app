@@ -89,8 +89,10 @@ type CoinLookupResponse struct {
 }
 
 var (
-	// Matches NGC cert formats: 823160-093, 1234567-001, etc.
-	ngcCertRegex = regexp.MustCompile(`\b(\d{6,7}-\d{3})\b`)
+	// Matches NGC cert formats: 823160-093, 1234567-001, 2412821034, etc.
+	ngcCertRegex      = regexp.MustCompile(`\b(\d{6,7}-?\d{3})\b`)
+	ngcCertExactRegex = regexp.MustCompile(`^(\d{6,7})-?(\d{3})$`)
+	compactCertRegex  = regexp.MustCompile(`^\d{9,10}$`)
 )
 
 // Lookup performs coin lookup from images: extracts NGC cert, label text, and enriches with Numista.
@@ -277,20 +279,35 @@ func (s *CoinLookupService) extractNGCCert(analysis string) *NGCData {
 	return nil
 }
 
-// normalizeCertNumber normalizes NGC cert numbers (e.g., 823160-093 → 823160-093).
+// normalizeCertNumber normalizes NGC cert numbers (e.g., 823160093 -> 823160-093).
 func normalizeCertNumber(cert string) string {
 	cert = strings.TrimSpace(cert)
 	// Remove any extra spaces or formatting
 	cert = strings.ReplaceAll(cert, " ", "")
-	// Validate format: XXXXXXX-XXX or XXXXXX-XXX
-	if ngcCertRegex.MatchString(cert) {
+
+	matches := ngcCertExactRegex.FindStringSubmatch(cert)
+	if len(matches) == 3 {
+		return matches[1] + "-" + matches[2]
+	}
+	return ""
+}
+
+func compactCertNumber(cert string) string {
+	cert = strings.TrimSpace(cert)
+	cert = strings.ReplaceAll(cert, " ", "")
+	cert = strings.ReplaceAll(cert, "-", "")
+	if compactCertRegex.MatchString(cert) {
 		return cert
 	}
 	return ""
 }
 
 func ngcLookupURL(cert string) string {
-	return "https://www.ngccoin.com/certlookup/?CertNumber=" + url.QueryEscape(cert)
+	compact := compactCertNumber(cert)
+	if compact == "" {
+		return ""
+	}
+	return fmt.Sprintf("https://www.ngccoin.com/certlookup/%s/NGCAncients/", url.PathEscape(compact))
 }
 
 // extractLabelText extracts visible label text from analysis.

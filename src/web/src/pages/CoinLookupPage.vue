@@ -249,8 +249,10 @@ const ngcCertNumber = computed(() => {
 })
 
 const ngcLookupUrl = computed(() => {
+  if (results.value?.extractedData.ngc?.lookupURL) return results.value.extractedData.ngc.lookupURL
   if (!ngcCertNumber.value) return ''
-  return `https://www.ngccoin.com/certlookup/?CertNumber=${encodeURIComponent(ngcCertNumber.value)}`
+  const compactCert = ngcCertNumber.value.replace(/\D/g, '')
+  return `https://www.ngccoin.com/certlookup/${encodeURIComponent(compactCert)}/NGCAncients/`
 })
 
 const draft = computed<CoinMutationPayload>(() => results.value?.prefilledDraft ?? {})
