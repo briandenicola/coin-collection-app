@@ -157,3 +157,75 @@ func TestGetSettingDefaults_ReturnsIndependentCopy(t *testing.T) {
 		t.Error("GetSettingDefaults returned a reference to the internal map, not a copy")
 	}
 }
+
+func TestGetSetting_CoinCategories_ReturnsDefault(t *testing.T) {
+	svc, _ := newTestSettingsService(t)
+
+	got := svc.GetSetting(SettingCoinCategories)
+	expected := "Roman\nGreek\nByzantine\nModern\nOther"
+	if got != expected {
+		t.Errorf("GetSetting(CoinCategories) = %q, want default %q", got, expected)
+	}
+}
+
+func TestGetSetting_CoinEras_ReturnsDefault(t *testing.T) {
+	svc, _ := newTestSettingsService(t)
+
+	got := svc.GetSetting(SettingCoinEras)
+	expected := "ancient\nmedieval\nmodern"
+	if got != expected {
+		t.Errorf("GetSetting(CoinEras) = %q, want default %q", got, expected)
+	}
+}
+
+func TestSetSetting_CoinCategories_AllowsCustomization(t *testing.T) {
+	svc, _ := newTestSettingsService(t)
+
+	customCategories := "Imperial\nRepublican\nProvincial\nOther"
+	if err := svc.SetSetting(SettingCoinCategories, customCategories); err != nil {
+		t.Fatalf("SetSetting(CoinCategories) failed: %v", err)
+	}
+
+	got := svc.GetSetting(SettingCoinCategories)
+	if got != customCategories {
+		t.Errorf("after SetSetting, GetSetting(CoinCategories) = %q, want %q", got, customCategories)
+	}
+}
+
+func TestSetSetting_CoinEras_AllowsCustomization(t *testing.T) {
+	svc, _ := newTestSettingsService(t)
+
+	customEras := "BC\nAD 1-500\nAD 500-1500\nModern"
+	if err := svc.SetSetting(SettingCoinEras, customEras); err != nil {
+		t.Fatalf("SetSetting(CoinEras) failed: %v", err)
+	}
+
+	got := svc.GetSetting(SettingCoinEras)
+	if got != customEras {
+		t.Errorf("after SetSetting, GetSetting(CoinEras) = %q, want %q", got, customEras)
+	}
+}
+
+func TestGetAllSettings_IncludesCoinCategoriesAndEras(t *testing.T) {
+	svc, _ := newTestSettingsService(t)
+
+	all := svc.GetAllSettings()
+
+	if _, ok := all[SettingCoinCategories]; !ok {
+		t.Error("GetAllSettings does not include CoinCategories")
+	}
+
+	if _, ok := all[SettingCoinEras]; !ok {
+		t.Error("GetAllSettings does not include CoinEras")
+	}
+
+	expectedCategories := "Roman\nGreek\nByzantine\nModern\nOther"
+	if all[SettingCoinCategories] != expectedCategories {
+		t.Errorf("GetAllSettings[CoinCategories] = %q, want default %q", all[SettingCoinCategories], expectedCategories)
+	}
+
+	expectedEras := "ancient\nmedieval\nmodern"
+	if all[SettingCoinEras] != expectedEras {
+		t.Errorf("GetAllSettings[CoinEras] = %q, want default %q", all[SettingCoinEras], expectedEras)
+	}
+}

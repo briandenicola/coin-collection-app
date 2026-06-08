@@ -87,6 +87,19 @@
           @save="onSystemSave"
         />
 
+        <!-- Coin Properties Tab -->
+        <AdminCoinPropertiesSection
+          v-if="activeTab === 'properties'"
+          :category-options="settings.CoinCategories ?? ''"
+          :era-options="settings.CoinEras ?? ''"
+          :saving="settingsSaving"
+          :msg="settingsMsg"
+          :error="settingsError"
+          @update:category-options="settings.CoinCategories = $event"
+          @update:era-options="settings.CoinEras = $event"
+          @save="saveSettings"
+        />
+
         <!-- Catalogs Tab -->
         <AdminCatalogsSection v-if="activeTab === 'catalogs'" />
 
@@ -152,9 +165,10 @@ import AdminAISection from '@/components/admin/AdminAISection.vue'
 import AdminSchedulesSection from '@/components/admin/AdminSchedulesSection.vue'
 import AdminHealthSection from '@/components/admin/AdminHealthSection.vue'
 import AdminCatalogsSection from '@/components/admin/AdminCatalogsSection.vue'
-import { Users, Cpu, Wrench, ScrollText, CalendarClock, Activity, ChevronRight, BookMarked } from 'lucide-vue-next'
+import AdminCoinPropertiesSection from '@/components/admin/AdminCoinPropertiesSection.vue'
+import { Users, Cpu, Wrench, ScrollText, CalendarClock, Activity, ChevronRight, BookMarked, Settings2 } from 'lucide-vue-next'
 
-type AdminTabId = 'users' | 'ai' | 'system' | 'catalogs' | 'schedules' | 'health' | 'logs'
+type AdminTabId = 'users' | 'ai' | 'system' | 'properties' | 'catalogs' | 'schedules' | 'health' | 'logs'
 type AdminGroupId = 'configuration' | 'operations'
 type AdminTab = {
   id: AdminTabId
@@ -167,6 +181,7 @@ const tabIcons: Record<AdminTabId, Component> = {
   users: Users,
   ai: Cpu,
   system: Wrench,
+  properties: Settings2,
   catalogs: BookMarked,
   schedules: CalendarClock,
   health: Activity,
@@ -177,6 +192,7 @@ const tabs: AdminTab[] = [
   { id: 'users', label: 'Users', group: 'configuration' },
   { id: 'ai', label: 'AI', group: 'configuration' },
   { id: 'system', label: 'System', group: 'configuration' },
+  { id: 'properties', label: 'Coin Properties', group: 'configuration' },
   { id: 'catalogs', label: 'Catalogs', group: 'configuration' },
   { id: 'schedules', label: 'Schedules', group: 'operations', aliases: ['schedule'] },
   { id: 'health', label: 'Health', group: 'operations' },

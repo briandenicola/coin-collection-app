@@ -95,6 +95,8 @@ definitions:
         items:
           type: integer
         type: array
+      setId:
+        type: integer
       storageLocationId:
         type: integer
       tagId:
@@ -123,6 +125,21 @@ definitions:
       uri:
         type: string
       volume:
+        type: string
+    type: object
+  handlers.CandidateReferenceSwagger:
+    properties:
+      catalog:
+        example: NGC
+        type: string
+      number:
+        example: 823160-093
+        type: string
+      uri:
+        example: https://www.ngccoin.com/certlookup/823160-093/
+        type: string
+      volume:
+        example: ""
         type: string
     type: object
   handlers.CategoryCount:
@@ -168,6 +185,22 @@ definitions:
       total:
         example: 42
         type: integer
+    type: object
+  handlers.CoinLookupSwaggerResponse:
+    properties:
+      candidateReferences:
+        items:
+          $ref: '#/definitions/handlers.CandidateReferenceSwagger'
+        type: array
+      extractedData:
+        $ref: '#/definitions/handlers.LookupExtractedDataSwagger'
+      numistaCandidates:
+        items:
+          $ref: '#/definitions/handlers.NumistaCandidateSwagger'
+        type: array
+      prefilledDraft:
+        additionalProperties: {}
+        type: object
     type: object
   handlers.CoinReferenceDTO:
     properties:
@@ -447,6 +480,23 @@ definitions:
           $ref: '#/definitions/handlers.LogEntry'
         type: array
     type: object
+  handlers.LookupExtractedDataSwagger:
+    properties:
+      coinFields:
+        additionalProperties: {}
+        type: object
+      confidence:
+        example: medium
+        type: string
+      labelText:
+        example: NGC Ch AU 5/5 4/5
+        type: string
+      ngc:
+        $ref: '#/definitions/handlers.NGCDataSwagger'
+      rawAnalysis:
+        example: Vision analysis text...
+        type: string
+    type: object
   handlers.MaterialCount:
     properties:
       count:
@@ -473,6 +523,45 @@ definitions:
       succeeded:
         example: 12
         type: integer
+    type: object
+  handlers.NGCDataSwagger:
+    properties:
+      certNumber:
+        example: 823160-093
+        type: string
+      description:
+        example: Roman Empire, Trajan Decius
+        type: string
+      grade:
+        example: Ch AU
+        type: string
+      lookupURL:
+        example: https://www.ngccoin.com/certlookup/823160-093/
+        type: string
+      normalizedCert:
+        example: 823160-093
+        type: string
+    type: object
+  handlers.NumistaCandidateSwagger:
+    properties:
+      id:
+        example: "12345"
+        type: string
+      issuer:
+        example: Roman Empire
+        type: string
+      thumbnail:
+        example: https://en.numista.com/...
+        type: string
+      title:
+        example: Denarius - Trajan (98-117)
+        type: string
+      url:
+        example: https://en.numista.com/catalogue/pieces12345.html
+        type: string
+      year:
+        example: 101-102
+        type: string
     type: object
   handlers.OllamaStatusResponse:
     properties:
@@ -1054,6 +1143,10 @@ definitions:
       ruler:
         maxLength: 200
         type: string
+      sets:
+        items:
+          $ref: '#/definitions/models.CoinSet'
+        type: array
       soldDate:
         type: string
       soldPrice:
@@ -1132,6 +1225,49 @@ definitions:
     - catalog
     - number
     type: object
+  models.CoinSet:
+    properties:
+      color:
+        type: string
+      createdAt:
+        type: string
+      description:
+        type: string
+      icon:
+        type: string
+      id:
+        type: integer
+      isPublic:
+        type: boolean
+      name:
+        type: string
+      parentSetId:
+        type: integer
+      setType:
+        $ref: '#/definitions/models.CoinSetType'
+      shareToken:
+        type: string
+      smartCriteria:
+        $ref: '#/definitions/models.JSONObject'
+      targetCompletionDate:
+        type: string
+      updatedAt:
+        type: string
+      userId:
+        type: integer
+    type: object
+  models.CoinSetType:
+    enum:
+    - open
+    - defined
+    - smart
+    - goal
+    type: string
+    x-enum-varnames:
+    - CoinSetTypeOpen
+    - CoinSetTypeDefined
+    - CoinSetTypeSmart
+    - CoinSetTypeGoal
   models.CoinValueHistory:
     properties:
       coinId:
@@ -1186,6 +1322,9 @@ definitions:
     - ImageTypeReverse
     - ImageTypeDetail
     - ImageTypeOther
+  models.JSONObject:
+    additionalProperties: true
+    type: object
   models.Material:
     enum:
     - Gold
@@ -4236,7 +4375,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: Performs a bulk action (tag, delete, sell, export, assign-location)
+      description: Performs a bulk action (tag, set, delete, sell, export, assign-location)
         on selected coins.
       parameters:
       - description: Bulk action request
@@ -4345,6 +4484,42 @@ paths:
       security:
       - BearerAuth: []
       summary: Create coin intake draft
+      tags:
+      - Coins
+  /coins/lookup:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Analyzes coin/slab images to extract NGC cert, label text, and
+        provides Numista candidates. Returns data compatible with Add to Wishlist/Collection.
+      parameters:
+      - description: Coin or slab images (use multiple files)
+        in: formData
+        name: images
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.CoinLookupSwaggerResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Coin lookup from images
       tags:
       - Coins
   /extract-text:

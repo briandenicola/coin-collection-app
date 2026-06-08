@@ -387,3 +387,46 @@ Reorganized all feature documentation from a single monolithic 358-line `docs/fe
 **Session Log:** 20260606T194119Z-issue-241-docs-feature-showcase.md
 **Decision Merged:** decisions.md (Decision: Documentation Feature Showcase — Issue #241)
 
+## 2026-06-07 — User-Defined Coin Category and Era Options
+
+**Status:** Complete
+
+Added backend settings support for user-defined coin category and era option lists, replacing hardcoded constants with customizable values.
+
+**Implementation:**
+- **New Settings Keys:**
+  - `SettingCoinCategories` (`"CoinCategories"`) — default: `"Roman\nGreek\nByzantine\nModern\nOther"`
+  - `SettingCoinEras` (`"CoinEras"`) — default: `"ancient\nmedieval\nmodern"`
+- **Format:** Newline-delimited strings (split on `\n` to parse)
+- **Files Changed:**
+  - `services/settings_service.go` — added constants and defaults
+  - `services/settings_service_test.go` — added 6 tests covering defaults, customization, GetAllSettings inclusion
+- **Automatic Exposure:** Existing `/admin/settings` and `/admin/settings/defaults` endpoints now return these keys
+
+**Testing:**
+- `TestGetSetting_CoinCategories_ReturnsDefault` ✅
+- `TestGetSetting_CoinEras_ReturnsDefault` ✅
+- `TestSetSetting_CoinCategories_AllowsCustomization` ✅
+- `TestSetSetting_CoinEras_AllowsCustomization` ✅
+- `TestGetAllSettings_IncludesCoinCategoriesAndEras` ✅
+- All existing tests still pass ✅
+
+**Frontend Coordination Notes for Aurelia:**
+- Parse `settings.CoinCategories` / `settings.CoinEras` by splitting on `\n`
+- Admin UI should allow multi-line text editing
+- "Unspecified" era option should remain UI-only (not stored in setting)
+- Empty values fall back to defaults automatically
+
+**Backward Compatibility:** Defaults match existing hardcoded values in `models/coin.go`; existing coin data unaffected.
+
+**Decision Document:** `.squad/decisions/inbox/cassius-era-category-options.md`
+
+**Learnings:**
+- Newline-delimited format is human-readable and trivial to parse, consistent with potential multi-line prompt settings
+- Settings service pattern (key-value with fallback) extends cleanly to option lists
+- Frontend will need basic `split('\n')` parsing; consider JSON format if richer metadata (icons, colors) needed in future
+
+- **2026-06-07:** Era/Category Backend + Coin Lookup Infrastructure Inventory
+  - **Era/Category Settings:** Added `CoinCategories` and `CoinEras` settings with newline-delimited defaults matching hardcoded values; 6 passing tests; automatic exposure via `/admin/settings` endpoints.
+  - **Coin Lookup Architecture Inventory:** Completed infrastructure audit — 90%+ of lookup MVP already exists (AI Intake Draft #216, Numista proxy, image analysis, agent proxy, catalog references). Recommended path: extend intake draft with Numista enrichment (Go-only service, 2-3 days). NGC deferred to post-MVP. No new Python agent team needed for MVP.
+  - **Numista Enrichment Service (Proposed):** New service layer to extract keywords from draft fields, query Numista, map results to DTO. Low-effort orchestration on top of existing infrastructure.

@@ -3115,7 +3115,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Performs a bulk action (tag, delete, sell, export, assign-location) on selected coins.",
+                "description": "Performs a bulk action (tag, set, delete, sell, export, assign-location) on selected coins.",
                 "consumes": [
                     "application/json"
                 ],
@@ -3261,6 +3261,61 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/handlers.IntakeDraftCreateResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/coins/lookup": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Analyzes coin/slab images to extract NGC cert, label text, and provides Numista candidates. Returns data compatible with Add to Wishlist/Collection.",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Coins"
+                ],
+                "summary": "Coin lookup from images",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "Coin or slab images (use multiple files)",
+                        "name": "images",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.CoinLookupSwaggerResponse"
                         }
                     },
                     "400": {
@@ -7750,6 +7805,9 @@ const docTemplate = `{
                         "type": "integer"
                     }
                 },
+                "setId": {
+                    "type": "integer"
+                },
                 "storageLocationId": {
                     "type": "integer"
                 },
@@ -7789,6 +7847,27 @@ const docTemplate = `{
                 },
                 "volume": {
                     "type": "string"
+                }
+            }
+        },
+        "handlers.CandidateReferenceSwagger": {
+            "type": "object",
+            "properties": {
+                "catalog": {
+                    "type": "string",
+                    "example": "NGC"
+                },
+                "number": {
+                    "type": "string",
+                    "example": "823160-093"
+                },
+                "uri": {
+                    "type": "string",
+                    "example": "https://www.ngccoin.com/certlookup/823160-093/"
+                },
+                "volume": {
+                    "type": "string",
+                    "example": ""
                 }
             }
         },
@@ -7852,6 +7931,30 @@ const docTemplate = `{
                 "total": {
                     "type": "integer",
                     "example": 42
+                }
+            }
+        },
+        "handlers.CoinLookupSwaggerResponse": {
+            "type": "object",
+            "properties": {
+                "candidateReferences": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handlers.CandidateReferenceSwagger"
+                    }
+                },
+                "extractedData": {
+                    "$ref": "#/definitions/handlers.LookupExtractedDataSwagger"
+                },
+                "numistaCandidates": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handlers.NumistaCandidateSwagger"
+                    }
+                },
+                "prefilledDraft": {
+                    "type": "object",
+                    "additionalProperties": {}
                 }
             }
         },
@@ -8260,6 +8363,30 @@ const docTemplate = `{
                 }
             }
         },
+        "handlers.LookupExtractedDataSwagger": {
+            "type": "object",
+            "properties": {
+                "coinFields": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "confidence": {
+                    "type": "string",
+                    "example": "medium"
+                },
+                "labelText": {
+                    "type": "string",
+                    "example": "NGC Ch AU 5/5 4/5"
+                },
+                "ngc": {
+                    "$ref": "#/definitions/handlers.NGCDataSwagger"
+                },
+                "rawAnalysis": {
+                    "type": "string",
+                    "example": "Vision analysis text..."
+                }
+            }
+        },
         "handlers.MaterialCount": {
             "type": "object",
             "properties": {
@@ -8296,6 +8423,60 @@ const docTemplate = `{
                 "succeeded": {
                     "type": "integer",
                     "example": 12
+                }
+            }
+        },
+        "handlers.NGCDataSwagger": {
+            "type": "object",
+            "properties": {
+                "certNumber": {
+                    "type": "string",
+                    "example": "823160-093"
+                },
+                "description": {
+                    "type": "string",
+                    "example": "Roman Empire, Trajan Decius"
+                },
+                "grade": {
+                    "type": "string",
+                    "example": "Ch AU"
+                },
+                "lookupURL": {
+                    "type": "string",
+                    "example": "https://www.ngccoin.com/certlookup/823160-093/"
+                },
+                "normalizedCert": {
+                    "type": "string",
+                    "example": "823160-093"
+                }
+            }
+        },
+        "handlers.NumistaCandidateSwagger": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "example": "12345"
+                },
+                "issuer": {
+                    "type": "string",
+                    "example": "Roman Empire"
+                },
+                "thumbnail": {
+                    "type": "string",
+                    "example": "https://en.numista.com/..."
+                },
+                "title": {
+                    "type": "string",
+                    "example": "Denarius - Trajan (98-117)"
+                },
+                "url": {
+                    "type": "string",
+                    "example": "https://en.numista.com/catalogue/pieces12345.html"
+                },
+                "year": {
+                    "type": "string",
+                    "example": "101-102"
                 }
             }
         },
@@ -9150,6 +9331,12 @@ const docTemplate = `{
                     "type": "string",
                     "maxLength": 200
                 },
+                "sets": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.CoinSet"
+                    }
+                },
                 "soldDate": {
                     "type": "string"
                 },
@@ -9266,6 +9453,68 @@ const docTemplate = `{
                 }
             }
         },
+        "models.CoinSet": {
+            "type": "object",
+            "properties": {
+                "color": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "icon": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "isPublic": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "parentSetId": {
+                    "type": "integer"
+                },
+                "setType": {
+                    "$ref": "#/definitions/models.CoinSetType"
+                },
+                "shareToken": {
+                    "type": "string"
+                },
+                "smartCriteria": {
+                    "$ref": "#/definitions/models.JSONObject"
+                },
+                "targetCompletionDate": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                },
+                "userId": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.CoinSetType": {
+            "type": "string",
+            "enum": [
+                "open",
+                "defined",
+                "smart",
+                "goal"
+            ],
+            "x-enum-varnames": [
+                "CoinSetTypeOpen",
+                "CoinSetTypeDefined",
+                "CoinSetTypeSmart",
+                "CoinSetTypeGoal"
+            ]
+        },
         "models.CoinValueHistory": {
             "type": "object",
             "properties": {
@@ -9342,6 +9591,10 @@ const docTemplate = `{
                 "ImageTypeDetail",
                 "ImageTypeOther"
             ]
+        },
+        "models.JSONObject": {
+            "type": "object",
+            "additionalProperties": true
         },
         "models.Material": {
             "type": "string",

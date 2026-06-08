@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Coin, CoinListResponse, CoinImage, AuthResponse, StatsResponse, UserInfo, AppSettings, LogEntry, ApiKey, WebAuthnCredentialInfo, ValueSnapshot, CoinJournal, NumistaSearchResponse, AgentChatMessage, AgentChatAppContext, CoinSuggestion, CollectionChatResponse, FollowUser, PublicProfile, CoinComment, CoinRating, LimitedCoin, ValueEstimate, CoinValueHistory, PortfolioSummary, AuctionLot, AuctionLotListResponse, AvailabilityRunSummary, AvailabilityRun, NotificationListResponse, Tag, StorageLocation, ValuationRun, AuctionEndingRun, CalendarEventDetail, FeaturedCoin, CollectionHealthSummary, CoinHealthListResponse, CoinHealthItem, AdminHealthSummaryResponse, CoinReference, CoinReferenceInput, CoinMutationPayload, IntakeDraft, IntakeCommitRequest, IntakeCommitResponse, LegacyMigrationResult, CatalogRegistry, CoinSetSummary, CoinSetDetail, CreateCoinSetRequest, UpdateCoinSetRequest, AddCoinToSetRequest, CoinSetTemplate, CoinSetCompletion, CreateCoinSetFromCsvRequest, CoinSetSnapshot, CoinSetAnalytics, CoinSetComparison, SmartCriteriaGroup, SmartSetPreview } from '@/types'
+import type { Coin, CoinListResponse, CoinImage, AuthResponse, StatsResponse, UserInfo, AppSettings, LogEntry, ApiKey, WebAuthnCredentialInfo, ValueSnapshot, CoinJournal, NumistaSearchResponse, AgentChatMessage, AgentChatAppContext, CoinSuggestion, CollectionChatResponse, FollowUser, PublicProfile, CoinComment, CoinRating, LimitedCoin, ValueEstimate, CoinValueHistory, PortfolioSummary, AuctionLot, AuctionLotListResponse, AvailabilityRunSummary, AvailabilityRun, NotificationListResponse, Tag, StorageLocation, ValuationRun, AuctionEndingRun, CalendarEventDetail, FeaturedCoin, CollectionHealthSummary, CoinHealthListResponse, CoinHealthItem, AdminHealthSummaryResponse, CoinReference, CoinReferenceInput, CoinMutationPayload, IntakeDraft, IntakeCommitRequest, IntakeCommitResponse, CoinLookupResponse, LegacyMigrationResult, CatalogRegistry, CoinSetSummary, CoinSetDetail, CreateCoinSetRequest, UpdateCoinSetRequest, AddCoinToSetRequest, CoinSetTemplate, CoinSetCompletion, CreateCoinSetFromCsvRequest, CoinSetSnapshot, CoinSetAnalytics, CoinSetComparison, SmartCriteriaGroup, SmartSetPreview } from '@/types'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
@@ -244,6 +244,15 @@ export const deleteJournalEntry = (coinId: number, entryId: number) =>
 
 // Numista
 export const searchNumista = (q: string) => api.get<NumistaSearchResponse>('/numista/search', { params: { q } })
+
+// Coin Lookup
+export async function lookupCoin(images: File[]) {
+  const formData = new FormData()
+  for (const image of images) {
+    formData.append('images', image)
+  }
+  return api.post<CoinLookupResponse>('/coins/lookup', formData)
+}
 
 // Value Estimation
 export const estimateCoinValue = (coinId: number) =>

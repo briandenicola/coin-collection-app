@@ -12,13 +12,13 @@
           <div class="form-group">
             <label class="form-label">Category</label>
             <select v-model="form.category" class="form-select">
-              <option v-for="c in CATEGORIES" :key="c" :value="c">{{ c }}</option>
+              <option v-for="c in categoryOptions" :key="c" :value="c">{{ c }}</option>
             </select>
           </div>
           <div class="form-group">
             <label class="form-label">Material</label>
             <select v-model="form.material" class="form-select">
-              <option v-for="m in MATERIALS" :key="m" :value="m">{{ m }}</option>
+              <option v-for="m in materialOptions" :key="m" :value="m">{{ m }}</option>
             </select>
           </div>
         </div>
@@ -41,7 +41,7 @@
             <label class="form-label">Era</label>
             <select v-model="form.era" class="form-select">
               <option value="">Unspecified</option>
-              <option v-for="era in COIN_ERAS" :key="era" :value="era">{{ era }}</option>
+              <option v-for="era in eraOptions" :key="era" :value="era">{{ era }}</option>
             </select>
           </div>
         </div>
@@ -209,13 +209,14 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { getStorageLocations } from '@/api/client'
-import { CATEGORIES, COIN_ERAS, MATERIALS } from '@/types'
 import type { Coin, StorageLocation } from '@/types'
 import AutocompleteInput from '@/components/AutocompleteInput.vue'
 import { X, Camera } from 'lucide-vue-next'
 import { usePwa } from '@/composables/usePwa'
+import { useCoinOptions } from '@/composables/useCoinOptions'
 
 const { isPwa } = usePwa()
+const { categoryOptions, eraOptions, materialOptions, loadOptions } = useCoinOptions()
 
 const props = defineProps<{
   form: Partial<Coin>
@@ -249,6 +250,10 @@ const storageLocationIdModel = computed({
 })
 
 onMounted(async () => {
+  // Load coin property options from settings
+  loadOptions()
+  
+  // Load storage locations
   storageLocationsLoading.value = true
   try {
     const res = await getStorageLocations()

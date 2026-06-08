@@ -40,6 +40,8 @@ const (
 	SettingExternalToolServerEnabled          = "ExternalToolServerEnabled"
 	SettingSetSnapshotEnabled                 = "SetSnapshotEnabled"
 	SettingSetSnapshotStartTime               = "SetSnapshotStartTime"
+	SettingCoinCategories                     = "CoinCategories"
+	SettingCoinEras                           = "CoinEras"
 )
 
 const DefaultObversePrompt = `You are an expert numismatist specializing in ancient and modern coins. Analyze the obverse (front) of this coin and provide:
@@ -98,6 +100,8 @@ var settingDefaults = map[string]string{
 	SettingExternalToolServerEnabled:          "false",
 	SettingSetSnapshotEnabled:                 "false",
 	SettingSetSnapshotStartTime:               "04:00",
+	SettingCoinCategories:                     "Roman\nGreek\nByzantine\nModern\nOther",
+	SettingCoinEras:                           "ancient\nmedieval\nmodern",
 }
 
 // SettingsService provides access to application settings backed by the database.

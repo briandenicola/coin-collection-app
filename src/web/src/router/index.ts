@@ -72,6 +72,12 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/lookup',
+      name: 'lookup',
+      component: () => import('@/pages/CoinLookupPage.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/edit/:id',
       name: 'edit-coin',
       component: () => import('@/pages/EditCoinPage.vue'),

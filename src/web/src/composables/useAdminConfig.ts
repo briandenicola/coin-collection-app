@@ -6,6 +6,8 @@ import {
 } from '@/api/client'
 import type { AnthropicModel } from '@/api/client'
 import type { AppSettings } from '@/types'
+import { CATEGORIES, COIN_ERAS } from '@/types'
+import { formatOptionList } from '@/utils/options'
 
 export function useAdminConfig() {
   const settings = ref<AppSettings>({
@@ -18,6 +20,8 @@ export function useAdminConfig() {
     OllamaTimeout: '300',
     SearXNGURL: '',
     LogLevel: 'info',
+    CoinCategories: '',
+    CoinEras: '',
   })
   const settingDefaults = ref<AppSettings>({
     AIProvider: '',
@@ -29,6 +33,8 @@ export function useAdminConfig() {
     OllamaTimeout: '',
     SearXNGURL: '',
     LogLevel: '',
+    CoinCategories: '',
+    CoinEras: '',
   })
   const settingsMsg = ref('')
   const settingsError = ref(false)
@@ -77,6 +83,14 @@ export function useAdminConfig() {
       ])
       settingDefaults.value = { ...settingDefaults.value, ...defaultsRes.data }
       settings.value = { ...settings.value, ...settingsRes.data }
+
+      // Apply defaults for coin property options if not set
+      if (!settings.value.CoinCategories) {
+        settings.value.CoinCategories = formatOptionList(CATEGORIES)
+      }
+      if (!settings.value.CoinEras) {
+        settings.value.CoinEras = formatOptionList(COIN_ERAS)
+      }
 
       // Apply defaults for auction settings if not set
       if (!settings.value.AuctionEndingCheckEnabled) {

@@ -184,20 +184,20 @@
             <label class="form-group">
               <span class="section-label">Category</span>
               <select v-model="reviewForm.category" class="input">
-                <option v-for="category in CATEGORIES" :key="category" :value="category">{{ category }}</option>
+                <option v-for="category in categoryOptions" :key="category" :value="category">{{ category }}</option>
               </select>
             </label>
             <label class="form-group">
               <span class="section-label">Material</span>
               <select v-model="reviewForm.material" class="input">
-                <option v-for="material in MATERIALS" :key="material" :value="material">{{ material }}</option>
+                <option v-for="material in materialOptions" :key="material" :value="material">{{ material }}</option>
               </select>
             </label>
             <label class="form-group">
               <span class="section-label">Era</span>
               <select v-model="reviewForm.era" class="input">
                 <option value="">Unknown</option>
-                <option v-for="era in COIN_ERAS" :key="era" :value="era">{{ era }}</option>
+                <option v-for="era in eraOptions" :key="era" :value="era">{{ era }}</option>
               </select>
             </label>
             <label class="form-group">
@@ -284,7 +284,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { COIN_ERAS, CATEGORIES, MATERIALS } from '@/types'
 import type { Category, Coin, CoinMutationPayload, IntakeDraft, Material } from '@/types'
 import {
   commitIntakeDraft,
@@ -298,6 +297,7 @@ import CoinForm from '@/components/CoinForm.vue'
 import { useDialog } from '@/composables/useDialog'
 import { usePwa } from '@/composables/usePwa'
 import { Camera, Images } from 'lucide-vue-next'
+import { useCoinOptions } from '@/composables/useCoinOptions'
 
 type EntryMode = 'manual' | 'agentic'
 type CaptureTarget = 'obverse' | 'reverse' | 'card'
@@ -307,6 +307,7 @@ const router = useRouter()
 const store = useCoinsStore()
 const { showAlert } = useDialog()
 const { isPwa } = usePwa()
+const { categoryOptions, materialOptions, eraOptions, loadOptions } = useCoinOptions()
 
 const wishlistDefault = route.query.wishlist === 'true'
 const entryMode = ref<EntryMode>(isPwa ? 'agentic' : 'manual')
@@ -363,7 +364,11 @@ function createEmptyForm(category: Category, material: Material): Partial<Coin> 
   }
 }
 
-const form = reactive<Partial<Coin>>(createEmptyForm('Roman', 'Silver'))
+// Use first option from settings, or fallback to hardcoded defaults
+const defaultCategory = computed(() => (categoryOptions.value?.[0] ?? 'Roman') as Category)
+const defaultMaterial = computed(() => (materialOptions.value?.[0] ?? 'Silver') as Material)
+
+const form = reactive<Partial<Coin>>(createEmptyForm(defaultCategory.value, defaultMaterial.value))
 const reviewForm = reactive<Partial<Coin>>(createEmptyForm('Other', 'Other'))
 
 const observationImages = computed(() => [obverseFile.value, reverseFile.value].filter(Boolean) as File[])
@@ -420,11 +425,11 @@ function readDateString(record: Record<string, unknown>, ...keys: string[]): str
 }
 
 function normalizeCategory(value: string): Category {
-  return CATEGORIES.includes(value as Category) ? (value as Category) : 'Other'
+  return categoryOptions.value.includes(value as Category) ? (value as Category) : 'Other'
 }
 
 function normalizeMaterial(value: string): Material {
-  return MATERIALS.includes(value as Material) ? (value as Material) : 'Other'
+  return materialOptions.value.includes(value as Material) ? (value as Material) : 'Other'
 }
 
 function normalizeDraftCoin(coin: CoinMutationPayload): Partial<Coin> {
@@ -488,7 +493,7 @@ function buildCoinPayload(source: Partial<Coin>): CoinMutationPayload {
 }
 
 function applyCoinToTarget(target: Partial<Coin>, value: Partial<Coin>) {
-  const defaults = target === form ? createEmptyForm('Roman', 'Silver') : createEmptyForm('Other', 'Other')
+  const defaults = target === form ? createEmptyForm(defaultCategory.value, defaultMaterial.value) : createEmptyForm('Other', 'Other')
   Object.assign(target, defaults, value)
 }
 
@@ -798,6 +803,9 @@ watch([obverseFile, reverseFile, cardFile], () => {
 })
 
 onMounted(async () => {
+  // Load coin property options from settings
+  await loadOptions()
+  
   updateNextCaptureTarget()
   if (isPwa && entryMode.value === 'agentic') {
     await startCamera()

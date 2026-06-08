@@ -5915,3 +5915,543 @@ All validation checks passed:
 - **Principle V (Design Token System):** All CSS uses tokens; no hardcoded colors/sizing
 - **Principle IX (UI/UX Consistency):** No emojis; dark theme; PWA-compatible; lucide icons
 - **Principle VIII / §17:** Conventional commit format with Co-authored-by trailer
+
+---
+
+# Decision: User-Defined Coin Category and Era Options (Backend)
+
+**Date:** 2026-06-07
+**Author:** Cassius (Backend Dev)
+**Status:** Implemented
+
+## Context
+
+Coin Category and Era were previously hardcoded in `models/coin.go` as Go type aliases with constants. User feedback indicated these should be customizable to support different collection types (e.g., Imperial/Republican instead of Roman/Greek, or custom era labels).
+
+## Decision
+
+Added two new backend settings to allow user-defined category and era option lists:
+
+### New Settings Keys
+
+1. **`CoinCategories`** (key: `"CoinCategories"`)
+   - Default: `"Roman\nGreek\nByzantine\nModern\nOther"`
+   - Format: Newline-delimited list of category names
+   
+2. **`CoinEras`** (key: `"CoinEras"`)
+   - Default: `"ancient\nmedieval\nmodern"`
+   - Format: Newline-delimited list of era names
+
+### Implementation Details
+
+- Constants added to `services/settings_service.go`: `SettingCoinCategories`, `SettingCoinEras`
+- Defaults preserve existing hardcoded values to ensure backward compatibility
+- Settings are automatically exposed via existing `/admin/settings` and `/admin/settings/defaults` endpoints
+- Newline-delimited format chosen for consistency with potential multi-line prompt settings
+- Frontend will parse these strings by splitting on `\n` to populate dropdowns
+
+### Testing
+
+Added 6 new test cases in `settings_service_test.go`:
+- `TestGetSetting_CoinCategories_ReturnsDefault`
+- `TestGetSetting_CoinEras_ReturnsDefault`
+- `TestSetSetting_CoinCategories_AllowsCustomization`
+- `TestSetSetting_CoinEras_AllowsCustomization`
+- `TestGetAllSettings_IncludesCoinCategoriesAndEras`
+
+All tests pass. Settings follow the existing pattern of default fallback when no database value is present.
+
+## Frontend Coordination
+
+**For Aurelia (Frontend Dev):**
+- Use `GET /admin/settings` to fetch current category/era lists
+- Parse `settings.CoinCategories` and `settings.CoinEras` by splitting on `\n`
+- Populate CoinForm dropdowns with parsed values
+- Admin settings page should allow editing these as multi-line text inputs
+- Preserve backward compatibility: if user edits to empty, fall back to defaults from `/admin/settings/defaults`
+- The "Unspecified" era option in CoinForm should remain UI-only (not stored in the setting)
+
+## Rationale
+
+- **Extensibility:** Users can now define categories/eras that match their specific collection focus (e.g., provincial, colonial, papal)
+- **No Breaking Changes:** Defaults match existing hardcoded values; existing coins retain their current category/era values
+- **Consistent Pattern:** Follows the existing settings service pattern (key-value with fallback to defaults)
+- **Simple Format:** Newline-delimited is human-readable in admin UI and trivial to parse in frontend
+
+## Verification
+
+- ✅ `go test -v ./...` — All tests passing
+- ✅ Settings exposed via existing admin endpoints
+
+---
+
+# Decision: Configurable Category, Era, and Material Options (Frontend)
+
+**Date:** 2026-06-07  
+**Agent:** Aurelia (Frontend Developer)  
+**Status:** Implemented
+
+## Context
+
+Category and Era dropdown values were hardcoded in `CoinForm.vue` from constants in `types/index.ts`. User requested these be configurable via admin settings to allow customization beyond the original default values.
+
+## Decision
+
+Made Category, Era, and Material dropdown options user-configurable through admin settings. Implemented as:
+
+1. **Admin UI:** New "Coin Properties" section (`AdminCoinPropertiesSection.vue`) with three textarea inputs (one value per line)
+2. **Settings keys:** `CoinCategoryOptions`, `CoinEraOptions`, `CoinMaterialOptions` (newline-delimited strings stored in backend)
+3. **Parsing:** Robust `parseOptionList()` utility that trims, deduplicates, drops blank lines, and falls back to hardcoded defaults if invalid/empty
+4. **Composable:** `useCoinOptions()` loads settings from API and exposes reactive arrays for use in forms
+5. **Forms:** `CoinForm.vue` and `AddCoinPage.vue` load options from composable; Era dropdown retains blank "Unspecified" option
+
+## Rationale
+
+- **User flexibility:** Allows customization without code changes
+- **Backward compatibility:** Falls back to existing defaults (`CATEGORIES`, `COIN_ERAS`, `MATERIALS`) if settings are empty
+- **Consistent pattern:** Follows existing admin settings pattern (textarea per list, save/error/loading states)
+- **Robust parsing:** Handles edge cases (blank lines, duplicates, whitespace) safely
+
+## Implementation Notes
+
+- **Files created:**
+  - `src/web/src/components/admin/AdminCoinPropertiesSection.vue` — Admin UI component
+  - `src/web/src/utils/options.ts` — Parsing utilities
+  - `src/web/src/composables/useCoinOptions.ts` — Composable for loading/parsing options
+
+- **Files modified:**
+  - `src/web/src/components/CoinForm.vue` — Load options from composable, added `loadOptions()` in `onMounted`
+  - `src/web/src/pages/AddCoinPage.vue` — Load options, use first values as defaults with `??` fallbacks
+  - `src/web/src/pages/AdminPage.vue` — Added "Coin Properties" tab with `Settings2` icon
+  - `src/web/src/composables/useAdminConfig.ts` — Added new settings keys with defaults
+  - `src/web/src/types/index.ts` — Updated `AppSettings` interface to include optional property keys
+
+- **Validation:** `vue-tsc --build` passes; Docker build stricter checks safe due to `??` fallbacks
+
+## Verification
+
+- ✅ `npm run type-check` — Clean
+- ✅ `npm run build` — Clean
+- ✅ Test coverage: 22 unit tests for parsing utility
+
+---
+
+# Decision: Era/Category Options QA Finding
+
+**Date:** 2026-06-07
+**Agent:** Brutus (Tester/QA)
+**Status:** Identified & Resolution Required
+
+## Problem
+
+The era/category refactor introduces user-configurable dropdown values via admin settings. Testing revealed:
+1. Backend implementation complete with 5+ passing tests
+2. Frontend parsing utility (`options.ts`) complete with 22-test spec
+3. Type-safety issue in `AdminPage.vue`: duplicate prop bindings mixing `v-model` with explicit prop binding
+
+## Root Cause
+
+Lines 93–95 in `AdminPage.vue` use `v-model:category-options="settings.CoinCategoryOptions"` which expects the underlying value to be `string | undefined` (from `AppSettings`), but lines 96–98 then re-bind the same props with `?? ''` coalescing. Vue doesn't allow both patterns simultaneously — the `v-model` binding overwrites the explicit prop.
+
+## Solution
+
+Remove lines 93–95 entirely. The explicit prop bindings with nullish coalescing (lines 96–98) are correct per Principle IV. The `v-model` pattern is redundant when the child component emits `update:*` events, which `AdminCoinPropertiesSection` already does via watchers.
+
+**Fix:**
+```diff
+- v-model:category-options="settings.CoinCategoryOptions"
+- v-model:era-options="settings.CoinEraOptions"
+- v-model:material-options="settings.CoinMaterialOptions"
+  :category-options="settings.CoinCategoryOptions ?? ''"
+  :era-options="settings.CoinEraOptions ?? ''"
+  :material-options="settings.CoinMaterialOptions ?? ''"
+```
+
+## Test Coverage
+
+### Backend (`settings_service_test.go`)
+- Default value retrieval for `CoinCategories` and `CoinEras`
+- Customization via `SetSetting()`
+- Inclusion in `GetAllSettings()` output
+
+### Frontend (`options.spec.ts`)
+- Parse newline-delimited lists → array
+- Trim whitespace, drop blank lines, deduplicate
+- Fallback to defaults on empty/null/undefined
+- Format array → newline-delimited string
+- Roundtrip correctness
+- Edge cases: Unicode, special chars, long lists
+
+## Validation Gate
+
+**BLOCK merge until:**
+1. Remove duplicate `v-model` bindings (lines 93–95 in `AdminPage.vue`)
+2. `npm run type-check` clean
+3. `go test -v ./...` clean
+4. Manual smoke test: Admin → Coin Properties → save custom values → verify in CoinForm dropdown
+
+## Risks Noted
+
+1. **Medium Risk:** Backend has no validation on empty settings. Frontend `parseOptionList()` is defensive but consider server-side guard.
+2. **Low Risk:** `useCoinSearchChat.ts` has hardcoded category list; should fetch from settings dynamically (future work).
+
+## Constitution Compliance
+
+- **Principle IV (Strict Typing & Build Parity):** Type error caught by `vue-tsc --build`; fix ensures Docker build will pass
+- **§17 Quality Gate:** Tests written before merge; backend tests pass; frontend tests ready post-fix
+- **Principle X (Architecture Enforcement):** No layer violations; settings remain in service layer
+
+---
+
+# Decision: Coin Lookup Feature Architecture
+
+**Date**: 2026-06-07  
+**Author**: Maximus (Lead/Architect)  
+**Status**: Proposed  
+**Scope**: Feature design  
+
+## Context
+
+Brian wants a **Coin Lookup** feature: at a coin show, take a photo of a coin, and the app reviews coin details from either NGC or Numista. The goal is rapid identification and potential addition to wishlist/collection while on location.
+
+## Decision: MVP Scope & Architecture
+
+### Product Flow (MVP)
+
+**Coin Show Lookup (Mobile-First)**
+
+1. User opens PWA → new **"Lookup Coin"** action (add to nav or quick-action menu)
+2. Camera opens (PWA) → capture 1-2 photos (obverse/reverse preferred, single acceptable)
+3. Submit to **Coin Lookup Agent** (new Python team) → streams identification results
+4. Agent returns:
+   - **Numista match candidates** (top 3 results with thumbnail, title, issuer, year, catalog ID)
+   - **AI-inferred attribution** (ruler, era, denomination, material, category) from vision analysis
+   - **Confidence summary** (low/medium/high)
+5. User reviews results:
+   - Tap Numista result → opens Numista web page in new tab
+   - **"Add to Wishlist"** quick action (one-tap create wishlist coin with pre-filled name/ruler/era from top match + attach original photo)
+   - **"Add to Collection"** → routes to AI Intake Draft flow (reuses #216 UX) with pre-populated fields from lookup
+   - **"Done"** → closes lookup, no persistence
+
+**Data Sources (MVP):**
+- **Numista only** for MVP. NGC deferred to increment 2 (requires API key procurement).
+- Reuse existing Numista proxy (`/api/numista/search`) with query built from AI-inferred ruler + denomination + era.
+
+### Architecture Components
+
+#### 1. Python Agent — New `coin_lookup.py` Team
+
+**Location**: `src/agent/app/teams/coin_lookup.py`
+
+**Pipeline**:
+```
+Supervisor
+  ↓
+Vision Analyzer (reuse coin_intake._build_image_contents)
+  ↓ (structured fields: ruler, denomination, era, category, material, confidence)
+Numista Search Agent (query constructor + fetch via collection_tools pattern)
+  ↓ (top 3 catalog matches with metadata)
+Formatter (output schema: LookupResponse)
+```
+
+#### 2. Go API — New Lookup Endpoint
+
+**Endpoint**: `POST /api/agent/coin-lookup` (protected route, JWT required)
+
+**Handler**: `handlers/agent_proxy.go` (extend existing agent proxy pattern)
+
+**Request**:
+```json
+{
+  "images": ["base64..."],
+  "user_context": "Optional hint: Roman denarius, silver, 1st century"
+}
+```
+
+**Response**: SSE stream (same pattern as existing agent teams) → final JSON payload is `LookupResponse`
+
+#### 3. Vue Frontend — New Lookup Flow
+
+**New Components**:
+- `CoinLookupPage.vue` — camera capture + photo review + submit → stream response → display results
+- `LookupResultsView.vue` — displays Numista candidates (cards with thumbnails) + inferred attribution + quick actions
+
+**Route**: `/lookup` with nav integration
+
+### Open Decisions (Must Resolve Before Implementation)
+
+1. **NGC Integration (Increment 2):** Defer to post-MVP. Numista covers 90%+ of ancient coins.
+2. **Lookup History / Cache:** Defer to post-MVP; lookup is ephemeral.
+3. **Offline Behavior:** Fail gracefully when offline (network required for analysis + Numista search).
+4. **Spec-First Workflow:** Yes. Create `specs/221-coin-lookup/` scaffold (spec.md, plan.md, tasks.md).
+
+### Implementation Sequence (MVP)
+
+**Prerequisite**: Spec #216 (AI Intake Draft) must be **landed** before Coin Lookup begins.
+
+1. **Increment 1 (Core Lookup):** Python `coin_lookup.py` team + Go `/api/agent/coin-lookup` endpoint
+2. **Increment 2 (Frontend Flow):** `CoinLookupPage.vue` + `LookupResultsView.vue` + nav integration
+3. **Increment 3 (Quick Actions):** "Add to Wishlist" + "Add to Collection" buttons
+4. **Increment 4 (Polish):** Error handling, loading states, mobile UX testing
+
+## Constitution Compliance
+
+- **Principle I (Layered Architecture):** Handler → agent proxy (no business logic); Python agent stateless
+- **Principle XI (Security):** No raw SQL; user ID from JWT; no PII in lookup results
+- **Principle XIII (PWA):** Offline lookup fails gracefully; camera works offline
+- **§17 Quality Gate:** Architecture tests will verify no new import violations
+
+## Next Steps
+
+1. **Brian confirms**: NGC integration priority, offline behavior acceptable?
+2. **Maximus creates**: `specs/221-coin-lookup/` scaffold
+3. **Assign agents**: Brutus (Python), Cassius (Go), Aurelia (Vue)
+4. **Verify dependency**: Spec #216 status
+
+---
+
+# Decision: Coin Lookup Backend Infrastructure Inventory
+
+**Date:** 2026-06-07
+**Author:** Cassius (Backend Developer)
+**Status:** Implemented
+
+## Executive Summary
+
+**Finding:** The codebase contains **90%+ of the required infrastructure** for a Coin Lookup MVP. Existing AI Intake Draft feature (#216), Numista integration, image analysis pipelines, and agent proxy are directly reusable.
+
+**Recommended MVP Path:** Extend the existing AI Intake Draft flow with a Numista search enhancement step. Minimal new backend code required — primarily service orchestration and endpoint wiring.
+
+## Inventory of Reusable Infrastructure
+
+### 1. AI Intake Draft (#216)
+- **POST /api/coins/intake/draft** — Accepts coin observation images + optional coin card
+- Vision model OCR and field extraction via Python agent
+- Evidence tracking with confidence scores
+- 24-hour expiring draft storage
+- Transactional commit path with journal entry tagging
+
+### 2. Numista Integration
+- **GET /api/numista/search?q=<query>** — Proxies to Numista API v3
+- API key sourced from `AppSetting` (`NumistaAPIKey`)
+- Returns structured JSON results
+
+### 3. Image Analysis (Vision Model)
+- **POST /coins/{id}/analyze** — Analyzes existing coin images
+- **POST /api/extract-text** — OCR on uploaded image
+- Vision model analysis with custom prompts
+- Multi-provider support (Anthropic Claude with web_search, Ollama)
+
+### 4. Agent Proxy (Go ↔ Python)
+- `AgentProxy.GenerateIntakeDraft()` and `AgentProxy.AnalyzeCoin()`
+- HTTP clients for streaming (no timeout) and non-streaming (5-minute timeout)
+- Base URL sourced from `AGENT_SERVICE_URL` env var
+
+### 5. Catalog Reference Infrastructure (#214)
+- `CoinReference` model: catalog, volume, number, certainty, uri
+- `CatalogRegistry` lookup table (RIC, RPC, SNG, SEAR, CRAWFORD, DOC, etc.)
+- Python helper: `lookup_authority_uri()` → OCRE/RPC URI or search URL
+
+### 6. Wishlist and Coin Creation Flows
+- **POST /api/coins** — Create coin (manual or draft-committed)
+- Wishlist field: `Coin.IsWishlist` (boolean)
+- Journal entry creation on coin create/update
+
+## Missing Pieces for MVP
+
+### 1. NGC Integration
+Status: Not implemented. Deferred to post-MVP.
+
+### 2. Automatic Numista Search from Draft
+Status: Numista search exists but not integrated with intake draft.
+**Required:** Service-layer orchestration to extract keywords + query Numista + parse results.
+**Effort:** Low (orchestration + DTO mapping).
+
+### 3. Numista → CoinReference Mapping
+Status: `CoinReference` exists but no Numista catalog type.
+**Effort:** Low (schema update + mapping logic).
+
+## Recommended MVP Implementation Path
+
+### Phase 1: Extend Intake Draft with Numista Enhancement (Recommended)
+
+**Architecture:**
+```
+User uploads photo → AI Intake Draft (existing) 
+  → Extract keywords (ruler, denomination, era)
+  → Query Numista search (existing handler logic)
+  → Enrich draft response with Numista candidates
+  → Return draft + Numista matches
+```
+
+**New Components:**
+- `NumistaEnrichmentService` (Go service layer)
+- Extend `IntakeDraftResponse` to include `numistaCandidates` field
+- Optional query param: `?enrichNumista=true`
+
+**Pros:**
+- Reuses 90% of existing infrastructure
+- Preserves draft → review → confirm safety model
+- No new Python agent team required
+- Low backend implementation cost (2–3 days)
+
+**Cons:**
+- No NGC integration in MVP
+- Numista enrichment is Go-only (not agent-based)
+
+### Phase 2: NGC Integration (Post-MVP)
+
+Requires separate NGC API client + service layer. Deferred to post-MVP pending API key procurement.
+
+## Backend Endpoints for MVP
+
+| Endpoint | Method | Purpose | Status |
+|----------|--------|---------|--------|
+| `/api/coins/intake/draft?enrichNumista=true` | POST | Intake draft with Numista enrichment | Extend |
+| `/api/coins/intake/commit` | POST | Confirm draft → create coin | Reuse |
+| `/api/numista/search` | GET | Manual Numista search | Reuse |
+
+## Service Layer Architecture (MVP)
+
+### New Service: `NumistaEnrichmentService`
+
+**Responsibilities:**
+- Extract search keywords from intake draft fields
+- Query Numista API via existing `NumistaHandler` logic
+- Map Numista response → `NumistaCandidateCoin` DTO
+- Deduplicate and rank results by relevance
+
+**Integration Point:**
+- Called by `CoinIntakeService.CreateDraft` after AI draft generation
+- Results attached to `IntakeDraftResponse` before persistence
+
+## Estimated Effort (Backend Only)
+
+| Task | Effort | Files Changed |
+|------|--------|---------------|
+| **MVP: Extend intake draft with Numista enrichment** | 2-3 days | 4 files (service, handler, DTO, tests) |
+| **Add NGC integration** | 3-4 days | 6 files (client, service, handler, config, tests) |
+
+## Compliance Notes
+
+- **Principle I (Layered Architecture):** New `NumistaEnrichmentService` follows Handler → Service → Repository pattern
+- **Principle XI (Security):** No API key echoed in responses
+- **§17 Quality Gate:** Extend existing architecture tests
+
+---
+
+# Decision: Coin Lookup UX Proposal
+
+**Date:** 2026-06-07
+**Agent:** Aurelia (Frontend Developer)
+**Status:** Proposal
+
+## Problem
+
+Users at coin shows need a fast, mobile-first way to photograph a coin and instantly look up details from NGC or Numista without adding it to their collection.
+
+## Proposed UX
+
+### Entry Point: New "/lookup" Route
+
+- **Nav item:** "Coin Lookup" with Search icon
+- **Position:** Between "Add Coin" and "Wishlist" in default nav order
+- **Mobile-first:** Full-screen camera PWA layout
+
+### Coin Lookup Page (`CoinLookupPage.vue`)
+
+**States:**
+1. **Capture State** (initial) — Full-screen camera preview with circular focus overlay
+2. **Analyzing State** (loading) — Overlay spinner with "Analyzing coin..." message
+3. **Results State** — Draft card + Numista results + quick actions
+
+#### Results Layout
+
+```
+┌─────────────────────────────┐
+│ [X Close]   Coin Lookup     │
+├─────────────────────────────┤
+│ 📷 [Captured Image Preview] │
+├─────────────────────────────┤
+│ AI Draft Results            │
+│ ┌─────────────────────────┐ │
+│ │ Name: [value]           │ │
+│ │ Ruler: [value]          │ │
+│ │ Denomination: [value]   │ │
+│ │ Era: [value]            │ │
+│ │ Material: [value]       │ │
+│ │ Category: [value]       │ │
+│ └─────────────────────────┘ │
+│ Confidence: [High/Med/Low]  │
+├─────────────────────────────┤
+│ Numista Search              │
+│ [Result cards list...]      │
+├─────────────────────────────┤
+│ Actions                     │
+│ [Retake Photo] [Add to...▾] │
+└─────────────────────────────┘
+```
+
+#### Quick Actions
+
+1. **Retake Photo** (btn-secondary) — Clears state, returns to Capture State
+2. **Add to... ▾** (dropdown button, btn-primary):
+   - "Add to Collection" → Navigate to `/add?draft=<draftId>`
+   - "Add to Wishlist" → Navigate to `/add?draft=<draftId>&wishlist=true`
+
+### Component Reuse Strategy
+
+| Component | Reuse How |
+|---|---|
+| `CameraCaptureModal` | Extract camera logic or inline |
+| `createIntakeDraft()` API | Call directly with single obverse photo |
+| `CoinNumistaPanel` | Import and use as-is; auto-search on mount |
+
+### State Management
+
+No Pinia store needed — all state local to `CoinLookupPage.vue`:
+
+```typescript
+const captureState = ref<'capture' | 'analyzing' | 'results'>('capture')
+const capturedImage = ref<File | null>(null)
+const draft = ref<IntakeDraft | null>(null)
+```
+
+### MVP Scope
+
+**Include:**
+- ✅ Camera capture (PWA) + file upload (desktop)
+- ✅ AI draft generation (obverse only)
+- ✅ Read-only draft display
+- ✅ Auto-triggered Numista search
+- ✅ "Retake Photo" action
+- ✅ "Add to Collection/Wishlist" navigation
+
+**Defer (post-MVP):**
+- ❌ NGC lookup
+- ❌ Reverse photo capture
+- ❌ Edit draft inline
+- ❌ Save lookup history
+- ❌ Share lookup results
+
+### Files to Create
+
+1. `src/web/src/pages/CoinLookupPage.vue` (new)
+
+### Files to Modify
+
+1. `src/web/src/router/index.ts` (add `/lookup` route)
+2. `src/web/src/App.vue` (add nav item to `defaultNavItems`)
+3. `src/web/src/pages/AddCoinPage.vue` (add `?draft=<id>` query param support)
+
+### Architecture Compliance
+
+- **Principle V (Design Token System):** All CSS uses tokens
+- **Principle IX (UI/UX Consistency):** No emojis, lucide icons only, dark theme
+- **Principle XIII (PWA / Mobile Interaction Rules):** Camera lifecycle managed, touch-friendly
+
+## Next Steps
+
+1. Brian confirms NGC vs. Numista-only for MVP
+2. Cassius clarifies draft persistence API
+3. Aurelia implements `CoinLookupPage.vue` + routing changes

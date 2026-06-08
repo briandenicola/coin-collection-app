@@ -112,6 +112,38 @@ export interface IntakeDraft {
   expiresAt: string
 }
 
+export interface CoinLookupNGCData {
+  certNumber: string
+  normalizedCert: string
+  lookupURL: string
+  grade?: string
+  description?: string
+}
+
+export interface CoinLookupExtractedData {
+  ngc?: CoinLookupNGCData
+  labelText?: string
+  coinFields?: Record<string, unknown>
+  confidence: IntakeConfidenceLevel
+  rawAnalysis: string
+}
+
+export interface CoinLookupNumistaCandidate {
+  id: string
+  title: string
+  issuer: string
+  year: string
+  thumbnail?: string
+  url: string
+}
+
+export interface CoinLookupResponse {
+  extractedData: CoinLookupExtractedData
+  numistaCandidates: CoinLookupNumistaCandidate[]
+  prefilledDraft?: CoinMutationPayload
+  candidateReferences?: CoinReferenceInput[]
+}
+
 export interface IntakeCommitRequest {
   draftId: number
   confirm: boolean
@@ -308,17 +340,17 @@ export interface SmartSetPreview {
   totalValue: number
 }
 
-export type Category = 'Roman' | 'Greek' | 'Byzantine' | 'Modern' | 'Other'
+export type Category = string
 export type Material = 'Gold' | 'Silver' | 'Bronze' | 'Copper' | 'Electrum' | 'Other'
 export type ImageType = 'obverse' | 'reverse' | 'detail' | 'other'
-export type CoinEra = 'ancient' | 'medieval' | 'modern'
+export type CoinEra = string
 
 export const CATEGORIES: Category[] = ['Roman', 'Greek', 'Byzantine', 'Modern', 'Other']
 export const MATERIALS: Material[] = ['Gold', 'Silver', 'Bronze', 'Copper', 'Electrum', 'Other']
 export const IMAGE_TYPES: ImageType[] = ['obverse', 'reverse', 'detail', 'other']
 export const COIN_ERAS: CoinEra[] = ['ancient', 'medieval', 'modern']
 
-export const CATEGORY_COLORS: Record<Category, string> = {
+export const CATEGORY_COLORS: Record<string, string> = {
   Roman: '#7b2d8e',
   Greek: '#6b8e23',
   Byzantine: '#8b1a1a',
@@ -514,7 +546,9 @@ export interface AppSettings {
   OllamaTimeout: string
   SearXNGURL: string
   LogLevel: string
-  [key: string]: string
+  CoinCategories?: string
+  CoinEras?: string
+  [key: string]: string | undefined
 }
 
 export interface ValueComparable {

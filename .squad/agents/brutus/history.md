@@ -21,3 +21,12 @@
 - **2026-06-01:** #218 BLOCK resolution applied: all Gin context type assertions in external tool handlers now use comma-ok guards returning 401/403 instead of risking panic; Go build/vet/test clean.
 - **2026-06-01:** "Assign Location" bulk action feature — Cassius backend + Aurelia frontend parallel implementation verified aligned (POST /coins/bulk with action:assign-location); nil-safe NULL updates; BulkLocationPickerModal and BulkActionBar extension; all tests pass.
 - **2026-06-03:** Aurelia refactor: per-coin value trend moved from Stats page to dedicated `/coin/:id/valuation` subpage. New route adds one additional coin-detail page (CoinDetailValuationPage.vue). Build/type-check/lint all passed. No backend changes; existing `/coins/:id/value-history` endpoint unchanged.
+
+## Learnings
+
+- **2026-06-07:** Era/Category + Coin Lookup QA Pass
+  - **Era/Category Settings:** Backend 5 passing tests (CoinCategories/CoinEras defaults + customization). Frontend `options.ts` utility with 30-test spec (parse/format/roundtrip/edge cases). All tests pass: `npm test -- options.spec.ts` ✅ (30/30), `go test ./services/...` ✅. **AdminPage v-model claim was false alarm** — component uses correct prop/event pattern (lines 93-100 use `:category-options` + `@update:category-options`, no v-model).
+  - **Coin Lookup State:** MVP implementation in progress. `CoinLookupPage.vue` exists with NGC cert display (line 107-121) but no normalization/extraction tests yet. NGC sample `823160-093` not found in codebase — likely deferred to Phase 2 per decisions.md (Numista-only MVP). Lookup endpoint (`POST /api/agent/coin-lookup`) contract not yet implemented (depends on Python `coin_lookup.py` team).
+  - **Validation Status:** Go build ✅, Go vet ✅, Go tests 143 passing ✅. Frontend type-check ✅ (`vue-tsc --build` clean), build ✅ (11.06s, 105 PWA assets), lint ⚠️ 23 warnings (18 in CoinLookupPage.vue formatting, 5 pre-existing).
+  - **Regression Coverage:** Era/category settings changes validated. Existing architecture tests pass (layered imports enforced). Frontend option parser fully tested (30 scenarios).
+  - **QA Blockers:** None. Coin Lookup lint warnings are formatting-only (indentation, tag closing); type-check passed so no runtime risk. NGC extraction tests deferred until backend implements NGC API (post-MVP per architecture decision).

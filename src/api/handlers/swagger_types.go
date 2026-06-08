@@ -176,13 +176,13 @@ type IntakeEvidenceItem struct {
 }
 
 type IntakeDraftCreateResponse struct {
-	DraftID           uint                   `json:"draftId" example:"42"`
-	Status            string                 `json:"status" example:"drafted"`
-	Coin              map[string]interface{} `json:"coin"`
+	DraftID           uint                    `json:"draftId" example:"42"`
+	Status            string                  `json:"status" example:"drafted"`
+	Coin              map[string]interface{}  `json:"coin"`
 	ConfidenceSummary IntakeConfidenceSummary `json:"confidenceSummary"`
-	Evidence          []IntakeEvidenceItem   `json:"evidence"`
-	UnresolvedFields  []string               `json:"unresolvedFields"`
-	ExpiresAt         string                 `json:"expiresAt" example:"2026-01-15T12:00:00Z"`
+	Evidence          []IntakeEvidenceItem    `json:"evidence"`
+	UnresolvedFields  []string                `json:"unresolvedFields"`
+	ExpiresAt         string                  `json:"expiresAt" example:"2026-01-15T12:00:00Z"`
 }
 
 type IntakeDraftCommitRequest struct {
@@ -213,4 +213,44 @@ type ResetPasswordRequest struct {
 
 type UpdateUserRoleRequest struct {
 	Role models.UserRole `json:"role" binding:"required" example:"admin"`
+}
+
+// Coin Lookup types
+type NGCDataSwagger struct {
+	CertNumber     string `json:"certNumber" example:"823160-093"`
+	NormalizedCert string `json:"normalizedCert" example:"823160-093"`
+	LookupURL      string `json:"lookupURL" example:"https://www.ngccoin.com/certlookup/823160-093/"`
+	Grade          string `json:"grade,omitempty" example:"Ch AU"`
+	Description    string `json:"description,omitempty" example:"Roman Empire, Trajan Decius"`
+}
+
+type LookupExtractedDataSwagger struct {
+	NGC         *NGCDataSwagger `json:"ngc,omitempty"`
+	LabelText   string          `json:"labelText,omitempty" example:"NGC Ch AU 5/5 4/5"`
+	CoinFields  map[string]any  `json:"coinFields,omitempty"`
+	Confidence  string          `json:"confidence" example:"medium"`
+	RawAnalysis string          `json:"rawAnalysis" example:"Vision analysis text..."`
+}
+
+type NumistaCandidateSwagger struct {
+	ID        string `json:"id" example:"12345"`
+	Title     string `json:"title" example:"Denarius - Trajan (98-117)"`
+	Issuer    string `json:"issuer" example:"Roman Empire"`
+	Year      string `json:"year" example:"101-102"`
+	Thumbnail string `json:"thumbnail,omitempty" example:"https://en.numista.com/..."`
+	URL       string `json:"url" example:"https://en.numista.com/catalogue/pieces12345.html"`
+}
+
+type CandidateReferenceSwagger struct {
+	Catalog string `json:"catalog" example:"NGC"`
+	Volume  string `json:"volume,omitempty" example:""`
+	Number  string `json:"number" example:"823160-093"`
+	URI     string `json:"uri,omitempty" example:"https://www.ngccoin.com/certlookup/823160-093/"`
+}
+
+type CoinLookupSwaggerResponse struct {
+	ExtractedData       LookupExtractedDataSwagger  `json:"extractedData"`
+	NumistaCandidates   []NumistaCandidateSwagger   `json:"numistaCandidates"`
+	PrefilledDraft      map[string]any              `json:"prefilledDraft,omitempty"`
+	CandidateReferences []CandidateReferenceSwagger `json:"candidateReferences,omitempty"`
 }

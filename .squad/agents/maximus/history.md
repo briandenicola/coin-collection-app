@@ -22,3 +22,11 @@
 
 - **2026-06-01:** SQLite nullable-FK convention: for new nullable `Coin` lookup associations added after launch, keep the scalar `*_id` and preload association but use `constraint:-` to avoid destructive SQLite table rebuilds; enforce validity in service/repository code unless an explicit safe rebuild migration exists.
 - **2026-06-01:** "Assign Location" bulk action feature — Cassius backend + Aurelia frontend parallel implementation; extends bulk endpoint with assign-location case, DI wiring, and frontend modal/button integration; validates ownership and handles nil-safe NULL updates correctly.
+
+- **2026-06-07:** Coin Lookup Feature Architecture Scope + Decision
+  - **MVP Scope:** Numista-only (NGC deferred to post-MVP; no public API available). Stateless Python agent + Go proxy pattern. 1-2 photos (obverse/reverse preferred) → camera capture → AI analysis + Numista search → results display + quick actions (Add to Wishlist/Collection).
+  - **Infrastructure Reuse:** 90%+ exists: AI Intake Draft (#216), Numista proxy, image analysis, agent proxy, catalog references. Recommended: extend intake draft with Go-only Numista enrichment service (low effort, 2-3 days).
+  - **Open Decisions (Resolved for MVP):** NGC integration deferred; lookup history deferred (ephemeral); offline behavior fails gracefully (network required); spec-first workflow YES (create `specs/221-coin-lookup/`).
+  - **Implementation Sequence:** Increment 1 (Core Lookup: Python team + Go endpoint), Increment 2 (Frontend: `/lookup` route), Increment 3 (Quick Actions), Increment 4 (Polish).
+  - **Hard Blocker:** Spec #216 (AI Intake Draft) must land before Coin Lookup begins.
+  - **Decision Owner:** Maximus. Review required from Brian (product), Brutus (Python feasibility), Aurelia (UX/PWA). Next: Brian confirms NGC/offline decisions, Maximus creates spec scaffold.
