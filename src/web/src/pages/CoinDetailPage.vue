@@ -18,29 +18,25 @@
       <div class="detail-layout">
         <!-- T009-T011: Dual-side hero media -->
         <div class="detail-hero-media">
-          <div class="hero-media-grid">
+          <CoinViewer3D
+            v-if="obverseImage || reverseImage"
+            :obverse-src="obverseImage ? `/uploads/${obverseImage.filePath}` : null"
+            :reverse-src="reverseImage ? `/uploads/${reverseImage.filePath}` : null"
+            :obverse-alt="`${coin.name} obverse`"
+            :reverse-alt="`${coin.name} reverse`"
+            size="hero"
+            enable-tilt
+            @open-image="openViewerImage"
+          />
+          <div v-else class="hero-media-grid">
             <div class="hero-slot">
-              <img
-                v-if="obverseImage"
-                :src="`/uploads/${obverseImage.filePath}`"
-                alt="Obverse"
-                class="hero-image"
-                @click="openLightbox(obverseImage)"
-              />
-              <div v-else class="hero-placeholder">
+              <div class="hero-placeholder">
                 <span class="placeholder-label">Obverse</span>
                 <span class="placeholder-text">No image</span>
               </div>
             </div>
             <div class="hero-slot">
-              <img
-                v-if="reverseImage"
-                :src="`/uploads/${reverseImage.filePath}`"
-                alt="Reverse"
-                class="hero-image"
-                @click="openLightbox(reverseImage)"
-              />
-              <div v-else class="hero-placeholder">
+              <div class="hero-placeholder">
                 <span class="placeholder-label">Reverse</span>
                 <span class="placeholder-text">No image</span>
               </div>
@@ -153,6 +149,7 @@ import CoinDetailMetadataTable from '@/components/coin/CoinDetailMetadataTable.v
 import CoinDetailSectionLinks from '@/components/coin/CoinDetailSectionLinks.vue'
 import CoinListingStatus from '@/components/coin/CoinListingStatus.vue'
 import CoinReferencesSection from '@/components/coin/CoinReferencesSection.vue'
+import CoinViewer3D from '@/components/coin/CoinViewer3D.vue'
 import { deleteCoin, purchaseCoin, sellCoin } from '@/api/client'
 import { useDialog } from '@/composables/useDialog'
 import { useCoinDetailMetadataRows } from '@/composables/useCoinDetailMetadataRows'
@@ -192,6 +189,13 @@ function refreshCoin() {
 
 function openLightbox(image: CoinImage) {
   lightboxImage.value = image
+}
+
+function openViewerImage(side: 'obverse' | 'reverse') {
+  const image = side === 'reverse' ? reverseImage.value : obverseImage.value
+  if (image) {
+    openLightbox(image)
+  }
 }
 
 function handleImageSaved() {
