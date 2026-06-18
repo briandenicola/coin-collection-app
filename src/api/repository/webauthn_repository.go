@@ -54,6 +54,17 @@ func (r *WebAuthnRepository) UpdateSignCount(credentialID string, userID uint, s
 		Update("sign_count", signCount).Error
 }
 
+// UpdateCredentialAuthData updates authenticator state returned by a successful login.
+func (r *WebAuthnRepository) UpdateCredentialAuthData(credentialID string, userID uint, signCount uint32, backupEligible, backupState bool) error {
+	return r.db.Model(&models.WebAuthnCredential{}).
+		Where("credential_id = ? AND user_id = ?", credentialID, userID).
+		Updates(map[string]interface{}{
+			"sign_count":      signCount,
+			"backup_eligible": backupEligible,
+			"backup_state":    backupState,
+		}).Error
+}
+
 // DeleteCredential deletes a credential by ID and user ID. Returns rows affected.
 func (r *WebAuthnRepository) DeleteCredential(credID string, userID uint) (int64, error) {
 	result := r.db.Where("id = ? AND user_id = ?", credID, userID).Delete(&models.WebAuthnCredential{})

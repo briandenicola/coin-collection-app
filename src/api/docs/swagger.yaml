@@ -1650,6 +1650,10 @@ definitions:
     properties:
       attestationType:
         type: string
+      backupEligible:
+        type: boolean
+      backupState:
+        type: boolean
       createdAt:
         type: string
       credentialId:

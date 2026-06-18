@@ -9,6 +9,8 @@ type WebAuthnCredential struct {
 	PublicKey       []byte    `gorm:"not null" json:"-"`
 	AttestationType string    `json:"attestationType"`
 	SignCount       uint32    `gorm:"default:0" json:"signCount"`
+	BackupEligible  *bool     `json:"backupEligible,omitempty"`
+	BackupState     *bool     `json:"backupState,omitempty"`
 	Name            string    `json:"name"`
 	CreatedAt       time.Time `json:"createdAt"`
 }

@@ -14,6 +14,7 @@ import (
 	"github.com/briandenicola/ancient-coins-api/services"
 	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
+	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
 	"gorm.io/gorm"
 )
@@ -231,5 +232,111 @@ func TestWebAuthnHandlerLoginFinishMissingSession(t *testing.T) {
 	resp := decodeErrorResponse(t, rr.Body)
 	if got := resp["error"]; got != "Login session missing. Please start login again." {
 		t.Fatalf("expected missing-session error, got %q", got)
+	}
+}
+
+func TestWebAuthnHandlerLoadCredentialsRestoresBackupFlags(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	handler, db := setupWebAuthnHandlerForTest(t, "http://localhost:8080")
+	user := createWebAuthnTestUser(t, db, "backup-flags-user")
+
+	rawCredentialID := []byte("test-credential-id")
+	if err := db.Create(&models.WebAuthnCredential{
+		UserID:         user.ID,
+		CredentialID:   base64.RawURLEncoding.EncodeToString(rawCredentialID),
+		PublicKey:      []byte("public-key-data"),
+		SignCount:      5,
+		BackupEligible: boolPtr(true),
+		BackupState:    boolPtr(true),
+		Name:           "Test passkey",
+	}).Error; err != nil {
+		t.Fatalf("failed to create credential: %v", err)
+	}
+
+	creds := handler.loadCredentials(user.ID)
+	if len(creds) != 1 {
+		t.Fatalf("expected 1 credential, got %d", len(creds))
+	}
+
+	if !creds[0].Flags.BackupEligible {
+		t.Fatal("expected BackupEligible flag to be restored as true")
+	}
+	if !creds[0].Flags.BackupState {
+		t.Fatal("expected BackupState flag to be restored as true")
+	}
+	if creds[0].Authenticator.SignCount != 5 {
+		t.Fatalf("expected SignCount 5, got %d", creds[0].Authenticator.SignCount)
+	}
+}
+
+func TestWebAuthnHandlerLoadCredentialsBootstrapsLegacyBackupFlagsFromAssertion(t *testing.T) {
+	rawCredentialID := []byte("legacy-credential-id")
+	credentialID := base64.RawURLEncoding.EncodeToString(rawCredentialID)
+	assertion := &protocol.ParsedCredentialAssertionData{
+		ParsedPublicKeyCredential: protocol.ParsedPublicKeyCredential{
+			ParsedCredential: protocol.ParsedCredential{
+				ID:   credentialID,
+				Type: string(protocol.PublicKeyCredentialType),
+			},
+		},
+		Response: protocol.ParsedAssertionResponse{
+			AuthenticatorData: protocol.AuthenticatorData{
+				Flags: protocol.FlagBackupEligible | protocol.FlagBackupState,
+			},
+		},
+	}
+
+	creds := webauthnCredentialsFromModels([]models.WebAuthnCredential{
+		{
+			CredentialID: credentialID,
+			PublicKey:    []byte("public-key-data"),
+			SignCount:    5,
+			Name:         "Legacy passkey",
+		},
+	}, assertion)
+	if len(creds) != 1 {
+		t.Fatalf("expected 1 credential, got %d", len(creds))
+	}
+	if !creds[0].Flags.BackupEligible {
+		t.Fatal("expected legacy credential BackupEligible to be bootstrapped from assertion")
+	}
+	if !creds[0].Flags.BackupState {
+		t.Fatal("expected legacy credential BackupState to be bootstrapped from assertion")
+	}
+}
+
+func TestWebAuthnHandlerLoadCredentialsKeepsStoredBackupEligibleOverAssertion(t *testing.T) {
+	rawCredentialID := []byte("stored-credential-id")
+	credentialID := base64.RawURLEncoding.EncodeToString(rawCredentialID)
+	assertion := &protocol.ParsedCredentialAssertionData{
+		ParsedPublicKeyCredential: protocol.ParsedPublicKeyCredential{
+			ParsedCredential: protocol.ParsedCredential{
+				ID:   credentialID,
+				Type: string(protocol.PublicKeyCredentialType),
+			},
+		},
+		Response: protocol.ParsedAssertionResponse{
+			AuthenticatorData: protocol.AuthenticatorData{
+				Flags: protocol.FlagBackupEligible,
+			},
+		},
+	}
+
+	creds := webauthnCredentialsFromModels([]models.WebAuthnCredential{
+		{
+			CredentialID:    credentialID,
+			PublicKey:       []byte("public-key-data"),
+			BackupEligible:  boolPtr(false),
+			BackupState:     boolPtr(false),
+			Name:            "Stored passkey",
+			AttestationType: "none",
+		},
+	}, assertion)
+	if len(creds) != 1 {
+		t.Fatalf("expected 1 credential, got %d", len(creds))
+	}
+	if creds[0].Flags.BackupEligible {
+		t.Fatal("expected stored BackupEligible=false to be preserved when assertion says true")
 	}
 }

@@ -191,22 +191,60 @@ func (h *WebAuthnHandler) deleteSession(key string) {
 	delete(h.sessions, key)
 }
 
-func (h *WebAuthnHandler) loadCredentials(userID uint) []webauthn.Credential {
-	creds, _ := h.repo.LoadCredentials(userID)
+func boolPtr(value bool) *bool {
+	return &value
+}
 
+func webauthnCredentialsFromModels(creds []models.WebAuthnCredential, assertion *protocol.ParsedCredentialAssertionData) []webauthn.Credential {
+	assertionCredentialID := ""
+	var assertionFlags protocol.AuthenticatorFlags
+	if assertion != nil {
+		assertionCredentialID = assertion.ID
+		assertionFlags = assertion.Response.AuthenticatorData.Flags
+	}
 	result := make([]webauthn.Credential, len(creds))
 	for i, c := range creds {
+		backupEligible := false
+		if c.BackupEligible != nil {
+			backupEligible = *c.BackupEligible
+		} else if c.CredentialID == assertionCredentialID {
+			backupEligible = assertionFlags.HasBackupEligible()
+		}
+		backupState := false
+		if c.BackupState != nil {
+			backupState = *c.BackupState
+		} else if c.CredentialID == assertionCredentialID {
+			backupState = assertionFlags.HasBackupState()
+		}
+
 		credID, _ := base64.RawURLEncoding.DecodeString(c.CredentialID)
 		result[i] = webauthn.Credential{
 			ID:              credID,
 			PublicKey:       c.PublicKey,
 			AttestationType: c.AttestationType,
+			Flags: webauthn.CredentialFlags{
+				BackupEligible: backupEligible,
+				BackupState:    backupState,
+			},
 			Authenticator: webauthn.Authenticator{
 				SignCount: c.SignCount,
 			},
 		}
 	}
 	return result
+}
+
+func (h *WebAuthnHandler) loadCredentials(userID uint) []webauthn.Credential {
+	creds, _ := h.repo.LoadCredentials(userID)
+	return webauthnCredentialsFromModels(creds, nil)
+}
+
+func (h *WebAuthnHandler) loadCredentialsForAssertion(userID uint, assertion *protocol.ParsedCredentialAssertionData) ([]webauthn.Credential, error) {
+	creds, err := h.repo.LoadCredentials(userID)
+	if err != nil {
+		return nil, err
+	}
+	return webauthnCredentialsFromModels(creds, assertion), nil
 }
 
 // RegisterBegin starts the WebAuthn registration ceremony.
@@ -336,6 +374,8 @@ func (h *WebAuthnHandler) RegisterFinish(c *gin.Context) {
 		PublicKey:       credential.PublicKey,
 		AttestationType: credential.AttestationType,
 		SignCount:       credential.Authenticator.SignCount,
+		BackupEligible:  boolPtr(credential.Flags.BackupEligible),
+		BackupState:     boolPtr(credential.Flags.BackupState),
 		Name:            credName,
 	}
 	if err := h.repo.CreateCredential(&dbCred); err != nil {
@@ -457,12 +497,33 @@ func (h *WebAuthnHandler) LoginFinish(c *gin.Context) {
 		return
 	}
 
-	wUser := &webAuthnUser{
-		user:        user,
-		credentials: h.loadCredentials(user.ID),
+	bodyBytes, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		logger.Error("webauthn", "Failed to read request body: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to read request body"})
+		return
 	}
 
-	credential, err := h.webAuthn.FinishLogin(wUser, *session, c.Request)
+	parsedAssertion, err := protocol.ParseCredentialRequestResponseBytes(bodyBytes)
+	if err != nil {
+		logger.Error("webauthn", "Login failed for user %s: %v", username, err)
+		respondError(c, http.StatusUnauthorized, "Authentication failed", err)
+		return
+	}
+
+	credentials, err := h.loadCredentialsForAssertion(user.ID, parsedAssertion)
+	if err != nil {
+		logger.Error("webauthn", "Failed to load credentials for user %s: %v", username, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load credentials"})
+		return
+	}
+
+	wUser := &webAuthnUser{
+		user:        user,
+		credentials: credentials,
+	}
+
+	credential, err := h.webAuthn.ValidateLogin(wUser, *session, parsedAssertion)
 	if err != nil {
 		logger.Error("webauthn", "Login failed for user %s: %v", username, err)
 		respondError(c, http.StatusUnauthorized, "Authentication failed", err)
@@ -474,7 +535,11 @@ func (h *WebAuthnHandler) LoginFinish(c *gin.Context) {
 
 	// Update sign count
 	credID := base64.RawURLEncoding.EncodeToString(credential.ID)
-	h.repo.UpdateSignCount(credID, user.ID, credential.Authenticator.SignCount)
+	if err := h.repo.UpdateCredentialAuthData(credID, user.ID, credential.Authenticator.SignCount, credential.Flags.BackupEligible, credential.Flags.BackupState); err != nil {
+		logger.Error("webauthn", "Failed to update credential for user %s: %v", username, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update credential"})
+		return
+	}
 
 	logger.Info("webauthn", "Biometric login succeeded for user %s", username)
 	// Issue tokens

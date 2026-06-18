@@ -10730,6 +10730,12 @@ const docTemplate = `{
                 "attestationType": {
                     "type": "string"
                 },
+                "backupEligible": {
+                    "type": "boolean"
+                },
+                "backupState": {
+                    "type": "boolean"
+                },
                 "createdAt": {
                     "type": "string"
                 },

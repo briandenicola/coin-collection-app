@@ -626,3 +626,25 @@ Added admin-only backend manual trigger `POST /api/admin/collection-health-snaps
 - Frontend authorization store tests updated to handle both flat and nested challenge shapes, trim usernames on begin/finish calls, and enforce missing-challenge guards before invoking browser biometrics.
 - Constitutional compliance: Principle III (strict types and explicit contracts), Principle IV (simple focused fix), §17 Quality Gate (targeted regression for exact failing path).
 - Targeted validation: `go test -v ./handlers -run "TestWebAuthnHandlerLoginBeginReturnsRequestOptionsWithChallenge|TestWebAuthnHandlerLoginFinish"` ✅, full `go test ./...` ✅, `go vet ./...` ✅.
+
+## 2026-06-18 — WebAuthn Backup Eligible Flag Validation
+
+- **Issue:** Biometric login failing with 401 "Backup Eligible flag inconsistency detected during login validation"
+- **Root cause:** go-webauthn v0.17.4 validates that CredentialFlags.BackupEligible remains consistent between registration and login. Our code only stored SignCount, not the backup flags. When reconstructing credentials in loadCredentials(), flags defaulted to alse, causing validation failure if the authenticator returned 	rue during registration.
+- **Fix:** Added BackupEligible and BackupState bool fields to WebAuthnCredential model. Store both flags during registration (RegisterFinish), restore both during login (loadCredentials). GORM migration adds columns with default:false (safe for existing credentials).
+- **Learning:** WebAuthn Credential struct has a Flags field (not in Authenticator). The flags include security-critical metadata that MUST be persisted. The library's validation logic enforces immutability of BackupEligible per FIDO2 spec. Always store all credential metadata returned by FinishRegistration, not just the fields needed for basic authentication.
+- **Test coverage:** Added TestWebAuthnHandlerLoadCredentialsRestoresBackupFlags regression test. All WebAuthn tests pass.
+- **Constitution alignment:** Principle I (layered architecture), Principle XI (security hardening), Principle XII (FIDO2 compliance).
+
+## 2026-06-18T22:59:00Z — WebAuthn Backup Eligible Storage Fix (Coordinated Session)
+
+Completed team fix for issue #299: WebAuthn login validation failure due to missing backup flag persistence.
+
+- **Cassius:** Implemented `BackupEligible` and `BackupState` field storage in WebAuthnCredential model; updated registration handler to store flags and login handler to restore with legacy null bootstrap; added repository `UpdateCredentialAuthData` for sign-count and flag updates.
+- **Brutus:** Added three regression tests covering flag persistence, legacy bootstrap fallback, and flag precedence rules.
+- **Coordinator:** Regenerated OpenAPI artifacts and validated full Go test/vet suite.
+
+**Session log:** `.squad/log/2026-06-18T22-59-00Z-webauthn-backup-eligible.md`  
+**Orchestration logs:** `.squad/orchestration-log/2026-06-18T22-59-00Z-{cassius,brutus,coordinator}.md`
+
+All tests pass; architecture compliant; ready for merge.
