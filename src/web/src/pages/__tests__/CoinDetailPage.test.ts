@@ -53,17 +53,40 @@ describe('CoinDetailPage', () => {
     shareCoinCard.mockReset()
     shareCoinCard.mockResolvedValue({ mode: 'downloaded' })
     sharing.value = false
+    Object.defineProperty(window, 'matchMedia', {
+      value: vi.fn(() => ({
+        matches: false,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      })),
+      configurable: true,
+    })
+    Object.defineProperty(window, 'DeviceOrientationEvent', { value: undefined, configurable: true })
   })
 
-  it('shows the share action on the coin detail page', () => {
+  it('renders the shared 3D viewer and share action on the coin detail page', () => {
     const wrapper = mount(CoinDetailPage, {
       global: {
         stubs: pageStubs(),
       },
     })
 
+    expect(wrapper.findComponent({ name: 'CoinViewer3D' }).exists()).toBe(true)
     expect(wrapper.text()).toContain('Share')
     expect(fetchCoin).toHaveBeenCalledWith(coin.id)
+  })
+
+  it('opens the existing image lightbox for the current viewer face', async () => {
+    const wrapper = mount(CoinDetailPage, {
+      global: {
+        stubs: pageStubs(),
+      },
+    })
+
+    await wrapper.find('.coin-stage').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.findComponent({ name: 'ImageLightbox' }).exists()).toBe(true)
   })
 
   it('shares the currently loaded coin when the Share action is clicked', async () => {
@@ -93,5 +116,6 @@ function pageStubs() {
     CoinReferencesSection: true,
     ArrowLeft: true,
     Share2: true,
+    RefreshCw: true,
   }
 }

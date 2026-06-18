@@ -10,7 +10,7 @@
       <!-- Next card (underneath) -->
       <div v-if="nextCoin" class="swipe-card next-card">
         <div class="swipe-card-image">
-          <img v-if="getImage(nextCoin)" :src="getImage(nextCoin)!" :alt="nextCoin.name" />
+          <img v-if="getPrimaryImage(nextCoin)" :src="getPrimaryImage(nextCoin)!" :alt="nextCoin.name" />
           <div v-else class="swipe-card-placeholder"><Coins :size="64" :stroke-width="1" /></div>
         </div>
         <div class="swipe-card-name">{{ nextCoin.name }}</div>
@@ -25,19 +25,15 @@
         @pointerdown="onPointerDown"
         @click="onCardTap"
       >
-        <div class="swipe-card-image" :class="{ 'coin-flipping': isFlipping }">
-          <img v-if="getImage(currentCoin)" :src="getImage(currentCoin)!" :alt="currentCoin.name" />
-          <div v-else class="swipe-card-placeholder"><Coins :size="64" :stroke-width="1" /></div>
-          <button
-            class="flip-btn"
-            :class="{ spinning: isFlipping }"
-            @pointerdown.stop
-            @click.stop="flipCoin"
-            :disabled="isFlipping"
-            title="Flip coin"
-          >
-            ⟳
-          </button>
+        <div class="swipe-card-image">
+          <CoinViewer3D
+            :obverse-src="getImageByType(currentCoin, 'obverse')"
+            :reverse-src="getImageByType(currentCoin, 'reverse')"
+            :obverse-alt="`${currentCoin.name} obverse`"
+            :reverse-alt="`${currentCoin.name} reverse`"
+            size="card"
+            enable-tilt
+          />
         </div>
         <div class="swipe-card-name">{{ currentCoin.name }}</div>
         <div class="swipe-hint left-hint" :style="{ opacity: leftHintOpacity }"><ChevronLeft :size="32" /></div>
@@ -67,6 +63,7 @@ import { useRouter } from 'vue-router'
 import type { Coin, ImageType } from '@/types'
 import { useCoinsStore } from '@/stores/coins'
 import { Coins, ChevronLeft, ChevronRight } from 'lucide-vue-next'
+import CoinViewer3D from '@/components/coin/CoinViewer3D.vue'
 
 const props = defineProps<{
   coins: Coin[]
@@ -78,28 +75,14 @@ const emit = defineEmits<{ 'page-change': [page: number] }>()
 const router = useRouter()
 const store = useCoinsStore()
 
-const activeSide = ref<'obverse' | 'reverse'>('obverse')
 const currentIndex = computed({
   get: () => store.galleryIndex,
   set: (val) => { store.galleryIndex = val },
 })
 const isAnimating = ref(false)
-const isFlipping = ref(false)
 
 const absoluteIndex = computed(() => (props.page - 1) * props.perPage + currentIndex.value)
 
-const FLIP_DURATION = 200 // ms for each half of the flip
-
-function flipCoin() {
-  if (isFlipping.value || isAnimating.value) return
-  isFlipping.value = true
-  setTimeout(() => {
-    activeSide.value = activeSide.value === 'obverse' ? 'reverse' : 'obverse'
-    setTimeout(() => {
-      isFlipping.value = false
-    }, FLIP_DURATION)
-  }, FLIP_DURATION)
-}
 const stackRef = ref<HTMLElement | null>(null)
 const animationTimers: ReturnType<typeof setTimeout>[] = []
 
@@ -141,10 +124,13 @@ const cardStyle = computed(() => {
   }
 })
 
-function getImage(coin: Coin): string | null {
-  const targetType: ImageType = activeSide.value
+function getImageByType(coin: Coin, targetType: ImageType): string | null {
   const byType = coin.images?.find((img) => img.imageType === targetType)
   if (byType) return `/uploads/${byType.filePath}`
+  return null
+}
+
+function getPrimaryImage(coin: Coin): string | null {
   const primary = coin.images?.find((img) => img.isPrimary)
   const first = coin.images?.[0]
   const img = primary || first
@@ -152,7 +138,7 @@ function getImage(coin: Coin): string | null {
 }
 
 function onPointerDown(e: PointerEvent) {
-  if (isAnimating.value || isFlipping.value) return
+  if (isAnimating.value) return
   const target = e.target as HTMLElement
   target.setPointerCapture(e.pointerId)
   pointerId = e.pointerId
@@ -371,56 +357,6 @@ onUnmounted(() => {
 .swipe-card-placeholder {
   font-size: 5rem;
   opacity: 0.2;
-}
-
-@keyframes coin-spin {
-  0%   { transform: scaleX(1); }
-  50%  { transform: scaleX(0); }
-  100% { transform: scaleX(1); }
-}
-
-@keyframes flip-btn-spin {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
-}
-
-.coin-flipping {
-  animation: coin-spin 0.4s ease-in-out;
-}
-
-.flip-btn {
-  position: absolute;
-  bottom: 0.75rem;
-  right: 0.75rem;
-  width: 2.25rem;
-  height: 2.25rem;
-  border-radius: 50%;
-  border: 1px solid var(--border-accent);
-  background: var(--bg-card);
-  color: var(--accent-gold);
-  font-size: 1.25rem;
-  line-height: 1;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 3;
-  opacity: 0.8;
-  transition: opacity var(--transition-fast);
-  touch-action: manipulation;
-}
-
-.flip-btn:hover:not(:disabled) {
-  opacity: 1;
-}
-
-.flip-btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.4;
-}
-
-.flip-btn.spinning {
-  animation: flip-btn-spin 0.4s linear;
 }
 
 .swipe-card-name {

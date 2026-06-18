@@ -6,8 +6,10 @@ import { useCoinsStore } from '@/stores/coins'
 import { buildRomanDenariusCore } from '@/test/fixtures/coins'
 import type { Coin } from '@/types'
 
+const routerPush = vi.fn()
+
 vi.mock('vue-router', () => ({
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push: routerPush }),
 }))
 
 function buildCoins(count: number): Coin[] {
@@ -22,6 +24,16 @@ describe('SwipeGallery', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.useFakeTimers()
+    routerPush.mockReset()
+    Object.defineProperty(window, 'matchMedia', {
+      value: vi.fn(() => ({
+        matches: false,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      })),
+      configurable: true,
+    })
+    Object.defineProperty(window, 'DeviceOrientationEvent', { value: undefined, configurable: true })
   })
 
   afterEach(() => {
@@ -69,5 +81,24 @@ describe('SwipeGallery', () => {
 
     expect(store.galleryIndex).toBe(0)
     expect(wrapper.emitted('page-change')).toEqual([[1]])
+  })
+
+  it('flips the active card with the shared 3D viewer without opening detail', async () => {
+    const store = useCoinsStore()
+    store.galleryIndex = 0
+
+    const wrapper = mount(SwipeGallery, {
+      props: { coins: [buildRomanDenariusCore({ id: 1, name: 'Flippable Coin' })], total: 1, page: 1, perPage: 50 },
+      global: {
+        stubs: {
+          RefreshCw: true,
+        },
+      },
+    })
+
+    await wrapper.find('.coin-flip-button').trigger('click')
+
+    expect(wrapper.find('.coin-disc').classes()).toContain('flipped')
+    expect(routerPush).not.toHaveBeenCalled()
   })
 })

@@ -71,20 +71,20 @@ upgrade for the mobile/PWA experience and a natural showpiece when demoing the a
 
 ## Acceptance Criteria
 
-- [ ] Tapping a coin in the swipe gallery flips it in 3D to show the reverse, and
+- [x] Tapping a coin in the swipe gallery flips it in 3D to show the reverse, and
       tapping again flips back.
-- [ ] The coin renders as a circular disc with a visible rim/bevel, not a rectangle.
-- [ ] On an iOS device, the first tilt interaction triggers the motion-permission
+- [x] The coin renders as a circular disc with a visible rim/bevel, not a rectangle.
+- [x] On an iOS device, the first tilt interaction triggers the motion-permission
       prompt; granting it enables tilt, denying it leaves flip working with no errors.
-- [ ] On a supported device, tilting the phone moves a light highlight across the
+- [x] On a supported device, tilting the phone moves a light highlight across the
       coin and applies a clamped (±15°) parallax tilt.
-- [ ] With `prefers-reduced-motion: reduce` set, no tilt occurs and the face change
+- [x] With `prefers-reduced-motion: reduce` set, no tilt occurs and the face change
       is an instant/cross-fade swap.
-- [ ] Component is used by both the swipe gallery and the detail page hero from a
+- [x] Component is used by both the swipe gallery and the detail page hero from a
       single shared implementation.
-- [ ] No regression to existing grid view or face toggle for users who don't open
+- [x] No regression to existing grid view or face toggle for users who don't open
       the 3D viewer.
-- [ ] `npm run type-check` passes; respects existing design tokens (ADR 0004).
+- [x] `npm run type-check` passes; respects existing design tokens (ADR 0004).
 
 ## Open Questions
 
