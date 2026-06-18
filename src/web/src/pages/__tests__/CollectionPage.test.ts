@@ -13,4 +13,11 @@ describe('CollectionPage', () => {
     expect(source).not.toContain('class="add-fab"')
     expect(source).not.toMatch(/\.add-fab\s*\{/)
   })
+
+  it('wires collection headers to Present mode without adding a floating action button', () => {
+    const source = fs.readFileSync(collectionPagePath, 'utf8')
+
+    expect(source).toContain('@present="openPresentMode"')
+    expect(source).toContain("router.push({ name: 'present', query: { start: String(store.galleryIndex) } })")
+  })
 })

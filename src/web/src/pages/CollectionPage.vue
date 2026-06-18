@@ -18,6 +18,7 @@
       :select-mode="selectMode"
       :user-tags="userTags"
       @toggle-select-mode="toggleSelectMode"
+      @present="openPresentMode"
     />
 
     <DesktopCollectionHeader
@@ -30,6 +31,7 @@
       :select-mode="selectMode"
       :user-tags="userTags"
       @toggle-select-mode="toggleSelectMode"
+      @present="openPresentMode"
     />
 
     <!-- Needs Attention Queue (when filter is active) -->
@@ -304,6 +306,10 @@ async function bulkAssignLocation(locationId: number | null) {
 
 function handlePageChange(newPage: number) {
   page.value = newPage
+}
+
+function openPresentMode() {
+  router.push({ name: 'present', query: { start: String(store.galleryIndex) } })
 }
 
 onUnmounted(() => {

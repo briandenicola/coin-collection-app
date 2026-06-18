@@ -14,6 +14,13 @@
             </button>
           </div>
           <div class="pwa-menu-section">
+            <span class="pwa-menu-label">Presentation</span>
+            <button class="menu-toggle-btn" @click="emitPresent">
+              <MonitorPlay :size="16" />
+              Present Collection
+            </button>
+          </div>
+          <div class="pwa-menu-section">
             <span class="pwa-menu-label">Category</span>
             <CategoryFilter :model-value="selectedCategory" @update:model-value="$emit('update:selectedCategory', $event)" />
           </div>
@@ -65,7 +72,7 @@ import CategoryFilter from '@/components/CategoryFilter.vue'
 import EraFilter from '@/components/collection/EraFilter.vue'
 import SearchBar from '@/components/SearchBar.vue'
 import SortSelect from '@/components/SortSelect.vue'
-import { Layers, LayoutGrid, SlidersHorizontal } from 'lucide-vue-next'
+import { Layers, LayoutGrid, MonitorPlay, SlidersHorizontal } from 'lucide-vue-next'
 
 defineProps<{
   search: string
@@ -80,7 +87,7 @@ defineProps<{
   gridSide: ImageType | null
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   'update:search': [value: string]
   'update:menuOpen': [value: boolean]
   'update:selectedCategory': [value: string]
@@ -90,7 +97,13 @@ defineEmits<{
   'update:viewMode': [value: 'grid' | 'swipe']
   'update:gridSide': [value: ImageType | null]
   'toggle-select-mode': []
+  present: []
 }>()
+
+function emitPresent() {
+  emit('update:menuOpen', false)
+  emit('present')
+}
 </script>
 
 <style scoped>

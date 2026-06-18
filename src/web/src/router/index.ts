@@ -24,6 +24,12 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/present',
+      name: 'present',
+      component: () => import('@/pages/PresentModePage.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/coin/:id',
       name: 'coin-detail',
       component: () => import('@/pages/CoinDetailPage.vue'),

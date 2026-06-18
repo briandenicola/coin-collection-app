@@ -63,16 +63,16 @@ mode makes the coins the entire focus.
 
 ## Acceptance Criteria
 
-- [ ] A Present/Showcase mode can be launched from the gallery and fills the screen
+- [x] A Present/Showcase mode can be launched from the gallery and fills the screen
       with one coin at a time on the dark theme.
-- [ ] Swiping (touch) and arrow keys (desktop) move between coins in the current set.
-- [ ] Tapping toggles a minimal metadata overlay; pricing/value is not shown.
-- [ ] Obverse and reverse are both viewable in this mode.
-- [ ] On supported browsers the view goes fullscreen and the screen does not dim
+- [x] Swiping (touch) and arrow keys (desktop) move between coins in the current set.
+- [x] Tapping toggles a minimal metadata overlay; pricing/value is not shown.
+- [x] Obverse and reverse are both viewable in this mode.
+- [x] On supported browsers the view goes fullscreen and the screen does not dim
       while the mode is active (Wake Lock), releasing correctly on exit.
-- [ ] Exiting returns to the previous gallery state (scroll/filter preserved).
-- [ ] `prefers-reduced-motion` is respected for coin-to-coin transitions.
-- [ ] `npm run type-check` passes; uses existing design tokens.
+- [x] Exiting returns to the previous gallery state (scroll/filter preserved).
+- [x] `prefers-reduced-motion` is respected for coin-to-coin transitions.
+- [x] `npm run type-check` passes; uses existing design tokens.
 
 ## Open Questions
 
