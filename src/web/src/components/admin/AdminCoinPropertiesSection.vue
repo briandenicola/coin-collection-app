@@ -82,22 +82,24 @@
             class="mint-location-row"
           >
             <div class="mint-location-main">
-              <strong>{{ location.displayName }}</strong>
-              <span>{{ location.region || 'No region' }} · {{ location.lat }}, {{ location.lng }}</span>
+              <div class="mint-location-heading">
+                <strong class="mint-location-name">{{ location.displayName }}</strong>
+                <div class="location-actions">
+                  <button type="button" class="btn btn-secondary btn-sm" :disabled="mintLocationSaving" @click="startEditMintLocation(location)">
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-danger btn-sm"
+                    :disabled="deletingMintLocationId === location.id"
+                    @click="deleteMintLocation(location)"
+                  >
+                    {{ deletingMintLocationId === location.id ? 'Deleting...' : 'Delete' }}
+                  </button>
+                </div>
+              </div>
+              <span class="location-details">{{ location.region || 'No region' }} · {{ location.lat }}, {{ location.lng }}</span>
               <span v-if="location.aliases.length" class="location-aliases">{{ location.aliases.join(', ') }}</span>
-            </div>
-            <div class="location-actions">
-              <button type="button" class="btn btn-secondary btn-sm" :disabled="mintLocationSaving" @click="startEditMintLocation(location)">
-                Edit
-              </button>
-              <button
-                type="button"
-                class="btn btn-danger btn-sm"
-                :disabled="deletingMintLocationId === location.id"
-                @click="deleteMintLocation(location)"
-              >
-                {{ deletingMintLocationId === location.id ? 'Deleting...' : 'Delete' }}
-              </button>
             </div>
           </div>
         </div>
@@ -430,13 +432,16 @@ onMounted(() => {
 
 .mint-location-row,
 .empty-location {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
   padding: 0.75rem;
   background: var(--bg-input);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
+  text-align: left;
+}
+
+.empty-location {
+  display: flex;
+  align-items: center;
 }
 
 .empty-location,
@@ -446,15 +451,30 @@ onMounted(() => {
 }
 
 .mint-location-main {
+  width: 100%;
   min-width: 0;
   display: flex;
   flex: 1;
   flex-direction: column;
   gap: 0.25rem;
+  align-items: stretch;
+  text-align: left;
 }
 
-.mint-location-main strong {
+.mint-location-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 0.75rem;
+  width: 100%;
+  text-align: left;
+}
+
+.mint-location-name {
+  min-width: 0;
   color: var(--text-primary);
+  overflow-wrap: anywhere;
+  text-align: left;
 }
 
 .mint-location-main span {
@@ -462,8 +482,11 @@ onMounted(() => {
   font-size: 0.85rem;
 }
 
+.location-details,
 .location-aliases {
+  display: block;
   overflow-wrap: anywhere;
+  text-align: left;
 }
 
 .location-actions,
@@ -472,6 +495,11 @@ onMounted(() => {
   gap: 0.35rem;
   flex-wrap: wrap;
   justify-content: flex-end;
+}
+
+.location-actions {
+  flex-shrink: 0;
+  justify-self: end;
 }
 
 .mint-location-form {
@@ -520,8 +548,7 @@ onMounted(() => {
 
 @media (max-width: 768px) {
   .section-heading,
-  .property-card-header,
-  .mint-location-row {
+  .property-card-header {
     flex-direction: column;
   }
 
@@ -530,9 +557,12 @@ onMounted(() => {
     grid-template-columns: 1fr;
   }
 
-  .location-actions,
   .form-actions {
     justify-content: flex-start;
+  }
+
+  .location-actions {
+    justify-content: flex-end;
   }
 }
 </style>
