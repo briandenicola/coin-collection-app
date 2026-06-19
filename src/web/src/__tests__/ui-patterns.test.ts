@@ -104,6 +104,18 @@ describe('UI pattern recipes', () => {
     expect(setCard).not.toContain('Completion set')
   })
 
+  it('keeps collection coin images from over-zooming or clipping', () => {
+    const coinCard = readRepoFile('components/CoinCard.vue')
+    const swipeGallery = readRepoFile('components/SwipeGallery.vue')
+
+    expect(coinCard).toContain('object-fit: contain')
+    expect(coinCard).toContain('transform: scale(1.02)')
+    expect(coinCard).not.toContain('object-fit: cover')
+    expect(swipeGallery).toContain('object-fit: contain')
+    expect(swipeGallery).toContain('transform: scale(1.05)')
+    expect(swipeGallery).not.toContain('transform: scale(1.28)')
+  })
+
   it('keeps the PWA agent button viewport-fixed globally', () => {
     const app = readRepoFile('App.vue')
     const mainCss = readRepoFile(join('assets', 'styles', 'main.css'))

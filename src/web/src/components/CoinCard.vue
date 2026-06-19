@@ -191,12 +191,12 @@ const cardInscription = computed(() => {
 .card-image {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   transition: transform var(--transition-med), filter var(--transition-med);
 }
 
 .coin-card:hover .card-image {
-  transform: scale(1.05);
+  transform: scale(1.02);
   filter: brightness(1.1);
 }
 
