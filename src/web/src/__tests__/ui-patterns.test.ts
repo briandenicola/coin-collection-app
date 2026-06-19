@@ -55,7 +55,9 @@ describe('UI pattern recipes', () => {
     expect(settingsAppearance).toContain('set-tray-felt-color')
     expect(trayPage).not.toContain('@update:felt-theme')
     expect(trayPage).toContain('const coinsPerDrawer = 12')
-    expect(museumTray).toContain('grid-template-columns: repeat(6, minmax(0, 1fr))')
+    expect(trayPage).toContain('while (true)')
+    expect(trayPage).toContain('limit: trayPageLimit')
+    expect(museumTray).toContain('grid-template-columns: repeat(2, minmax(0, 1fr))')
   })
 
   it('keeps Identify Coin camera-first with Add Coin upload icon pattern', () => {
@@ -83,6 +85,7 @@ describe('UI pattern recipes', () => {
     expect(setDetailPage).toContain('<ChevronUp :size="16" />')
     expect(setDetailPage).toContain('<ChevronDown :size="16" />')
     expect(setDetailPage).toContain('<X :size="16" />')
+    expect(setDetailPage).toContain('flex-wrap: nowrap')
     expect(setDetailPage).not.toContain('>Up<')
     expect(setDetailPage).not.toContain('>Down<')
     expect(setDetailPage).not.toContain('>Remove<')

@@ -1,10 +1,10 @@
 <template>
   <div class="tray-view-page">
     <!-- Empty state -->
-    <div v-if="store.coins.length === 0 && !store.loading" class="empty-state card">
+    <div v-if="trayCoins.length === 0 && !loading" class="empty-state card">
       <Landmark :size="64" :stroke-width="1" class="empty-icon" />
       <h2>No Coins in Tray</h2>
-      <p>Your collection is empty or no coins match the current filters.</p>
+      <p>{{ errorMessage || 'Your collection is empty or no coins match the current filters.' }}</p>
       <div class="empty-actions">
         <router-link to="/" class="btn btn-secondary">
           <ArrowLeft :size="18" />
@@ -18,7 +18,7 @@
     </div>
 
     <!-- Tray view -->
-    <div v-else-if="!store.loading" class="tray-content">
+    <div v-else-if="!loading" class="tray-content">
       <MuseumTray
         class="tray-swipe-surface"
         :coins="currentDrawerCoins"
@@ -44,21 +44,25 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
-import { useCoinsStore } from '@/stores/coins'
+import { getCoins } from '@/api/client'
 import { useTrayPreference } from '@/composables/useTrayPreference'
 import { getDrawerCoins, getTotalDrawers, type TrayCoin } from '@/utils/trayLayout'
+import type { Coin } from '@/types'
 import MuseumTray from '@/components/tray/MuseumTray.vue'
 import TrayControls from '@/components/tray/TrayControls.vue'
 import { Landmark, ArrowLeft, Plus } from 'lucide-vue-next'
 
-const store = useCoinsStore()
 const router = useRouter()
 const { feltColor } = useTrayPreference()
 
+const loading = ref(true)
+const errorMessage = ref('')
+const loadedCoins = ref<Coin[]>([])
 const drawerIndex = ref(0)
 const coinsPerDrawer = 12
+const trayPageLimit = 100
 const trayDragX = ref(0)
 const trayDragY = ref(0)
 const trayIsDragging = ref(false)
@@ -73,7 +77,7 @@ const SWIPE_THRESHOLD = 100
 const FLY_DISTANCE = 600
 
 const trayCoins = computed((): TrayCoin[] => {
-  return store.coins.map(coin => ({
+  return loadedCoins.value.map(coin => ({
     id: coin.id,
     name: coin.name,
     diameterMm: coin.diameterMm,
@@ -179,6 +183,42 @@ function flyTray(direction: 1 | -1) {
   }, 300)
   trayAnimationTimers.push(timer)
 }
+
+async function loadTrayCoins() {
+  loading.value = true
+  errorMessage.value = ''
+  drawerIndex.value = 0
+  try {
+    const allCoins: Coin[] = []
+    let page = 1
+
+    while (true) {
+      const res = await getCoins({
+        wishlist: 'false',
+        sold: 'false',
+        page,
+        limit: trayPageLimit,
+        sort: 'name',
+        order: 'asc',
+      })
+      const pageCoins = res.data.coins ?? []
+      allCoins.push(...pageCoins)
+      const total = res.data.total ?? allCoins.length
+
+      if (!pageCoins.length || allCoins.length >= total) break
+      page += 1
+    }
+
+    loadedCoins.value = allCoins
+  } catch {
+    loadedCoins.value = []
+    errorMessage.value = 'Tray coins could not be loaded. Check your connection and try again.'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(loadTrayCoins)
 
 onBeforeUnmount(() => {
   trayAnimationTimers.forEach(clearTimeout)

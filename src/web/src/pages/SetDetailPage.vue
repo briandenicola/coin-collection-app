@@ -115,10 +115,11 @@
             @drop.prevent="dropCoin(coin.id)"
             @dragend="resetDragState"
           >
-            <div v-if="canReorderCoins" class="order-controls" @click.stop>
+            <div v-if="canReorderCoins || canManageMembership" class="order-controls" @click.stop>
               <span class="order-rank" :aria-label="`Position ${index + 1}`">{{ index + 1 }}</span>
-              <div class="order-buttons" aria-label="Reorder coin">
+              <div class="order-buttons" aria-label="Set coin actions">
                 <button
+                  v-if="canReorderCoins"
                   type="button"
                   class="set-coin-action-btn"
                   :disabled="index === 0 || savingOrder"
@@ -129,6 +130,7 @@
                   <ChevronUp :size="16" />
                 </button>
                 <button
+                  v-if="canReorderCoins"
                   type="button"
                   class="set-coin-action-btn"
                   :disabled="index === coins.length - 1 || savingOrder"
@@ -137,6 +139,16 @@
                   :aria-label="`Move ${coin.name} later`"
                 >
                   <ChevronDown :size="16" />
+                </button>
+                <button
+                  v-if="canManageMembership"
+                  type="button"
+                  class="set-coin-action-btn"
+                  @click.stop="removeCoin(coin.id)"
+                  title="Remove from set"
+                  :aria-label="`Remove ${coin.name} from set`"
+                >
+                  <X :size="16" />
                 </button>
               </div>
             </div>
@@ -152,15 +164,6 @@
               <h3>{{ coin.name }}</h3>
               <p>${{ coin.currentValue || 0 }}</p>
             </div>
-            <button
-              v-if="canManageMembership"
-              class="remove-coin-btn set-coin-action-btn"
-              @click.stop="removeCoin(coin.id)"
-              title="Remove from set"
-              :aria-label="`Remove ${coin.name} from set`"
-            >
-              <X :size="16" />
-            </button>
           </div>
         </div>
       </div>
@@ -715,7 +718,7 @@ function getErrorMessage(error: unknown, fallback: string): string {
 .order-buttons {
   display: flex;
   gap: 0.35rem;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: flex-end;
 }
 
@@ -773,12 +776,6 @@ function getErrorMessage(error: unknown, fallback: string): string {
 .coin-info p {
   margin: 0.25rem 0 0;
   font-weight: 600;
-}
-
-.remove-coin-btn {
-  position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
 }
 
 .modal-overlay {

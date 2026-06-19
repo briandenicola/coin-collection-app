@@ -155,7 +155,7 @@ describe('trayLayout', () => {
       expect(getTotalDrawers(5, 1)).toBe(5)
     })
 
-    it('supports 2x6 tray layout of 12 coins per tray', () => {
+    it('supports 2 column by 6 row tray layout of 12 coins per tray', () => {
       expect(getTotalDrawers(12, 12)).toBe(1)
       expect(getTotalDrawers(13, 12)).toBe(2)
       expect(getTotalDrawers(24, 12)).toBe(2)
