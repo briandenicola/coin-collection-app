@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { normalizeDiameterMm, getCoinRenderSizePx, getDrawerCoins, getTotalDrawers } from '../trayLayout'
+import { normalizeDiameterMm, hasKnownDiameterMm, getCoinRenderSizePx, getDrawerCoins, getTotalDrawers } from '../trayLayout'
 import type { TrayCoin } from '../trayLayout'
 
 describe('trayLayout', () => {
@@ -7,6 +7,16 @@ describe('trayLayout', () => {
     it('returns diameterMm when positive', () => {
       expect(normalizeDiameterMm(25, 20)).toBe(25)
       expect(normalizeDiameterMm(35, 20)).toBe(35)
+    })
+
+    describe('hasKnownDiameterMm', () => {
+      it('only accepts positive diameter values as known sizes', () => {
+        expect(hasKnownDiameterMm(18)).toBe(true)
+        expect(hasKnownDiameterMm(null)).toBe(false)
+        expect(hasKnownDiameterMm(undefined)).toBe(false)
+        expect(hasKnownDiameterMm(0)).toBe(false)
+        expect(hasKnownDiameterMm(-1)).toBe(false)
+      })
     })
 
     it('returns default when null', () => {

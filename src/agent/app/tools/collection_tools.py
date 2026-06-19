@@ -96,7 +96,10 @@ def build_collection_tools(tools_base_url: str, internal_token: str) -> list[Str
         """Search the user's coin collection with flexible filters.
 
         Use this to find coins the user already owns. Searches across name,
-        ruler, era, denomination, category, material, notes, and tags.
+        ruler, era, denomination, category, material, notes, and tags. Also use
+        this for data-quality questions like "missing size", "missing diameter",
+        "missing weight", "missing grade", "missing value", or "missing
+        metadata"; size means diameter_mm / diameterMm.
 
         Args:
             query: Search query (e.g., "Roman silver", "Constantine", "denarius")
@@ -104,8 +107,8 @@ def build_collection_tools(tools_base_url: str, internal_token: str) -> list[Str
 
         Returns:
             JSON string with array of matching coins, each with: id, name, category,
-            era, ruler, denomination, material, grade, purchase_price, current_value,
-            notes, tags, image_url, created_at.
+            era, ruler, denomination, material, grade, weightGrams, diameterMm,
+            purchasePrice, currentValue, missingFields.
         """
         result = await _http_post("search_my_collection", {"query": query, "limit": limit})
         if "error" in result:
@@ -123,8 +126,8 @@ def build_collection_tools(tools_base_url: str, internal_token: str) -> list[Str
 
         Returns:
             JSON string with coin details: id, name, category, era, ruler,
-            denomination, material, grade, purchase_price, current_value, notes,
-            tags, images, created_at, updated_at.
+            denomination, material, grade, weightGrams, diameterMm, purchasePrice,
+            currentValue, missingFields.
         """
         result = await _http_post("get_coin", {"coin_id": coin_id})
         if "error" in result:
@@ -140,7 +143,9 @@ def build_collection_tools(tools_base_url: str, internal_token: str) -> list[Str
         Returns:
             JSON string with summary: total_coins, total_value, total_invested,
             roi_percent, categories (dict of counts), materials (dict of counts),
-            eras (list of {name, count}), rulers (list of {name, count}).
+            eras (list of {name, count}), rulers (list of {name, count}), and
+            missingFields counts for data-quality gaps such as diameterMm and
+            weightGrams.
         """
         result = await _http_post("collection_summary", {})
         if "error" in result:

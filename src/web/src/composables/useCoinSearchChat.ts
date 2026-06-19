@@ -136,6 +136,7 @@ export function useCoinSearchChat(options: UseCoinSearchChatOptions) {
     try {
       const res = await getPortfolioSummary()
       const summary = res.data
+      const missingProperties = Object.entries(summary.missingFields ?? {})
       const context = `Analyze my coin collection portfolio. Here is my collection summary:\n\n` +
         `Total Coins: ${summary.totalCoins ?? 0}\n` +
         `Total Value: $${summary.totalValue?.toFixed(2) ?? '0'}\n` +
@@ -144,6 +145,7 @@ export function useCoinSearchChat(options: UseCoinSearchChatOptions) {
         `Materials: ${summary.materials?.map((m) => `${m.material} (${m.count})`).join(', ') || 'none'}\n` +
         `Eras: ${summary.eras?.map((e) => `${e.era} (${e.count})`).join(', ') || 'none'}\n` +
         `Top Rulers: ${summary.rulers?.map((r) => `${r.ruler} (${r.count})`).join(', ') || 'none'}\n` +
+        `Missing Properties: ${missingProperties.length ? missingProperties.map(([field, count]) => `${field} (${count})`).join(', ') : 'none'}\n` +
         `Top Coins by Value: ${summary.topCoins?.map((c) => `${c.name} ($${c.currentValue?.toFixed(2) ?? '?'})`).join(', ') || 'none'}\n\n` +
         `Please analyze my collection, identify gaps, and suggest what I should consider adding.`
       input.value = context

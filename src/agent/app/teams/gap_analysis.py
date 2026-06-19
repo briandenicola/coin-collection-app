@@ -127,6 +127,9 @@ def _build_collection_summary(portfolio: PortfolioSummary) -> str:
     if portfolio.rulers:
         rulers = ", ".join(f"{r.get('ruler', '?')}: {r.get('count', 0)}" for r in portfolio.rulers[:20])
         parts.append(f"Top rulers: {rulers}")
+    if portfolio.missing_fields:
+        missing = ", ".join(f"{field}: {count}" for field, count in portfolio.missing_fields.items())
+        parts.append(f"Missing collection data: {missing}")
 
     if portfolio.top_coins:
         coin_list = []

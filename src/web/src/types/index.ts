@@ -627,6 +627,7 @@ export interface PortfolioSummary {
   eras: { era: string; count: number }[]
   rulers: { ruler: string; count: number }[]
   topCoins: { name: string; category: string; currentValue: number | null; ruler: string; era: string }[]
+  missingFields?: Record<string, number>
 }
 
 export type Theme = 'dark' | 'light'

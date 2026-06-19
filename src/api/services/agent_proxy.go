@@ -98,6 +98,7 @@ type PortfolioData struct {
 	Eras          []map[string]any     `json:"eras"`
 	Rulers        []map[string]any     `json:"rulers"`
 	TopCoins      []PortfolioCoinProxy `json:"top_coins"`
+	MissingFields map[string]int64     `json:"missing_fields,omitempty"`
 }
 
 type PortfolioCoinProxy struct {

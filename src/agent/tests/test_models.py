@@ -62,9 +62,16 @@ def test_user_context_defaults():
 
 def test_portfolio_summary_null_maps_become_empty():
     """Go sends null for nil maps — validator should convert to empty dict."""
-    summary = PortfolioSummary(categories=None, materials=None)
+    summary = PortfolioSummary(categories=None, materials=None, missing_fields=None)
     assert summary.categories == {}
     assert summary.materials == {}
+    assert summary.missing_fields == {}
+
+
+def test_portfolio_summary_accepts_missing_field_counts():
+    summary = PortfolioSummary(missing_fields={"diameterMm": 2, "weightGrams": 1})
+    assert summary.missing_fields["diameterMm"] == 2
+    assert summary.missing_fields["weightGrams"] == 1
 
 
 def test_portfolio_summary_null_lists_become_empty():

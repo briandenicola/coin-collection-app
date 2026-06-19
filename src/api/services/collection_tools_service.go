@@ -25,21 +25,29 @@ var (
 )
 
 type CollectionCoinSummary struct {
-	ID           uint     `json:"id"`
-	Name         string   `json:"name"`
-	Category     string   `json:"category,omitempty"`
-	Era          string   `json:"era,omitempty"`
-	Ruler        string   `json:"ruler,omitempty"`
-	Material     string   `json:"material,omitempty"`
-	CurrentValue *float64 `json:"currentValue,omitempty"`
+	ID            uint     `json:"id"`
+	Name          string   `json:"name"`
+	Category      string   `json:"category,omitempty"`
+	Denomination  string   `json:"denomination,omitempty"`
+	Era           string   `json:"era,omitempty"`
+	Ruler         string   `json:"ruler,omitempty"`
+	Mint          string   `json:"mint,omitempty"`
+	Material      string   `json:"material,omitempty"`
+	Grade         string   `json:"grade,omitempty"`
+	WeightGrams   *float64 `json:"weightGrams,omitempty"`
+	DiameterMm    *float64 `json:"diameterMm,omitempty"`
+	PurchasePrice *float64 `json:"purchasePrice,omitempty"`
+	CurrentValue  *float64 `json:"currentValue,omitempty"`
+	MissingFields []string `json:"missingFields,omitempty"`
 }
 
 type CollectionAggregateSummary struct {
-	TotalCoins       int64   `json:"totalCoins"`
-	TotalWishlist    int64   `json:"totalWishlist"`
-	TotalSold        int64   `json:"totalSold"`
-	TotalCurrentUSD  float64 `json:"totalCurrentUsd"`
-	TotalPurchaseUSD float64 `json:"totalPurchaseUsd"`
+	TotalCoins       int64            `json:"totalCoins"`
+	TotalWishlist    int64            `json:"totalWishlist"`
+	TotalSold        int64            `json:"totalSold"`
+	TotalCurrentUSD  float64          `json:"totalCurrentUsd"`
+	TotalPurchaseUSD float64          `json:"totalPurchaseUsd"`
+	MissingFields    map[string]int64 `json:"missingFields,omitempty"`
 }
 
 type CollectionProposalPreview struct {
@@ -100,6 +108,11 @@ func (s *CollectionToolsService) SearchMyCollection(userID uint, query string, l
 	}
 
 	lower := strings.ToLower(query)
+	if missingFields := requestedMissingFields(lower); len(missingFields) > 0 {
+		filters.Search = ""
+		filters.MissingFields = missingFields
+	}
+
 	// Category
 	if strings.Contains(lower, "roman") {
 		filters.Category = string(models.CategoryRoman)
@@ -175,12 +188,29 @@ func (s *CollectionToolsService) CollectionSummary(userID uint) (*CollectionAggr
 		return nil, err
 	}
 
+	missingFields := make(map[string]int64)
+	active := false
+	for _, field := range missingFieldNames {
+		count, err := s.coinRepo.CountOwnedByFilters(userID, repository.OwnedCoinFilters{
+			MissingFields: []string{field},
+			Wishlist:      &active,
+			Sold:          &active,
+		})
+		if err != nil {
+			return nil, err
+		}
+		if count > 0 {
+			missingFields[field] = count
+		}
+	}
+
 	return &CollectionAggregateSummary{
 		TotalCoins:       stats.TotalCoins,
 		TotalWishlist:    stats.TotalWishlist,
 		TotalSold:        stats.TotalSold,
 		TotalCurrentUSD:  stats.Values.TotalCurrentValue,
 		TotalPurchaseUSD: stats.Values.TotalPurchasePrice,
+		MissingFields:    missingFields,
 	}, nil
 }
 
@@ -550,14 +580,157 @@ func sha256Hex(value string) string {
 
 func toCoinSummary(coin models.Coin) CollectionCoinSummary {
 	return CollectionCoinSummary{
-		ID:           coin.ID,
-		Name:         coin.Name,
-		Category:     string(coin.Category),
-		Era:          string(coin.Era),
-		Ruler:        coin.Ruler,
-		Material:     string(coin.Material),
-		CurrentValue: coin.CurrentValue,
+		ID:            coin.ID,
+		Name:          coin.Name,
+		Category:      string(coin.Category),
+		Denomination:  coin.Denomination,
+		Era:           string(coin.Era),
+		Ruler:         coin.Ruler,
+		Mint:          coin.Mint,
+		Material:      string(coin.Material),
+		Grade:         coin.Grade,
+		WeightGrams:   coin.WeightGrams,
+		DiameterMm:    coin.DiameterMm,
+		PurchasePrice: coin.PurchasePrice,
+		CurrentValue:  coin.CurrentValue,
+		MissingFields: missingFieldsForCoin(coin),
 	}
+}
+
+var missingFieldNames = []string{
+	"denomination",
+	"ruler",
+	"era",
+	"mint",
+	"material",
+	"weightGrams",
+	"diameterMm",
+	"grade",
+	"purchasePrice",
+	"currentValue",
+	"purchaseDate",
+	"storageLocation",
+	"notes",
+	"referenceUrl",
+	"referenceText",
+}
+
+func requestedMissingFields(query string) []string {
+	if !strings.Contains(query, "missing") && !strings.Contains(query, "without") && !strings.Contains(query, "no ") {
+		return nil
+	}
+
+	seen := map[string]struct{}{}
+	add := func(field string) {
+		seen[field] = struct{}{}
+	}
+
+	if strings.Contains(query, "size") || strings.Contains(query, "diameter") {
+		add("diameterMm")
+	}
+	if strings.Contains(query, "weight") {
+		add("weightGrams")
+	}
+	if strings.Contains(query, "denomination") {
+		add("denomination")
+	}
+	if strings.Contains(query, "ruler") || strings.Contains(query, "emperor") {
+		add("ruler")
+	}
+	if strings.Contains(query, "era") {
+		add("era")
+	}
+	if strings.Contains(query, "mint") {
+		add("mint")
+	}
+	if strings.Contains(query, "material") || strings.Contains(query, "metal") {
+		add("material")
+	}
+	if strings.Contains(query, "grade") {
+		add("grade")
+	}
+	if strings.Contains(query, "purchase price") || strings.Contains(query, "cost") {
+		add("purchasePrice")
+	}
+	if strings.Contains(query, "current value") || strings.Contains(query, "value") {
+		add("currentValue")
+	}
+	if strings.Contains(query, "purchase date") {
+		add("purchaseDate")
+	}
+	if strings.Contains(query, "storage") || strings.Contains(query, "location") {
+		add("storageLocation")
+	}
+	if strings.Contains(query, "note") {
+		add("notes")
+	}
+	if strings.Contains(query, "reference") {
+		add("referenceUrl")
+		add("referenceText")
+	}
+	if strings.Contains(query, "propert") || strings.Contains(query, "metadata") || strings.Contains(query, "data") {
+		for _, field := range missingFieldNames {
+			add(field)
+		}
+	}
+
+	fields := make([]string, 0, len(seen))
+	for _, field := range missingFieldNames {
+		if _, ok := seen[field]; ok {
+			fields = append(fields, field)
+		}
+	}
+	return fields
+}
+
+func missingFieldsForCoin(coin models.Coin) []string {
+	missing := make([]string, 0)
+	if strings.TrimSpace(coin.Denomination) == "" {
+		missing = append(missing, "denomination")
+	}
+	if strings.TrimSpace(coin.Ruler) == "" {
+		missing = append(missing, "ruler")
+	}
+	if strings.TrimSpace(string(coin.Era)) == "" {
+		missing = append(missing, "era")
+	}
+	if strings.TrimSpace(coin.Mint) == "" {
+		missing = append(missing, "mint")
+	}
+	if strings.TrimSpace(string(coin.Material)) == "" || coin.Material == models.MaterialOther {
+		missing = append(missing, "material")
+	}
+	if coin.WeightGrams == nil || *coin.WeightGrams <= 0 {
+		missing = append(missing, "weightGrams")
+	}
+	if coin.DiameterMm == nil || *coin.DiameterMm <= 0 {
+		missing = append(missing, "diameterMm")
+	}
+	if strings.TrimSpace(coin.Grade) == "" {
+		missing = append(missing, "grade")
+	}
+	if coin.PurchasePrice == nil {
+		missing = append(missing, "purchasePrice")
+	}
+	if coin.CurrentValue == nil {
+		missing = append(missing, "currentValue")
+	}
+	if coin.PurchaseDate == nil {
+		missing = append(missing, "purchaseDate")
+	}
+	if coin.StorageLocationID == nil {
+		missing = append(missing, "storageLocation")
+	}
+	if strings.TrimSpace(coin.Notes) == "" {
+		missing = append(missing, "notes")
+	}
+	if strings.TrimSpace(coin.ReferenceURL) == "" {
+		missing = append(missing, "referenceUrl")
+	}
+	if strings.TrimSpace(coin.ReferenceText) == "" {
+		missing = append(missing, "referenceText")
+	}
+	return missing
 }
 
 func sortedMapKeys(values map[string]any) []string {
@@ -572,7 +745,7 @@ func sortedMapKeys(values map[string]any) []string {
 func buildJournalEntry(source string, changes map[string]any, metadata map[string]any) string {
 	keys := sortedMapKeys(changes)
 	entry := fmt.Sprintf("%s: committed updates (%s)", source, strings.Join(keys, ", "))
-	
+
 	// For external sources, append API key metadata if present
 	if source == "external_tool_server" && metadata != nil {
 		if apiKeyID, ok := metadata["apiKeyId"].(uint); ok {
@@ -581,6 +754,6 @@ func buildJournalEntry(source string, changes map[string]any, metadata map[strin
 			}
 		}
 	}
-	
+
 	return entry
 }

@@ -26,6 +26,10 @@ export function normalizeDiameterMm(
   return diameterMm
 }
 
+export function hasKnownDiameterMm(diameterMm: number | null | undefined): boolean {
+  return diameterMm != null && diameterMm > 0
+}
+
 /**
  * Calculates render size in pixels for a coin based on its diameter relative to all coins
  * Scales proportionally within min/max bounds

@@ -87,8 +87,9 @@ class PortfolioSummary(BaseModel):
     eras: list[dict[str, Any]] = Field(default_factory=list, max_length=MAX_PORTFOLIO_LIST_ITEMS)
     rulers: list[dict[str, Any]] = Field(default_factory=list, max_length=MAX_PORTFOLIO_LIST_ITEMS)
     top_coins: list[PortfolioCoin] = Field(default_factory=list, max_length=MAX_TOP_COINS)
+    missing_fields: dict[str, int] = Field(default_factory=dict, max_length=MAX_PORTFOLIO_MAP_ITEMS)
 
-    @field_validator("categories", "materials", mode="before")
+    @field_validator("categories", "materials", "missing_fields", mode="before")
     @classmethod
     def none_to_dict(cls, v: dict | None) -> dict:
         """Go serializes nil maps as null — convert to empty dict."""

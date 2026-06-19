@@ -73,4 +73,32 @@ describe('TrayViewPage', () => {
     })
     expect(mockGetCoins).toHaveBeenCalledTimes(2)
   })
+
+  it('only sends coins with known diameter values to tray drawers', async () => {
+    const measuredCoin = buildRomanDenariusCore({ id: 1, name: 'Measured Coin', diameterMm: 18 })
+    const missingDiameterCoin = buildRomanDenariusCore({ id: 2, name: 'Missing Diameter', diameterMm: null })
+    const zeroDiameterCoin = buildRomanDenariusCore({ id: 3, name: 'Zero Diameter', diameterMm: 0 })
+    mockGetCoins.mockResolvedValueOnce({
+      data: { coins: [measuredCoin, missingDiameterCoin, zeroDiameterCoin], total: 3 },
+    })
+
+    const wrapper = shallowMount(TrayViewPage, {
+      global: {
+        stubs: {
+          RouterLink: routerLinkStub,
+          MuseumTray: true,
+          TrayControls: true,
+        },
+      },
+    })
+    await flushPromises()
+
+    const tray = wrapper.findComponent({ name: 'MuseumTray' })
+    expect(tray.props('coins')).toEqual([{
+      id: measuredCoin.id,
+      name: measuredCoin.name,
+      diameterMm: measuredCoin.diameterMm,
+      images: measuredCoin.images,
+    }])
+  })
 })

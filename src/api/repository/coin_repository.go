@@ -28,13 +28,14 @@ type CoinListFilters struct {
 
 // OwnedCoinFilters are lightweight scoped filters used by collection chat tools.
 type OwnedCoinFilters struct {
-	Category string
-	Material string
-	Era      string
-	Ruler    string
-	Wishlist *bool
-	Sold     *bool
-	Search   string
+	Category      string
+	Material      string
+	Era           string
+	Ruler         string
+	Wishlist      *bool
+	Sold          *bool
+	Search        string
+	MissingFields []string
 }
 
 // CategoryCount holds a category name and its coin count.
@@ -159,7 +160,34 @@ func applyOwnedFilterConditions(query *gorm.DB, filters OwnedCoinFilters) *gorm.
 			term, term, term, term,
 		)
 	}
+	missingConditions := make([]string, 0, len(filters.MissingFields))
+	for _, field := range filters.MissingFields {
+		if condition, ok := ownedMissingFieldConditions[field]; ok {
+			missingConditions = append(missingConditions, "("+condition+")")
+		}
+	}
+	if len(missingConditions) > 0 {
+		query = query.Where(strings.Join(missingConditions, " OR "))
+	}
 	return query
+}
+
+var ownedMissingFieldConditions = map[string]string{
+	"denomination":    "denomination = ''",
+	"ruler":           "ruler = ''",
+	"era":             "era = ''",
+	"mint":            "mint = ''",
+	"material":        "material = '' OR material = 'Other'",
+	"weightGrams":     "weight_grams IS NULL OR weight_grams <= 0",
+	"diameterMm":      "diameter_mm IS NULL OR diameter_mm <= 0",
+	"grade":           "grade = ''",
+	"purchasePrice":   "purchase_price IS NULL",
+	"currentValue":    "current_value IS NULL",
+	"purchaseDate":    "purchase_date IS NULL",
+	"storageLocation": "storage_location_id IS NULL",
+	"notes":           "notes = ''",
+	"referenceUrl":    "reference_url = ''",
+	"referenceText":   "reference_text = ''",
 }
 
 var allowedSortFields = map[string]string{

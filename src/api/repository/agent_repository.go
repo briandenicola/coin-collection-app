@@ -41,14 +41,15 @@ type TopCoin struct {
 
 // PortfolioSummary holds all aggregated portfolio data.
 type PortfolioSummary struct {
-	TotalCoins    int64                `json:"totalCoins"`
-	TotalValue    float64              `json:"totalValue"`
-	TotalInvested float64              `json:"totalInvested"`
-	Categories    []CatCount           `json:"categories"`
-	Materials     []MatCount           `json:"materials"`
-	Eras          []PortfolioEraCount  `json:"eras"`
+	TotalCoins    int64                 `json:"totalCoins"`
+	TotalValue    float64               `json:"totalValue"`
+	TotalInvested float64               `json:"totalInvested"`
+	Categories    []CatCount            `json:"categories"`
+	Materials     []MatCount            `json:"materials"`
+	Eras          []PortfolioEraCount   `json:"eras"`
 	Rulers        []PortfolioRulerCount `json:"rulers"`
-	TopCoins      []TopCoin            `json:"topCoins"`
+	TopCoins      []TopCoin             `json:"topCoins"`
+	MissingFields map[string]int64      `json:"missingFields,omitempty"`
 }
 
 // AgentRepository encapsulates database operations for the agent handler.
@@ -106,6 +107,17 @@ func (r *AgentRepository) GetPortfolioSummary(userID uint) (*PortfolioSummary, e
 		Where(activeFilter+" AND current_value IS NOT NULL", userID, false, false).
 		Order("current_value DESC").Limit(10).Find(&topCoins)
 
+	missingFields := map[string]int64{}
+	for field, condition := range ownedMissingFieldConditions {
+		var count int64
+		r.db.Model(&models.Coin{}).
+			Where(activeFilter+" AND ("+condition+")", userID, false, false).
+			Count(&count)
+		if count > 0 {
+			missingFields[field] = count
+		}
+	}
+
 	return &PortfolioSummary{
 		TotalCoins:    totalCoins,
 		TotalValue:    totalValue,
@@ -115,6 +127,7 @@ func (r *AgentRepository) GetPortfolioSummary(userID uint) (*PortfolioSummary, e
 		Eras:          eras,
 		Rulers:        rulers,
 		TopCoins:      topCoins,
+		MissingFields: missingFields,
 	}, nil
 }
 

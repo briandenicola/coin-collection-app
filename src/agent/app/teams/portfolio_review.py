@@ -203,6 +203,11 @@ def _format_portfolio(portfolio: PortfolioSummary) -> str:
         for ruler in portfolio.rulers[:10]:
             lines.append(f"  {ruler.get('name', 'Unknown')}: {ruler.get('count', 0)} coins")
 
+    if portfolio.missing_fields:
+        lines.append("\nMissing Collection Data:")
+        for field, count in sorted(portfolio.missing_fields.items(), key=lambda x: -x[1]):
+            lines.append(f"  {field}: {count} coins")
+
     if portfolio.top_coins:
         lines.append("\nTop Coins by Value:")
         for coin in portfolio.top_coins:

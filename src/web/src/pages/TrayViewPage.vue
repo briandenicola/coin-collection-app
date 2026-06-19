@@ -4,7 +4,7 @@
     <div v-if="trayCoins.length === 0 && !loading" class="empty-state card">
       <Landmark :size="64" :stroke-width="1" class="empty-icon" />
       <h2>No Coins in Tray</h2>
-      <p>{{ errorMessage || 'Your collection is empty or no coins match the current filters.' }}</p>
+      <p>{{ trayEmptyMessage }}</p>
       <div class="empty-actions">
         <router-link to="/" class="btn btn-secondary">
           <ArrowLeft :size="18" />
@@ -48,7 +48,7 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { getCoins } from '@/api/client'
 import { useTrayPreference } from '@/composables/useTrayPreference'
-import { getDrawerCoins, getTotalDrawers, type TrayCoin } from '@/utils/trayLayout'
+import { getDrawerCoins, getTotalDrawers, hasKnownDiameterMm, type TrayCoin } from '@/utils/trayLayout'
 import type { Coin } from '@/types'
 import MuseumTray from '@/components/tray/MuseumTray.vue'
 import TrayControls from '@/components/tray/TrayControls.vue'
@@ -77,12 +77,22 @@ const SWIPE_THRESHOLD = 100
 const FLY_DISTANCE = 600
 
 const trayCoins = computed((): TrayCoin[] => {
-  return loadedCoins.value.map(coin => ({
-    id: coin.id,
-    name: coin.name,
-    diameterMm: coin.diameterMm,
-    images: coin.images,
-  }))
+  return loadedCoins.value
+    .filter(coin => hasKnownDiameterMm(coin.diameterMm))
+    .map(coin => ({
+      id: coin.id,
+      name: coin.name,
+      diameterMm: coin.diameterMm,
+      images: coin.images,
+    }))
+})
+
+const trayEmptyMessage = computed(() => {
+  if (errorMessage.value) return errorMessage.value
+  if (loadedCoins.value.length > 0 && trayCoins.value.length === 0) {
+    return 'No active collection coins have known diameter values. Add coin size details to display them in the tray.'
+  }
+  return 'Your collection is empty or no coins match the current filters.'
 })
 
 const currentDrawerCoins = computed(() => {

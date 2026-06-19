@@ -485,6 +485,7 @@ func (h *AgentHandler) PortfolioSummary(c *gin.Context) {
 		"eras":          summary.Eras,
 		"rulers":        summary.Rulers,
 		"topCoins":      summary.TopCoins,
+		"missingFields": summary.MissingFields,
 	})
 }
 
@@ -651,5 +652,6 @@ func buildPortfolioData(s *repository.PortfolioSummary) *services.PortfolioData 
 		Eras:          eras,
 		Rulers:        rulers,
 		TopCoins:      coins,
+		MissingFields: s.MissingFields,
 	}
 }
