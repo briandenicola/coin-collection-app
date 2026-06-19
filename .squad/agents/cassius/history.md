@@ -26,6 +26,13 @@
 
 ## Recent Updates
 
+- **2026-06-19:** Scope assessment for #321 (Lock Python dependencies) and #319 (Non-root Docker users):
+  - #321 is ready: uv.lock strategy, CI/Docker changes isolated, low risk
+  - #319 is ready: standard USER/chown pattern, no privileged ops, write-path validation straightforward
+  - Both independent; recommend #321→#319 sequence if merged in single PR to avoid line-number conflicts on `src/agent/Dockerfile`
+  - Neither requires splitting; both are coherent single-issue units
+  - See `.squad/decisions/inbox/cassius-scope-321-319.md` for detailed analysis
+
 - **2026-06-01:** #217 shared collection tool layer (internal token service, six internal endpoints, keyword gate removed), #217 Python ReAct agent completed end-to-end, #218 external tool server stack
 - **2026-06-01:** v1→v2 migration audit, Frontend navigation convention, Storage Location API pattern (per-user lookup table, nullable Coin.StorageLocationID FK, 409 conflict guard), Legacy RIC→CoinReference migration design + implementation + startup→endpoint refactor
 - **2026-06-09:** F013 Phase 3 golden fixtures complete (T014). Implemented Go fixture builders covering all 9 F013 golden coin names/traits with defensive cloning and optional deterministic DB persistence. Approved by Maximus Lead Review. Go build/test/vet all pass. Orchestration log: `.squad/orchestration-log/2026-06-09T13-09-16-cassius.md`
@@ -673,3 +680,5 @@ Modeled Go's optional `app_context` payload explicitly in Python as `AppContext(
 - **2026-06-19T15:21:36Z — PR #315 + #317 Approval:** Brutus re-reviewed both PRs after Maximus's lockout revision and APPROVED for merge. #317 implements full architecture boundary hardening: GORM imports banned from handlers, tightened to repository-only, documented legacy service exceptions in `allowedServiceGORMFiles` for future cleanup. Principle I compliance verified. #315 is Aurelia's SafeExternalLink pattern companion (external URLs hardened with XSS regression coverage). Validation: `go test -v ./...` ✓, `go vet ./...` ✓, targeted Vue tests ✓. Decision records merged to `decisions.md`. Orchestration log: `.squad/orchestration-log/2026-06-19T15-21-36Z-brutus-rereview-317.md`. Beta commit 2433277 queued at handoff.
 
 - **2026-06-19 — Swagger/OpenAPI Route Drift Gate (#316):** Added `src/api/route_openapi_drift_test.go` to inventory routes registered in `src/api/main.go`, normalize Gin params to OpenAPI paths, and fail when public `/api` routes are missing from `src/api/docs/swagger.json`. Explicit exemptions are limited to root health checks, Swagger UI assets, root `/uploads/*filepath`, and `/api/internal/tools/*` internal callback routes. Added missing Swagger annotations for tag, health, agent proposal/status/value, user profile/avatar/Pushover test, social, showcase, calendar, alert/reminder, admin connection-test, auction-lot update, and auction-ending debug routes; regenerated `src/api/docs/*` and `docs/openapi.json` with `task openapi`. Validated with `go test -v -run TestRegisteredAPIRoutesAreDocumentedInOpenAPI .` and `go test -v ./...` from `src/api`.
+
+- **2026-06-19 — Python Agent Dependency Locking (#321):** Agent dependencies now use `src/agent/uv.lock` with uv 0.11.22. CI runs `uv sync --locked --extra dev` then `uv run ruff check app/ tests/` and `uv run pytest tests/ -v`; security scan audits the locked dev environment with `uv run pip-audit`; Docker installs runtime deps with `uv sync --locked --no-dev --no-install-project`. Refresh command from `src/agent`: `uv lock --upgrade && uv sync --locked --extra dev`.

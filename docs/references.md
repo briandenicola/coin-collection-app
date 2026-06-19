@@ -63,9 +63,11 @@
 | Task | <https://taskfile.dev/> | task runner via `Taskfile.yml` | [Taskfile.yml](../Taskfile.yml), [README.md](../README.md), [docs/getting-started.md](getting-started.md) |
 | Docker | <https://docs.docker.com/> | base images pinned in Dockerfiles, not a single repo package | [Dockerfile](../Dockerfile), [src/agent/Dockerfile](../src/agent/Dockerfile), [docs/deployment.md](deployment.md) |
 | Docker Compose | <https://docs.docker.com/compose/> | compose spec via local CLI | [docker-compose.yaml](../docker-compose.yaml), [docs/deployment.md](deployment.md) |
+| uv | <https://docs.astral.sh/uv/> | `0.11.22` | [src/agent/uv.lock](../src/agent/uv.lock), [src/agent/Dockerfile](../src/agent/Dockerfile), [.github/workflows/ci.yml](../.github/workflows/ci.yml) |
 | Swaggo / swag | <https://github.com/swaggo/swag> | `v1.16.6` | [src/api/go.mod](../src/api/go.mod), [src/api/docs/](../src/api/docs/), [docs/api-reference.md](api-reference.md) |
 | Ruff | <https://docs.astral.sh/ruff/> | `>=0.9.0,<1.0` | [src/agent/pyproject.toml](../src/agent/pyproject.toml), [.pre-commit-config.yaml](../.pre-commit-config.yaml) |
 | Pytest | <https://docs.pytest.org/> | `>=8.0,<10.0` | [src/agent/pyproject.toml](../src/agent/pyproject.toml), [src/agent/tests/](../src/agent/tests/) |
+| pip-audit | <https://pypi.org/project/pip-audit/> | `>=2.9.0,<3.0` | [src/agent/pyproject.toml](../src/agent/pyproject.toml), [.github/workflows/security-scan.yml](../.github/workflows/security-scan.yml) |
 | Vitest | <https://vitest.dev/> | `^4.1.5` | [src/web/package.json](../src/web/package.json), [src/web/src/__tests__/](../src/web/src/__tests__/) |
 | ESLint | <https://eslint.org/> | `^10.3.0` | [src/web/package.json](../src/web/package.json), [docs/CHANGELOG.md](CHANGELOG.md) |
 | Gitleaks | <https://github.com/gitleaks/gitleaks> | `v8.30.1` (via pre-commit hook) | [.gitleaks.toml](../.gitleaks.toml), [.pre-commit-config.yaml](../.pre-commit-config.yaml), [docs/incident-response.md](incident-response.md) |

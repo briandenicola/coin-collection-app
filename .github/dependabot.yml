@@ -32,7 +32,7 @@ updates:
       - dependencies
       - ci
 
-  - package-ecosystem: pip
+  - package-ecosystem: uv
     directory: /src/agent
     schedule:
       interval: weekly

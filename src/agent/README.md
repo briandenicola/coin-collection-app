@@ -5,11 +5,13 @@ Python 3.12 + FastAPI + LangGraph + LangChain multi-agent service for AI-powered
 ## Prerequisites
 
 - **Python** 3.12+
+- **uv** 0.11.22 for locked installs
 
 ## Install
 
 ```bash
-pip install -e ".[dev]"    # install with dev dependencies (pytest, ruff)
+pip install uv==0.11.22
+uv sync --locked --extra dev    # install locked dependencies with dev tools
 ```
 
 ## Run
@@ -23,12 +25,22 @@ The Go API proxies AI requests to this service at `AGENT_SERVICE_URL` (default `
 ## Test & Lint
 
 ```bash
-pytest tests/ -v             # run all tests
-pytest tests/test_foo.py -v  # run a specific test file
-ruff check app/ tests/       # lint (E, F, I, W rules)
+uv run pytest tests/ -v             # run all tests
+uv run pytest tests/test_foo.py -v  # run a specific test file
+uv run ruff check app/ tests/       # lint (E, F, I, W rules)
 ```
 
 Ruff is configured for Python 3.12 with a 120-character line length. Pytest uses `asyncio_mode = "auto"`.
+
+## Dependency Locking
+
+Agent dependencies are locked in `uv.lock`. Refresh the lock after intentional dependency range changes or Dependabot uv PRs:
+
+```bash
+pip install uv==0.11.22
+uv lock --upgrade
+uv sync --locked --extra dev
+```
 
 ## Architecture
 

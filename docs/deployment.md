@@ -18,6 +18,7 @@ The **app** container uses a 3-stage Dockerfile (`Dockerfile`) that builds throu
 3. **Alpine 3.21** — minimal runtime (~40 MB final image)
 
 The **agent** container uses a separate Dockerfile (`src/agent/Dockerfile`) to build the Python LangGraph service.
+Python agent dependencies are installed from `src/agent/uv.lock` with uv 0.11.22 so CI and Docker builds use the same locked resolution.
 
 The app container contains:
 
@@ -162,12 +163,26 @@ Use Taskfile commands to build the Docker image locally:
 task docker-build  # builds with commit SHA tag + latest
 ```
 
+The agent image can be built directly after refreshing or reviewing the lock:
+
+```sh
+docker build -f src/agent/Dockerfile -t ancient-coins-agent:local src/agent
+```
+
 The build injects two build arguments:
 
 | Build Arg | Description |
 |---|---|
 | `APP_VERSION` | Git commit SHA — combined with the root `VERSION` file for app UI version display |
 | `BUILD_DATE` | Build timestamp — injected into Vite for version display |
+
+Refresh Python agent dependencies intentionally from `src/agent`:
+
+```sh
+pip install uv==0.11.22
+uv lock --upgrade
+uv sync --locked --extra dev
+```
 
 ---
 
