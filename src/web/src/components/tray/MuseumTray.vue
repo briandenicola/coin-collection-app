@@ -100,29 +100,29 @@ function getRenderSize(coin: TrayCoin): number {
 
 .tray-grid {
   display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 1.5rem;
   justify-items: center;
   align-items: center;
   padding: 1rem;
 }
 
-/* Responsive columns: max 4 to match 4×6 tray layout (24 coins) */
 @media (max-width: 575px) {
   .tray-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1rem;
+    gap: 0.5rem;
+    padding: 0.5rem;
   }
 }
 
 @media (min-width: 576px) and (max-width: 767px) {
   .tray-grid {
-    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
   }
 }
 
 @media (min-width: 768px) {
   .tray-grid {
-    grid-template-columns: repeat(4, 1fr);
+    gap: 1.5rem;
   }
 }
 </style>

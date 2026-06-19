@@ -49,10 +49,27 @@ describe('UI pattern recipes', () => {
   it('keeps tray felt color in Settings appearance instead of the tray page', () => {
     const settingsAppearance = readRepoFile(join('components', 'settings', 'SettingsAppearanceSection.vue'))
     const trayPage = readRepoFile(join('pages', 'TrayViewPage.vue'))
+    const museumTray = readRepoFile(join('components', 'tray', 'MuseumTray.vue'))
 
     expect(settingsAppearance).toContain('Tray Felt Color')
     expect(settingsAppearance).toContain('set-tray-felt-color')
     expect(trayPage).not.toContain('@update:felt-theme')
+    expect(trayPage).toContain('const coinsPerDrawer = 12')
+    expect(museumTray).toContain('grid-template-columns: repeat(6, minmax(0, 1fr))')
+  })
+
+  it('keeps Identify Coin camera-first with Add Coin upload icon pattern', () => {
+    const lookupPage = readRepoFile(join('pages', 'CoinLookupPage.vue'))
+
+    expect(lookupPage).toContain('ref="cameraVideo"')
+    expect(lookupPage).toContain('void startCamera()')
+    expect(lookupPage).toContain('class="shutter-btn"')
+    expect(lookupPage).toContain('class="upload-icon-btn"')
+    expect(lookupPage).toContain('<Images :size="20" />')
+    expect(lookupPage).not.toContain('CameraCaptureModal')
+    expect(lookupPage).not.toContain('Take Photo')
+    expect(lookupPage).not.toContain('Upload Image')
+    expect(lookupPage).not.toContain('title="Back"')
   })
 
   it('keeps the PWA agent button viewport-fixed globally', () => {

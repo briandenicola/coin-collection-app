@@ -58,7 +58,7 @@ const router = useRouter()
 const { feltColor } = useTrayPreference()
 
 const drawerIndex = ref(0)
-const coinsPerDrawer = 24
+const coinsPerDrawer = 12
 const trayDragX = ref(0)
 const trayDragY = ref(0)
 const trayIsDragging = ref(false)

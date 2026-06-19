@@ -2,16 +2,6 @@
   <div class="container">
     <div class="page-header">
       <h1>Identify Coin</h1>
-      <div v-if="isPwa" class="pwa-actions">
-        <button class="pwa-icon-btn" @click="handleBack" title="Back">
-          <ArrowLeft :size="22" />
-        </button>
-      </div>
-      <div v-else class="header-actions">
-        <button class="btn btn-ghost" @click="handleBack">
-          <ArrowLeft :size="16" /> Back
-        </button>
-      </div>
     </div>
 
     <!-- Capture State -->
@@ -19,6 +9,51 @@
       <p class="lookup-instructions card">
         Take a photo of the coin or certification slab to identify it. Save only when you want to add the result to your wishlist.
       </p>
+
+      <div class="camera-first-card">
+        <div class="camera-container">
+          <video
+            ref="cameraVideo"
+            class="camera-preview"
+            v-show="cameraStream !== null"
+            autoplay
+            playsinline
+            muted
+            @loadedmetadata="onVideoMetadataLoaded"
+          />
+          <div v-if="!cameraStream" class="camera-placeholder">
+            <Camera :size="48" />
+            <p>Camera starting...</p>
+          </div>
+          <div v-if="cameraError" class="camera-error-banner">{{ cameraError }}</div>
+
+          <div v-if="cameraStream !== null" class="focus-overlay">
+            <div class="focus-mask"></div>
+            <div class="focus-ring"></div>
+            <p class="focus-instruction">Focus one coin in the circle</p>
+          </div>
+        </div>
+
+        <div class="camera-actions">
+          <button
+            type="button"
+            class="shutter-btn"
+            :disabled="!cameraReady"
+            @click="captureFromCamera"
+            aria-label="Capture photo"
+          >
+            <Camera :size="32" />
+          </button>
+          <button
+            type="button"
+            class="upload-icon-btn"
+            @click="triggerFileUpload"
+            aria-label="Upload from library"
+          >
+            <Images :size="20" />
+          </button>
+        </div>
+      </div>
 
       <!-- Image preview grid -->
       <div v-if="capturedImages.length > 0" class="captured-images">
@@ -30,25 +65,14 @@
         </div>
       </div>
 
-      <!-- Capture controls -->
-      <div class="capture-controls">
-        <button class="btn btn-primary btn-large" @click="openCamera">
-          <Camera :size="20" />
-          Take Photo
-        </button>
-        <label class="btn btn-secondary btn-large">
-          <Upload :size="20" />
-          Upload Image
-          <input
-            ref="fileInput"
-            type="file"
-            accept="image/*"
-            multiple
-            style="display: none"
-            @change="handleFileUpload"
-          />
-        </label>
-      </div>
+      <input
+        ref="fileInput"
+        type="file"
+        accept="image/*"
+        multiple
+        style="display: none"
+        @change="handleFileUpload"
+      />
 
       <button
         v-if="capturedImages.length > 0"
@@ -230,26 +254,18 @@
       </div>
     </div>
 
-    <!-- Camera Modal -->
-    <CameraCaptureModal
-      :is-open="showCamera"
-      instruction="Center the coin or slab in the frame"
-      @close="showCamera = false"
-      @captured="handleCameraCaptured"
-    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive, onBeforeUnmount } from 'vue'
+import { ref, computed, reactive, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { createCoin, createCoinReference, createIntakeDraft, lookupCoin, uploadImage } from '@/api/client'
 import type { CoinLookupResponse, CoinMutationPayload } from '@/types'
 import {
   Camera,
-  Upload,
+  Images,
   Search,
-  ArrowLeft,
   X,
   AlertCircle,
   ShieldCheck,
@@ -257,8 +273,6 @@ import {
   RotateCcw,
   Bookmark,
 } from 'lucide-vue-next'
-import CameraCaptureModal from '@/components/CameraCaptureModal.vue'
-import { usePwa } from '@/composables/usePwa'
 
 interface CapturedImage {
   file: File
@@ -268,12 +282,14 @@ interface CapturedImage {
 type LookupState = 'capture' | 'analyzing' | 'results'
 
 const router = useRouter()
-const { isPwa } = usePwa()
 
 const state = ref<LookupState>('capture')
 const capturedImages = ref<CapturedImage[]>([])
-const showCamera = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
+const cameraVideo = ref<HTMLVideoElement | null>(null)
+const cameraStream = ref<MediaStream | null>(null)
+const cameraError = ref('')
+const videoReady = ref(false)
 const submitting = ref(false)
 const saving = ref(false)
 const error = ref('')
@@ -298,6 +314,7 @@ const ngcLookupUrl = computed(() => {
 })
 
 const numistaResults = computed(() => results.value?.numistaCandidates ?? [])
+const cameraReady = computed(() => cameraStream.value !== null && videoReady.value)
 
 function normalizedEra(value: unknown): 'ancient' | 'medieval' | 'modern' | undefined {
   if (typeof value !== 'string') return undefined
@@ -323,24 +340,121 @@ function applyDraftToReviewForm(prefilled: CoinMutationPayload) {
   })
 }
 
-function handleBack() {
-  if (state.value === 'results') {
-    state.value = 'capture'
-    results.value = null
-    error.value = ''
-  } else {
-    router.back()
+async function startCamera() {
+  if (cameraStream.value) return
+  if (!navigator.mediaDevices?.getUserMedia) {
+    cameraError.value = 'Camera access is unavailable on this device.'
+    return
+  }
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' } },
+      audio: false,
+    })
+    cameraStream.value = stream
+    cameraError.value = ''
+    videoReady.value = false
+
+    await nextTick()
+
+    if (cameraVideo.value) {
+      cameraVideo.value.srcObject = stream
+      await cameraVideo.value.play()
+    }
+  } catch (error) {
+    const err = error as { name?: string }
+    if (err.name === 'NotAllowedError') {
+      cameraError.value = 'Camera permission was denied. You can still upload images.'
+    } else if (err.name === 'NotFoundError') {
+      cameraError.value = 'No camera found on this device.'
+    } else {
+      cameraError.value = 'Camera is unavailable. You can still upload images.'
+    }
   }
 }
 
-function openCamera() {
-  showCamera.value = true
+function onVideoMetadataLoaded() {
+  const video = cameraVideo.value
+  if (video && video.videoWidth > 0 && video.videoHeight > 0) {
+    videoReady.value = true
+  }
 }
 
-function handleCameraCaptured(file: File) {
+function stopCamera() {
+  if (!cameraStream.value) return
+  for (const track of cameraStream.value.getTracks()) {
+    track.stop()
+  }
+  cameraStream.value = null
+  videoReady.value = false
+}
+
+function addCapturedFile(file: File) {
   const preview = URL.createObjectURL(file)
   capturedImages.value.push({ file, preview })
-  showCamera.value = false
+}
+
+function computeCoverCropRect(
+  videoWidth: number,
+  videoHeight: number,
+  displayWidth: number,
+  displayHeight: number
+): { sx: number; sy: number; sw: number; sh: number } {
+  const videoAspect = videoWidth / (videoHeight || 1)
+  const displayAspect = displayWidth / (displayHeight || 1)
+
+  if (videoAspect > displayAspect) {
+    const sh = videoHeight
+    const sw = sh * displayAspect
+    return { sx: (videoWidth - sw) / 2, sy: 0, sw, sh }
+  }
+
+  const sw = videoWidth
+  const sh = sw / displayAspect
+  return { sx: 0, sy: (videoHeight - sh) / 2, sw, sh }
+}
+
+async function captureFromCamera() {
+  const video = cameraVideo.value
+  if (!video || !cameraReady.value || video.videoWidth === 0 || video.videoHeight === 0) {
+    cameraError.value = 'Camera is not ready yet. Try again in a moment.'
+    return
+  }
+
+  const displayWidth = video.clientWidth ?? 0
+  const displayHeight = video.clientHeight ?? 0
+  if (displayWidth === 0 || displayHeight === 0) {
+    cameraError.value = 'Could not determine video display size.'
+    return
+  }
+
+  const { sx, sy, sw, sh } = computeCoverCropRect(
+    video.videoWidth,
+    video.videoHeight,
+    displayWidth,
+    displayHeight
+  )
+
+  const canvas = document.createElement('canvas')
+  canvas.width = sw
+  canvas.height = sh
+  const context = canvas.getContext('2d')
+  if (!context) return
+
+  context.drawImage(video, sx, sy, sw, sh, 0, 0, sw, sh)
+
+  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92))
+  if (!blob) {
+    cameraError.value = 'Could not capture image from camera.'
+    return
+  }
+
+  addCapturedFile(new File([blob], `lookup-${Date.now()}.jpg`, { type: 'image/jpeg' }))
+}
+
+function triggerFileUpload() {
+  fileInput.value?.click()
 }
 
 function handleFileUpload(event: Event) {
@@ -351,8 +465,7 @@ function handleFileUpload(event: Event) {
   for (let i = 0; i < files.length; i++) {
     const file = files[i]
     if (!file) continue
-    const preview = URL.createObjectURL(file)
-    capturedImages.value.push({ file, preview })
+    addCapturedFile(file)
   }
 
   // Reset input
@@ -375,6 +488,7 @@ async function handleSubmit() {
   submitting.value = true
   error.value = ''
   state.value = 'analyzing'
+  stopCamera()
 
   try {
     const files = capturedImages.value.map(img => img.file)
@@ -414,6 +528,7 @@ function handleRetake() {
   applyDraftToReviewForm({})
 
   state.value = 'capture'
+  void startCamera()
 }
 
 function handleCancel() {
@@ -460,7 +575,12 @@ async function handleSaveToWishlist() {
   }
 }
 
+onMounted(() => {
+  void startCamera()
+})
+
 onBeforeUnmount(() => {
+  stopCamera()
   for (const img of capturedImages.value) {
     URL.revokeObjectURL(img.preview)
   }
@@ -485,6 +605,156 @@ onBeforeUnmount(() => {
   color: var(--text-secondary);
   font-size: 0.9rem;
   line-height: 1.5;
+}
+
+.camera-first-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.camera-container {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-subtle);
+}
+
+.camera-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.camera-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  color: var(--text-muted);
+}
+
+.camera-error-banner {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--error-bg);
+  color: var(--text-primary);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8rem;
+  text-align: center;
+  z-index: 10;
+}
+
+.focus-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.focus-mask {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle at 50% 52%,
+    transparent 0%,
+    transparent 36%,
+    rgba(10, 12, 20, 0.2) 37%,
+    rgba(10, 12, 20, 0.62) 100%
+  );
+}
+
+.focus-ring {
+  position: absolute;
+  top: 52%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 74%;
+  max-width: 360px;
+  aspect-ratio: 1;
+  border-radius: var(--radius-full);
+  border: 2px solid var(--border-white-dim);
+}
+
+.focus-instruction {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 20px);
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-align: center;
+  text-shadow: 0 2px 8px var(--overlay-dark);
+  margin: 0;
+}
+
+.camera-actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.shutter-btn {
+  grid-column: 2;
+  justify-self: center;
+  width: 4rem;
+  height: 4rem;
+  border-radius: var(--radius-full);
+  background: linear-gradient(135deg, var(--accent-gold), var(--accent-bronze));
+  border: 2px solid var(--border-white-dim);
+  color: var(--bg-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  box-shadow: var(--shadow-card);
+}
+
+.shutter-btn:hover:not(:disabled) {
+  transform: scale(1.05);
+  box-shadow: var(--shadow-glow);
+}
+
+.shutter-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.upload-icon-btn {
+  grid-column: 3;
+  justify-self: end;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--radius-full);
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.upload-icon-btn:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--accent-gold);
+  color: var(--accent-gold);
 }
 
 .captured-images {
@@ -523,20 +793,6 @@ onBeforeUnmount(() => {
 
 .remove-image-btn:hover {
   background: rgba(192, 57, 43, 0.8);
-}
-
-.capture-controls {
-  display: flex;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-}
-
-.btn-large {
-  padding: 0.85rem 1.5rem;
-  font-size: 1rem;
-  flex: 1;
-  min-width: 200px;
-  justify-content: center;
 }
 
 .btn-submit {
@@ -808,15 +1064,6 @@ onBeforeUnmount(() => {
 
   .lookup-page-header .btn {
     flex-shrink: 0;
-  }
-
-  .capture-controls {
-    flex-direction: column;
-  }
-
-  .btn-large {
-    min-width: unset;
-    width: 100%;
   }
 
   .details-grid {

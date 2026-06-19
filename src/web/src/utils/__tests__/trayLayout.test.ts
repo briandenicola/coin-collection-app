@@ -155,11 +155,11 @@ describe('trayLayout', () => {
       expect(getTotalDrawers(5, 1)).toBe(5)
     })
 
-    it('supports 4×6 tray layout of 24 coins per tray', () => {
-      expect(getTotalDrawers(24, 24)).toBe(1)
-      expect(getTotalDrawers(25, 24)).toBe(2)
-      expect(getTotalDrawers(48, 24)).toBe(2)
-      expect(getTotalDrawers(49, 24)).toBe(3)
+    it('supports 2x6 tray layout of 12 coins per tray', () => {
+      expect(getTotalDrawers(12, 12)).toBe(1)
+      expect(getTotalDrawers(13, 12)).toBe(2)
+      expect(getTotalDrawers(24, 12)).toBe(2)
+      expect(getTotalDrawers(25, 12)).toBe(3)
     })
   })
 })
