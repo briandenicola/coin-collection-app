@@ -18,6 +18,15 @@ func NewShowcaseHandler(repo *repository.ShowcaseRepository) *ShowcaseHandler {
 }
 
 // ListShowcases returns all showcases for the current user.
+//
+//	@Summary		List showcases
+//	@Description	Returns showcases owned by the authenticated user.
+//	@Tags			Showcases
+//	@Produce		json
+//	@Success		200	{object}	object
+//	@Failure		500	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/showcases [get]
 func (h *ShowcaseHandler) ListShowcases(c *gin.Context) {
 	userID := c.GetUint("userId")
 	showcases, err := h.repo.ListByUser(userID)
@@ -44,6 +53,17 @@ func (h *ShowcaseHandler) ListShowcases(c *gin.Context) {
 }
 
 // GetShowcase returns a single showcase with its coins for the current user.
+//
+//	@Summary		Get showcase
+//	@Description	Returns one showcase and its coins for the authenticated user.
+//	@Tags			Showcases
+//	@Produce		json
+//	@Param			id	path		int	true	"Showcase ID"
+//	@Success		200	{object}	object
+//	@Failure		400	{object}	ErrorResponse
+//	@Failure		404	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/showcases/{id} [get]
 func (h *ShowcaseHandler) GetShowcase(c *gin.Context) {
 	userID := c.GetUint("userId")
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
@@ -82,6 +102,18 @@ func (h *ShowcaseHandler) GetShowcase(c *gin.Context) {
 }
 
 // CreateShowcase creates a new showcase.
+//
+//	@Summary		Create showcase
+//	@Description	Creates a showcase for the authenticated user.
+//	@Tags			Showcases
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		object	true	"Request payload"
+//	@Success		200	{object}	object
+//	@Failure		400	{object}	ErrorResponse
+//	@Failure		500	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/showcases [post]
 func (h *ShowcaseHandler) CreateShowcase(c *gin.Context) {
 	userID := c.GetUint("userId")
 
@@ -113,6 +145,20 @@ func (h *ShowcaseHandler) CreateShowcase(c *gin.Context) {
 }
 
 // UpdateShowcase updates a showcase's metadata.
+//
+//	@Summary		Update showcase
+//	@Description	Updates metadata and active status for a showcase owned by the authenticated user.
+//	@Tags			Showcases
+//	@Accept			json
+//	@Produce		json
+//	@Param			id	path		int	true	"Showcase ID"
+//	@Param			body	body		object	true	"Request payload"
+//	@Success		200	{object}	MessageResponse
+//	@Failure		400	{object}	ErrorResponse
+//	@Failure		404	{object}	ErrorResponse
+//	@Failure		500	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/showcases/{id} [put]
 func (h *ShowcaseHandler) UpdateShowcase(c *gin.Context) {
 	userID := c.GetUint("userId")
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
@@ -156,6 +202,17 @@ func (h *ShowcaseHandler) UpdateShowcase(c *gin.Context) {
 }
 
 // DeleteShowcase deletes a showcase.
+//
+//	@Summary		Delete showcase
+//	@Description	Deletes a showcase owned by the authenticated user.
+//	@Tags			Showcases
+//	@Produce		json
+//	@Param			id	path		int	true	"Showcase ID"
+//	@Success		200	{object}	MessageResponse
+//	@Failure		400	{object}	ErrorResponse
+//	@Failure		500	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/showcases/{id} [delete]
 func (h *ShowcaseHandler) DeleteShowcase(c *gin.Context) {
 	userID := c.GetUint("userId")
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
@@ -173,6 +230,18 @@ func (h *ShowcaseHandler) DeleteShowcase(c *gin.Context) {
 }
 
 // SetShowcaseCoins sets the coins in a showcase (replaces all).
+//
+//	@Summary		Set showcase coins
+//	@Description	Replaces the coin membership for a showcase owned by the authenticated user.
+//	@Tags			Showcases
+//	@Accept			json
+//	@Produce		json
+//	@Param			id	path		int	true	"Showcase ID"
+//	@Param			body	body		object	true	"Request payload"
+//	@Success		200	{object}	MessageResponse
+//	@Failure		400	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/showcases/{id}/coins [put]
 func (h *ShowcaseHandler) SetShowcaseCoins(c *gin.Context) {
 	userID := c.GetUint("userId")
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
@@ -201,6 +270,15 @@ func (h *ShowcaseHandler) SetShowcaseCoins(c *gin.Context) {
 }
 
 // GetPublicShowcase returns a showcase by slug (no auth required).
+//
+//	@Summary		Get public showcase
+//	@Description	Returns an active public showcase by slug.
+//	@Tags			Showcases
+//	@Produce		json
+//	@Param			slug	path		string	true	"Showcase slug"
+//	@Success		200	{object}	object
+//	@Failure		404	{object}	ErrorResponse
+//	@Router			/showcase/{slug} [get]
 func (h *ShowcaseHandler) GetPublicShowcase(c *gin.Context) {
 	slug := c.Param("slug")
 	showcase, err := h.repo.GetBySlug(slug)

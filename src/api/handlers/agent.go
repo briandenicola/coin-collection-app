@@ -265,6 +265,21 @@ type CommitCollectionProposalRequest struct {
 }
 
 // CommitCollectionProposal commits a pending collection update proposal.
+//
+//	@Summary		Commit collection proposal
+//	@Description	Commits a pending AI-proposed collection update after explicit user confirmation.
+//	@Tags			Agent
+//	@Accept			json
+//	@Produce		json
+//	@Param			proposalId	path		string					true	"Proposal ID"
+//	@Param			body		body		CommitCollectionProposalRequest	true	"Commit confirmation"
+//	@Success		200			{object}	services.CommitCollectionProposalResult
+//	@Failure		400			{object}	ErrorResponse
+//	@Failure		404			{object}	ErrorResponse
+//	@Failure		409			{object}	ErrorResponse
+//	@Failure		503			{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/agent/collection/proposals/{proposalId}/commit [post]
 func (h *AgentHandler) CommitCollectionProposal(c *gin.Context) {
 	if h.collectionSvc == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Collection tools unavailable"})
@@ -305,6 +320,18 @@ func (h *AgentHandler) CommitCollectionProposal(c *gin.Context) {
 }
 
 // CancelCollectionProposal cancels a pending collection update proposal.
+//
+//	@Summary		Cancel collection proposal
+//	@Description	Cancels a pending AI-proposed collection update for the authenticated user.
+//	@Tags			Agent
+//	@Produce		json
+//	@Param			proposalId	path		string	true	"Proposal ID"
+//	@Success		200			{object}	services.CancelCollectionProposalResult
+//	@Failure		404			{object}	ErrorResponse
+//	@Failure		409			{object}	ErrorResponse
+//	@Failure		503			{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/agent/collection/proposals/{proposalId}/cancel [post]
 func (h *AgentHandler) CancelCollectionProposal(c *gin.Context) {
 	if h.collectionSvc == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Collection tools unavailable"})
@@ -331,6 +358,14 @@ func (h *AgentHandler) CancelCollectionProposal(c *gin.Context) {
 }
 
 // AgentStatus returns the current AI provider configuration status.
+//
+//	@Summary		Get agent status
+//	@Description	Returns whether an AI provider is selected for agent features.
+//	@Tags			Agent
+//	@Produce		json
+//	@Success		200	{object}	object
+//	@Security		BearerAuth
+//	@Router			/agent/status [get]
 func (h *AgentHandler) AgentStatus(c *gin.Context) {
 	provider := h.settingsSvc.GetSetting(services.SettingAIProvider)
 	configured := provider == "anthropic" || provider == "ollama"
@@ -525,6 +560,18 @@ func (h *AgentHandler) getValuationPrompt() string {
 }
 
 // EstimateValue estimates the current market value of a coin using the agent service.
+//
+//	@Summary		Estimate coin value
+//	@Description	Uses the configured AI provider to estimate current market value for a coin owned by the authenticated user.
+//	@Tags			Agent
+//	@Produce		json
+//	@Param			id	path		int	true	"Coin ID"
+//	@Success		200	{object}	object
+//	@Failure		400	{object}	ErrorResponse
+//	@Failure		404	{object}	ErrorResponse
+//	@Failure		503	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/coins/{id}/estimate-value [post]
 func (h *AgentHandler) EstimateValue(c *gin.Context) {
 	logger := h.logger
 

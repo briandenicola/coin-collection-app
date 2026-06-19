@@ -56,7 +56,7 @@ Ancient Coins is a full-stack PWA for managing a personal ancient coin collectio
 
 | Service | Tech Stack | Port | Path |
 |---------|-----------|------|------|
-| **Go API** | Go 1.26.1, Gin, GORM, SQLite | 8080 | `src/api/` |
+| **Go API** | Go 1.26.4, Gin, GORM, SQLite | 8080 | `src/api/` |
 | **Vue Frontend** | Vue 3, TypeScript, Pinia, Vite, PWA | (bundled) | `src/web/` |
 | **Python Agent** | Python 3.12, FastAPI, LangGraph, LangChain | 8081 | `src/agent/` |
 
@@ -664,15 +664,15 @@ Both compute next-run from a daily anchor time plus interval cadence.
 `Dockerfile` (root):
 
 ```
-Stage 1: node:24-alpine
+Stage 1: node:24-alpine@sha256:...
   → npm install + npm run build (Vue SPA)
   → Output: dist/
 
-Stage 2: golang:1.26-alpine
+Stage 2: golang:1.26.4-alpine@sha256:...
   → go build -o ancient-coins-api
   → Output: binary
 
-Stage 3: alpine:3.21
+Stage 3: alpine:3.21@sha256:...
   → Copy binary + Vue dist → /app/wwwroot
   → Create /app/uploads, /app/data
   → EXPOSE 8080
@@ -683,10 +683,10 @@ Stage 3: alpine:3.21
 `src/agent/Dockerfile`:
 
 ```
-Stage 1: python:3.12-slim (builder)
+Stage 1: python:3.12-slim@sha256:... (builder)
   → pip install from pyproject.toml
 
-Stage 2: python:3.12-slim
+Stage 2: python:3.12-slim@sha256:...
   → Copy site-packages + app/
   → CMD: uvicorn app.main:app --host 0.0.0.0 --port 8081
   → EXPOSE 8081

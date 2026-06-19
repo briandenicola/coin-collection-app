@@ -20,6 +20,15 @@ func NewHealthHandler(svc *services.HealthService, logger *services.Logger) *Hea
 }
 
 // CollectionSummary returns collection-level health summary data.
+//
+//	@Summary		Get collection health summary
+//	@Description	Returns collection-level metadata health score, dimensions, and checklist summary for the authenticated user.
+//	@Tags			Health
+//	@Produce		json
+//	@Success		200	{object}	services.CollectionHealthSummary
+//	@Failure		500	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/stats/health [get]
 func (h *HealthHandler) CollectionSummary(c *gin.Context) {
 	userID := c.GetUint("userId")
 	summary, err := h.svc.GetCollectionHealthSummary(userID)
@@ -31,6 +40,19 @@ func (h *HealthHandler) CollectionSummary(c *gin.Context) {
 }
 
 // ListCoinHealth returns per-coin health scores and checklist items.
+//
+//	@Summary		List coin health scores
+//	@Description	Returns paginated per-coin metadata health scores for the authenticated user's active collection.
+//	@Tags			Health
+//	@Produce		json
+//	@Param			scope	query		string	false	"Scope filter" Enums(all, needs_attention) default(all)
+//	@Param			page	query		int		false	"Page number" default(1)
+//	@Param			limit	query		int		false	"Page size" default(25)
+//	@Success		200		{object}	services.CoinHealthListResponse
+//	@Failure		400		{object}	ErrorResponse
+//	@Failure		500		{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/coins/health [get]
 func (h *HealthHandler) ListCoinHealth(c *gin.Context) {
 	userID := c.GetUint("userId")
 

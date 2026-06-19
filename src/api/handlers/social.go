@@ -22,6 +22,20 @@ func NewSocialHandler(repo *repository.SocialRepository, svc *services.SocialSer
 }
 
 // FollowUser sends a follow request to another user.
+//
+//	@Summary		Follow user
+//	@Description	Sends a follow request to a public user.
+//	@Tags			Social
+//	@Produce		json
+//	@Param			userId	path		int	true	"User ID"
+//	@Success		200	{object}	MessageResponse
+//	@Failure		400	{object}	ErrorResponse
+//	@Failure		403	{object}	ErrorResponse
+//	@Failure		404	{object}	ErrorResponse
+//	@Failure		409	{object}	ErrorResponse
+//	@Failure		500	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/social/follow/{userId} [post]
 func (h *SocialHandler) FollowUser(c *gin.Context) {
 	logger := h.logger
 	userID := c.GetUint("userId")
@@ -59,6 +73,17 @@ func (h *SocialHandler) FollowUser(c *gin.Context) {
 }
 
 // UnfollowUser unfollows a user (removes any follow relationship).
+//
+//	@Summary		Unfollow user
+//	@Description	Removes a follow relationship with another user.
+//	@Tags			Social
+//	@Produce		json
+//	@Param			userId	path		int	true	"User ID"
+//	@Success		200	{object}	MessageResponse
+//	@Failure		400	{object}	ErrorResponse
+//	@Failure		404	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/social/follow/{userId} [delete]
 func (h *SocialHandler) UnfollowUser(c *gin.Context) {
 	logger := h.logger
 	userID := c.GetUint("userId")
@@ -79,6 +104,17 @@ func (h *SocialHandler) UnfollowUser(c *gin.Context) {
 }
 
 // AcceptFollower accepts a pending follow request.
+//
+//	@Summary		Accept follower
+//	@Description	Accepts a pending follow request from another user.
+//	@Tags			Social
+//	@Produce		json
+//	@Param			userId	path		int	true	"Follower user ID"
+//	@Success		200	{object}	MessageResponse
+//	@Failure		400	{object}	ErrorResponse
+//	@Failure		404	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/social/followers/{userId}/accept [put]
 func (h *SocialHandler) AcceptFollower(c *gin.Context) {
 	logger := h.logger
 	userID := c.GetUint("userId")
@@ -99,6 +135,17 @@ func (h *SocialHandler) AcceptFollower(c *gin.Context) {
 }
 
 // BlockFollower blocks a user from following.
+//
+//	@Summary		Block follower
+//	@Description	Blocks a user from following the authenticated user.
+//	@Tags			Social
+//	@Produce		json
+//	@Param			userId	path		int	true	"User ID"
+//	@Success		200	{object}	MessageResponse
+//	@Failure		400	{object}	ErrorResponse
+//	@Failure		500	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/social/followers/{userId}/block [put]
 func (h *SocialHandler) BlockFollower(c *gin.Context) {
 	logger := h.logger
 	userID := c.GetUint("userId")
@@ -118,6 +165,17 @@ func (h *SocialHandler) BlockFollower(c *gin.Context) {
 }
 
 // UnblockFollower removes a block on a user.
+//
+//	@Summary		Unblock follower
+//	@Description	Removes a block on another user.
+//	@Tags			Social
+//	@Produce		json
+//	@Param			userId	path		int	true	"User ID"
+//	@Success		200	{object}	MessageResponse
+//	@Failure		400	{object}	ErrorResponse
+//	@Failure		404	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/social/followers/{userId}/block [delete]
 func (h *SocialHandler) UnblockFollower(c *gin.Context) {
 	logger := h.logger
 	userID := c.GetUint("userId")
@@ -138,6 +196,15 @@ func (h *SocialHandler) UnblockFollower(c *gin.Context) {
 }
 
 // GetBlockedUsers returns users blocked by the authenticated user.
+//
+//	@Summary		List blocked users
+//	@Description	Returns users blocked by the authenticated user.
+//	@Tags			Social
+//	@Produce		json
+//	@Success		200	{object}	object
+//	@Failure		500	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/social/blocked [get]
 func (h *SocialHandler) GetBlockedUsers(c *gin.Context) {
 	userID := c.GetUint("userId")
 
@@ -151,6 +218,15 @@ func (h *SocialHandler) GetBlockedUsers(c *gin.Context) {
 }
 
 // GetFollowers returns users who follow the authenticated user (pending + accepted).
+//
+//	@Summary		List followers
+//	@Description	Returns pending and accepted followers for the authenticated user.
+//	@Tags			Social
+//	@Produce		json
+//	@Success		200	{object}	object
+//	@Failure		500	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/social/followers [get]
 func (h *SocialHandler) GetFollowers(c *gin.Context) {
 	userID := c.GetUint("userId")
 
@@ -190,6 +266,15 @@ func (h *SocialHandler) GetFollowers(c *gin.Context) {
 }
 
 // GetFollowing returns users the authenticated user follows (accepted only).
+//
+//	@Summary		List following
+//	@Description	Returns accepted users the authenticated user follows.
+//	@Tags			Social
+//	@Produce		json
+//	@Success		200	{object}	object
+//	@Failure		500	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/social/following [get]
 func (h *SocialHandler) GetFollowing(c *gin.Context) {
 	userID := c.GetUint("userId")
 
@@ -222,6 +307,17 @@ func (h *SocialHandler) GetFollowing(c *gin.Context) {
 }
 
 // SearchUsers searches for users by username prefix (public users only).
+//
+//	@Summary		Search users
+//	@Description	Searches public users by username prefix.
+//	@Tags			Social
+//	@Produce		json
+//	@Param			q	query		string	true	"Search query"
+//	@Success		200	{object}	object
+//	@Failure		400	{object}	ErrorResponse
+//	@Failure		500	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/users/search [get]
 func (h *SocialHandler) SearchUsers(c *gin.Context) {
 	userID := c.GetUint("userId")
 	query := c.Query("q")
@@ -271,6 +367,16 @@ func (h *SocialHandler) SearchUsers(c *gin.Context) {
 }
 
 // GetPublicProfile returns a user's public profile.
+//
+//	@Summary		Get public profile
+//	@Description	Returns public profile metadata for a user.
+//	@Tags			Social
+//	@Produce		json
+//	@Param			username	path		string	true	"Username"
+//	@Success		200	{object}	object
+//	@Failure		404	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/users/{username} [get]
 func (h *SocialHandler) GetPublicProfile(c *gin.Context) {
 	username := c.Param("username")
 	currentUserID := c.GetUint("userId")
@@ -296,6 +402,19 @@ func (h *SocialHandler) GetPublicProfile(c *gin.Context) {
 }
 
 // GetFollowingCoins returns a followed user's public coins (limited fields for gallery).
+//
+//	@Summary		List followed user coins
+//	@Description	Returns public coins for an accepted followed user.
+//	@Tags			Social
+//	@Produce		json
+//	@Param			userId	path		int	true	"User ID"
+//	@Success		200	{object}	object
+//	@Failure		400	{object}	ErrorResponse
+//	@Failure		403	{object}	ErrorResponse
+//	@Failure		404	{object}	ErrorResponse
+//	@Failure		500	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/social/following/{userId}/coins [get]
 func (h *SocialHandler) GetFollowingCoins(c *gin.Context) {
 	currentUserID := c.GetUint("userId")
 	targetID, err := strconv.ParseUint(c.Param("userId"), 10, 32)
@@ -341,6 +460,20 @@ func (h *SocialHandler) GetFollowingCoins(c *gin.Context) {
 }
 
 // GetFollowingCoinDetail returns a single coin with limited fields for a follower.
+//
+//	@Summary		Get followed user coin
+//	@Description	Returns a limited public coin detail for an accepted followed user.
+//	@Tags			Social
+//	@Produce		json
+//	@Param			userId	path		int	true	"User ID"
+//	@Param			coinId	path		int	true	"Coin ID"
+//	@Success		200	{object}	object
+//	@Failure		400	{object}	ErrorResponse
+//	@Failure		403	{object}	ErrorResponse
+//	@Failure		404	{object}	ErrorResponse
+//	@Failure		500	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/social/following/{userId}/coins/{coinId} [get]
 func (h *SocialHandler) GetFollowingCoinDetail(c *gin.Context) {
 	currentUserID := c.GetUint("userId")
 	targetID, err := strconv.ParseUint(c.Param("userId"), 10, 32)
@@ -403,6 +536,21 @@ func (h *SocialHandler) GetFollowingCoinDetail(c *gin.Context) {
 }
 
 // AddComment adds a comment (with optional rating) to a coin.
+//
+//	@Summary		Add coin comment
+//	@Description	Adds a comment and optional rating to a visible coin.
+//	@Tags			Social
+//	@Accept			json
+//	@Produce		json
+//	@Param			coinId	path		int	true	"Coin ID"
+//	@Param			body	body		object	true	"Request payload"
+//	@Success		200	{object}	object
+//	@Failure		400	{object}	ErrorResponse
+//	@Failure		403	{object}	ErrorResponse
+//	@Failure		404	{object}	ErrorResponse
+//	@Failure		500	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/social/coins/{coinId}/comments [post]
 func (h *SocialHandler) AddComment(c *gin.Context) {
 	logger := h.logger
 	currentUserID := c.GetUint("userId")
@@ -476,6 +624,19 @@ func (h *SocialHandler) AddComment(c *gin.Context) {
 }
 
 // GetComments returns comments on a coin.
+//
+//	@Summary		List coin comments
+//	@Description	Returns comments for a visible coin.
+//	@Tags			Social
+//	@Produce		json
+//	@Param			coinId	path		int	true	"Coin ID"
+//	@Success		200	{object}	object
+//	@Failure		400	{object}	ErrorResponse
+//	@Failure		403	{object}	ErrorResponse
+//	@Failure		404	{object}	ErrorResponse
+//	@Failure		500	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/social/coins/{coinId}/comments [get]
 func (h *SocialHandler) GetComments(c *gin.Context) {
 	currentUserID := c.GetUint("userId")
 	coinID, err := strconv.ParseUint(c.Param("coinId"), 10, 32)
@@ -525,6 +686,19 @@ func (h *SocialHandler) GetComments(c *gin.Context) {
 }
 
 // DeleteComment deletes a comment. Owner of coin or commenter can delete.
+//
+//	@Summary		Delete coin comment
+//	@Description	Deletes a comment when requested by the commenter or coin owner.
+//	@Tags			Social
+//	@Produce		json
+//	@Param			coinId		path		int	true	"Coin ID"
+//	@Param			commentId	path		int	true	"Comment ID"
+//	@Success		200	{object}	MessageResponse
+//	@Failure		400	{object}	ErrorResponse
+//	@Failure		403	{object}	ErrorResponse
+//	@Failure		404	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/social/coins/{coinId}/comments/{commentId} [delete]
 func (h *SocialHandler) DeleteComment(c *gin.Context) {
 	logger := h.logger
 	currentUserID := c.GetUint("userId")
@@ -561,6 +735,20 @@ func (h *SocialHandler) DeleteComment(c *gin.Context) {
 }
 
 // RateCoin upserts a star rating for a coin.
+//
+//	@Summary		Rate coin
+//	@Description	Creates or updates the authenticated user's rating for a visible coin.
+//	@Tags			Social
+//	@Accept			json
+//	@Produce		json
+//	@Param			coinId	path		int	true	"Coin ID"
+//	@Param			body	body		object	true	"Request payload"
+//	@Success		200	{object}	object
+//	@Failure		400	{object}	ErrorResponse
+//	@Failure		403	{object}	ErrorResponse
+//	@Failure		404	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/social/coins/{coinId}/rating [put]
 func (h *SocialHandler) RateCoin(c *gin.Context) {
 	currentUserID := c.GetUint("userId")
 	coinID, err := strconv.ParseUint(c.Param("coinId"), 10, 32)
@@ -601,6 +789,16 @@ func (h *SocialHandler) RateCoin(c *gin.Context) {
 }
 
 // GetCoinRating returns aggregate and user-specific rating for a coin.
+//
+//	@Summary		Get coin rating
+//	@Description	Returns aggregate rating stats and the authenticated user's rating for a coin.
+//	@Tags			Social
+//	@Produce		json
+//	@Param			coinId	path		int	true	"Coin ID"
+//	@Success		200	{object}	object
+//	@Failure		400	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/social/coins/{coinId}/rating [get]
 func (h *SocialHandler) GetCoinRating(c *gin.Context) {
 	currentUserID := c.GetUint("userId")
 	coinID, err := strconv.ParseUint(c.Param("coinId"), 10, 32)

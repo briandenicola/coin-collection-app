@@ -25,13 +25,14 @@ func NewAuctionEndingDebugHandler(auctionRepo *repository.AuctionLotRepository) 
 //
 // @Summary Debug auction ending scheduler
 // @Description Returns diagnostic info: current time, next 24h window, total lots, lots by status, lots matching the scheduler query, and all BIDDING lots with all their date fields populated
-// @Tags admin
+// @Tags Admin
 // @Produce json
-// @Security ApiKeyAuth
+// @Security BearerAuth
 // @Success 200 {object} map[string]interface{}
 // @Failure 401 {object} ErrorResponse
+// @Failure 403 {object} ErrorResponse
 // @Failure 500 {object} ErrorResponse
-// @Router /api/admin/auction-ending/debug [get]
+// @Router /admin/auction-ending/debug [get]
 func (h *AuctionEndingDebugHandler) DebugGetAuctionEndingInfo(c *gin.Context) {
 	now := time.Now()
 	next24h := now.Add(24 * time.Hour)

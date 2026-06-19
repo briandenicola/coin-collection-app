@@ -183,6 +183,21 @@ type UpdateLotRequest struct {
 	Currency       *string    `json:"currency"`
 }
 
+// Update applies editable auction lot fields for the authenticated user.
+//
+//	@Summary		Update auction lot
+//	@Description	Updates editable fields on an auction lot owned by the authenticated user.
+//	@Tags			Auctions
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		int				true	"Auction lot ID"
+//	@Param			body	body		UpdateLotRequest	true	"Updated lot data"
+//	@Success		200		{object}	models.AuctionLot
+//	@Failure		400		{object}	ErrorResponse
+//	@Failure		404		{object}	ErrorResponse
+//	@Failure		500		{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/auctions/{id} [put]
 func (h *AuctionLotHandler) Update(c *gin.Context) {
 	userID := c.GetUint("userId")
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)

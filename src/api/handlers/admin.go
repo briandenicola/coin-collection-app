@@ -347,6 +347,14 @@ func mergeLogsByTimestamp(a, b []services.LogEntry) []services.LogEntry {
 }
 
 // TestAnthropicConnection validates the Anthropic API key by listing models.
+//
+//	@Summary		Test Anthropic connection
+//	@Description	Validates the configured Anthropic API key by calling Anthropic's models endpoint.
+//	@Tags			Admin
+//	@Produce		json
+//	@Success		200	{object}	object
+//	@Security		BearerAuth
+//	@Router			/admin/test-anthropic [get]
 func (h *AdminHandler) TestAnthropicConnection(c *gin.Context) {
 	apiKey := h.settingsSvc.GetSetting(services.SettingAnthropicAPIKey)
 	if apiKey == "" {
@@ -383,6 +391,14 @@ func (h *AdminHandler) TestAnthropicConnection(c *gin.Context) {
 }
 
 // TestSearXNGConnection validates the SearXNG endpoint is reachable.
+//
+//	@Summary		Test SearXNG connection
+//	@Description	Validates the configured SearXNG URL by making a reachability request.
+//	@Tags			Admin
+//	@Produce		json
+//	@Success		200	{object}	object
+//	@Security		BearerAuth
+//	@Router			/admin/test-searxng [get]
 func (h *AdminHandler) TestSearXNGConnection(c *gin.Context) {
 	searxngURL := h.settingsSvc.GetSetting(services.SettingSearXNGURL)
 	if searxngURL == "" {

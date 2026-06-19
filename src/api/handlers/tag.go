@@ -23,6 +23,15 @@ func NewTagHandler(repo *repository.TagRepository) *TagHandler {
 }
 
 // List returns all tags for the authenticated user.
+//
+//	@Summary		List tags
+//	@Description	Returns all tags owned by the authenticated user.
+//	@Tags			Tags
+//	@Produce		json
+//	@Success		200	{object}	map[string][]models.Tag
+//	@Failure		500	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/tags [get]
 func (h *TagHandler) List(c *gin.Context) {
 	userID := c.GetUint("userId")
 	tags, err := h.repo.List(userID)
@@ -34,6 +43,19 @@ func (h *TagHandler) List(c *gin.Context) {
 }
 
 // Create adds a new tag for the authenticated user.
+//
+//	@Summary		Create tag
+//	@Description	Creates a tag owned by the authenticated user.
+//	@Tags			Tags
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		object	true	"Tag payload"
+//	@Success		201		{object}	models.Tag
+//	@Failure		400		{object}	ErrorResponse
+//	@Failure		409		{object}	ErrorResponse
+//	@Failure		500		{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/tags [post]
 func (h *TagHandler) Create(c *gin.Context) {
 	userID := c.GetUint("userId")
 
@@ -92,6 +114,21 @@ func (h *TagHandler) Create(c *gin.Context) {
 }
 
 // Update modifies a tag's name and/or color.
+//
+//	@Summary		Update tag
+//	@Description	Updates a tag owned by the authenticated user.
+//	@Tags			Tags
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		int		true	"Tag ID"
+//	@Param			body	body		object	true	"Tag fields to update"
+//	@Success		200		{object}	models.Tag
+//	@Failure		400		{object}	ErrorResponse
+//	@Failure		404		{object}	ErrorResponse
+//	@Failure		409		{object}	ErrorResponse
+//	@Failure		500		{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/tags/{id} [put]
 func (h *TagHandler) Update(c *gin.Context) {
 	userID := c.GetUint("userId")
 	id, err := strconv.ParseUint(c.Param("id"), 10, strconv.IntSize)
@@ -162,6 +199,17 @@ func (h *TagHandler) Update(c *gin.Context) {
 }
 
 // Delete removes a tag and all its coin associations.
+//
+//	@Summary		Delete tag
+//	@Description	Deletes a tag owned by the authenticated user and removes its coin associations.
+//	@Tags			Tags
+//	@Produce		json
+//	@Param			id	path		int	true	"Tag ID"
+//	@Success		200	{object}	MessageResponse
+//	@Failure		400	{object}	ErrorResponse
+//	@Failure		404	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/tags/{id} [delete]
 func (h *TagHandler) Delete(c *gin.Context) {
 	userID := c.GetUint("userId")
 	id, err := strconv.ParseUint(c.Param("id"), 10, strconv.IntSize)
@@ -178,6 +226,19 @@ func (h *TagHandler) Delete(c *gin.Context) {
 }
 
 // AttachToCoin adds a tag to a coin.
+//
+//	@Summary		Attach tag to coin
+//	@Description	Attaches one of the authenticated user's tags to one of their coins.
+//	@Tags			Tags
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		int		true	"Coin ID"
+//	@Param			body	body		object	true	"Tag attachment payload"
+//	@Success		200		{object}	MessageResponse
+//	@Failure		400		{object}	ErrorResponse
+//	@Failure		404		{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/coins/{id}/tags [post]
 func (h *TagHandler) AttachToCoin(c *gin.Context) {
 	userID := c.GetUint("userId")
 	coinID, err := strconv.ParseUint(c.Param("id"), 10, strconv.IntSize)
@@ -202,6 +263,18 @@ func (h *TagHandler) AttachToCoin(c *gin.Context) {
 }
 
 // DetachFromCoin removes a tag from a coin.
+//
+//	@Summary		Detach tag from coin
+//	@Description	Removes a tag association from one of the authenticated user's coins.
+//	@Tags			Tags
+//	@Produce		json
+//	@Param			id		path		int	true	"Coin ID"
+//	@Param			tagId	path		int	true	"Tag ID"
+//	@Success		200		{object}	MessageResponse
+//	@Failure		400		{object}	ErrorResponse
+//	@Failure		404		{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/coins/{id}/tags/{tagId} [delete]
 func (h *TagHandler) DetachFromCoin(c *gin.Context) {
 	userID := c.GetUint("userId")
 	coinID, err := strconv.ParseUint(c.Param("id"), 10, strconv.IntSize)

@@ -459,6 +459,15 @@ definitions:
       weightGrams:
         type: number
     type: object
+  handlers.CommitCollectionProposalRequest:
+    properties:
+      confirm:
+        type: boolean
+      proposalToken:
+        type: string
+    required:
+    - proposalToken
+    type: object
   handlers.CommitUpdateRequest:
     properties:
       confirm:
@@ -862,6 +871,34 @@ definitions:
     properties:
       limit:
         type: integer
+    type: object
+  handlers.UpdateLotRequest:
+    description: Updates an existing auction lot.
+    properties:
+      auctionEndTime:
+        type: string
+      auctionHouse:
+        type: string
+      category:
+        type: string
+      currency:
+        type: string
+      description:
+        type: string
+      estimate:
+        type: number
+      lotNumber:
+        type: integer
+      notes:
+        type: string
+      numisBidsUrl:
+        type: string
+      saleDate:
+        type: string
+      saleName:
+        type: string
+      title:
+        type: string
     type: object
   handlers.UpdateStatusRequest:
     properties:
@@ -1691,6 +1728,15 @@ definitions:
           $ref: '#/definitions/services.MissingFieldStat'
         type: array
     type: object
+  services.CancelCollectionProposalResult:
+    properties:
+      message:
+        type: string
+      proposalId:
+        type: string
+      status:
+        type: string
+    type: object
   services.ChecklistDimension:
     enum:
     - metadata
@@ -1734,11 +1780,52 @@ definitions:
       title:
         type: string
     type: object
+  services.CoinHealthListResponse:
+    properties:
+      coins:
+        items:
+          $ref: '#/definitions/services.CoinHealthItem'
+        type: array
+      pagination:
+        $ref: '#/definitions/services.HealthPagination'
+    type: object
   services.CollectionChatContext:
     properties:
       activeCoinId:
         type: integer
       route:
+        type: string
+    type: object
+  services.CollectionHealthSummary:
+    properties:
+      dimensions:
+        $ref: '#/definitions/services.HealthDimensionScores'
+      eligibleCoinCount:
+        type: integer
+      grade:
+        $ref: '#/definitions/services.HealthGrade'
+      score:
+        type: integer
+      trend30d:
+        $ref: '#/definitions/services.HealthTrend30D'
+      weights:
+        $ref: '#/definitions/services.HealthWeights'
+    type: object
+  services.CommitCollectionProposalResult:
+    properties:
+      changedFields:
+        items:
+          type: string
+        type: array
+      coinId:
+        type: integer
+      journalSource:
+        type: string
+      message:
+        type: string
+      proposalId:
+        type: string
+      status:
         type: string
     type: object
   services.HealthActionHint:
@@ -1778,6 +1865,35 @@ definitions:
     - HealthGradeC
     - HealthGradeD
     - HealthGradeF
+  services.HealthPagination:
+    properties:
+      limit:
+        type: integer
+      page:
+        type: integer
+      total:
+        type: integer
+    type: object
+  services.HealthTrend30D:
+    properties:
+      delta:
+        type: integer
+      direction:
+        type: string
+      status:
+        type: string
+    type: object
+  services.HealthWeights:
+    properties:
+      aiCoverage:
+        type: integer
+      imageCoverage:
+        type: integer
+      metadata:
+        type: integer
+      valuationFreshness:
+        type: integer
+    type: object
   services.MissingChecklistItem:
     properties:
       actionHint:
@@ -1873,6 +1989,36 @@ paths:
       security:
       - BearerAuth: []
       summary: List auction ending runs
+      tags:
+      - Admin
+  /admin/auction-ending/debug:
+    get:
+      description: 'Returns diagnostic info: current time, next 24h window, total
+        lots, lots by status, lots matching the scheduler query, and all BIDDING lots
+        with all their date fields populated'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Debug auction ending scheduler
       tags:
       - Admin
   /admin/auction-ending/run:
@@ -2463,6 +2609,37 @@ paths:
       summary: Get setting defaults
       tags:
       - Admin
+  /admin/test-anthropic:
+    get:
+      description: Validates the configured Anthropic API key by calling Anthropic's
+        models endpoint.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Test Anthropic connection
+      tags:
+      - Admin
+  /admin/test-searxng:
+    get:
+      description: Validates the configured SearXNG URL by making a reachability request.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Test SearXNG connection
+      tags:
+      - Admin
   /admin/users:
     get:
       description: Returns a list of all registered users. Admin only.
@@ -2819,6 +2996,86 @@ paths:
       summary: Get coin shows prompt
       tags:
       - Agent
+  /agent/collection/proposals/{proposalId}/cancel:
+    post:
+      description: Cancels a pending AI-proposed collection update for the authenticated
+        user.
+      parameters:
+      - description: Proposal ID
+        in: path
+        name: proposalId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/services.CancelCollectionProposalResult'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Cancel collection proposal
+      tags:
+      - Agent
+  /agent/collection/proposals/{proposalId}/commit:
+    post:
+      consumes:
+      - application/json
+      description: Commits a pending AI-proposed collection update after explicit
+        user confirmation.
+      parameters:
+      - description: Proposal ID
+        in: path
+        name: proposalId
+        required: true
+        type: string
+      - description: Commit confirmation
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CommitCollectionProposalRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/services.CommitCollectionProposalResult'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Commit collection proposal
+      tags:
+      - Agent
   /agent/conversations:
     get:
       description: Returns all saved agent conversations for the current user, newest
@@ -2961,6 +3218,21 @@ paths:
       summary: Get portfolio summary for AI analysis
       tags:
       - Agent
+  /agent/status:
+    get:
+      description: Returns whether an AI provider is selected for agent features.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get agent status
+      tags:
+      - Agent
   /agent/valuation-prompt:
     get:
       produces:
@@ -2995,21 +3267,45 @@ paths:
       summary: Check AI provider status
       tags:
       - Analysis
-  /api/admin/auction-ending/debug:
+  /alerts:
     get:
-      description: 'Returns diagnostic info: current time, next 24h window, total
-        lots, lots by status, lots matching the scheduler query, and all BIDDING lots
-        with all their date fields populated'
+      description: Returns price alerts owned by the authenticated user.
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            additionalProperties: true
             type: object
-        "401":
-          description: Unauthorized
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List price alerts
+      tags:
+      - Alerts
+    post:
+      consumes:
+      - application/json
+      description: Creates a price alert for an auction lot.
+      parameters:
+      - description: Request payload
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
           schema:
             $ref: '#/definitions/handlers.ErrorResponse'
         "500":
@@ -3017,10 +3313,39 @@ paths:
           schema:
             $ref: '#/definitions/handlers.ErrorResponse'
       security:
-      - ApiKeyAuth: []
-      summary: Debug auction ending scheduler
+      - BearerAuth: []
+      summary: Create price alert
       tags:
-      - admin
+      - Alerts
+  /alerts/{id}:
+    delete:
+      description: Deletes a price alert owned by the authenticated user.
+      parameters:
+      - description: Alert ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete price alert
+      tags:
+      - Alerts
   /auctions:
     get:
       description: Returns a paginated list of auction lots belonging to the authenticated
@@ -3144,6 +3469,47 @@ paths:
       security:
       - BearerAuth: []
       summary: Get auction lot
+      tags:
+      - Auctions
+    put:
+      consumes:
+      - application/json
+      description: Updates editable fields on an auction lot owned by the authenticated
+        user.
+      parameters:
+      - description: Auction lot ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Updated lot data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.UpdateLotRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.AuctionLot'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update auction lot
       tags:
       - Auctions
   /auctions/{id}/convert:
@@ -3868,6 +4234,185 @@ paths:
       summary: Finish WebAuthn registration
       tags:
       - WebAuthn
+  /calendar:
+    get:
+      description: Returns auction lots and calendar events in a date range.
+      parameters:
+      - description: Start date YYYY-MM-DD
+        in: query
+        name: start
+        type: string
+      - description: End date YYYY-MM-DD
+        in: query
+        name: end
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get calendar
+      tags:
+      - Calendar
+  /calendar/events:
+    get:
+      description: Returns calendar events owned by the authenticated user.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List calendar events
+      tags:
+      - Calendar
+    post:
+      consumes:
+      - application/json
+      description: Creates a calendar event for the authenticated user.
+      parameters:
+      - description: Request payload
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create calendar event
+      tags:
+      - Calendar
+  /calendar/events/{id}:
+    delete:
+      description: Deletes a calendar event owned by the authenticated user.
+      parameters:
+      - description: Event ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete calendar event
+      tags:
+      - Calendar
+    get:
+      description: Returns a calendar event and linked auction lots.
+      parameters:
+      - description: Event ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get calendar event
+      tags:
+      - Calendar
+    put:
+      consumes:
+      - application/json
+      description: Updates a calendar event owned by the authenticated user.
+      parameters:
+      - description: Event ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Request payload
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update calendar event
+      tags:
+      - Calendar
   /catalogs:
     get:
       description: Returns all catalog registry entries.
@@ -4210,6 +4755,40 @@ paths:
       summary: Analyze coin images
       tags:
       - Analysis
+  /coins/{id}/estimate-value:
+    post:
+      description: Uses the configured AI provider to estimate current market value
+        for a coin owned by the authenticated user.
+      parameters:
+      - description: Coin ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Estimate coin value
+      tags:
+      - Agent
   /coins/{id}/health:
     get:
       description: Returns the computed metadata health score, grade, dimension scores,
@@ -4819,6 +5398,78 @@ paths:
       summary: Mark coin as sold
       tags:
       - Coins
+  /coins/{id}/tags:
+    post:
+      consumes:
+      - application/json
+      description: Attaches one of the authenticated user's tags to one of their coins.
+      parameters:
+      - description: Coin ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Tag attachment payload
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Attach tag to coin
+      tags:
+      - Tags
+  /coins/{id}/tags/{tagId}:
+    delete:
+      description: Removes a tag association from one of the authenticated user's
+        coins.
+      parameters:
+      - description: Coin ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Tag ID
+        in: path
+        name: tagId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Detach tag from coin
+      tags:
+      - Tags
   /coins/{id}/value-history:
     get:
       description: Returns value tracking entries for a coin, ordered oldest first.
@@ -4880,6 +5531,49 @@ paths:
       summary: Bulk coin action
       tags:
       - Coins
+  /coins/health:
+    get:
+      description: Returns paginated per-coin metadata health scores for the authenticated
+        user's active collection.
+      parameters:
+      - default: all
+        description: Scope filter
+        enum:
+        - all
+        - needs_attention
+        in: query
+        name: scope
+        type: string
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 25
+        description: Page size
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/services.CoinHealthListResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List coin health scores
+      tags:
+      - Health
   /coins/intake/commit:
     post:
       consumes:
@@ -5614,6 +6308,34 @@ paths:
       summary: Mark all notifications read
       tags:
       - Notifications
+  /notifications/test-pushover:
+    post:
+      description: Sends a test Pushover notification using the authenticated user's
+        saved Pushover configuration.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "502":
+          description: Bad Gateway
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Test Pushover notification
+      tags:
+      - User
   /notifications/unread-count:
     get:
       description: Returns the count of unread notifications.
@@ -5744,6 +6466,85 @@ paths:
       summary: Migrate legacy references
       tags:
       - Coin References
+  /reminders:
+    get:
+      description: Returns bid reminders owned by the authenticated user.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List bid reminders
+      tags:
+      - Alerts
+    post:
+      consumes:
+      - application/json
+      description: Creates a bid reminder for an auction lot.
+      parameters:
+      - description: Request payload
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create bid reminder
+      tags:
+      - Alerts
+  /reminders/{id}:
+    delete:
+      description: Deletes a bid reminder owned by the authenticated user.
+      parameters:
+      - description: Reminder ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete bid reminder
+      tags:
+      - Alerts
   /scrape-image:
     get:
       description: Fetches a web page and extracts image URL from og:image, twitter:image,
@@ -6516,6 +7317,715 @@ paths:
       summary: List set templates
       tags:
       - sets
+  /showcase/{slug}:
+    get:
+      description: Returns an active public showcase by slug.
+      parameters:
+      - description: Showcase slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Get public showcase
+      tags:
+      - Showcases
+  /showcase/{slug}/uploads/{filepath}:
+    get:
+      description: Serves a DB-backed uploaded coin image only when it belongs to
+        the active public showcase identified by slug.
+      parameters:
+      - description: Showcase slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      - description: Upload-relative file path
+        in: path
+        name: filepath
+        required: true
+        type: string
+      produces:
+      - image/*
+      responses:
+        "200":
+          description: Image binary data
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Serve public showcase uploaded media
+      tags:
+      - Showcases
+  /showcases:
+    get:
+      description: Returns showcases owned by the authenticated user.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List showcases
+      tags:
+      - Showcases
+    post:
+      consumes:
+      - application/json
+      description: Creates a showcase for the authenticated user.
+      parameters:
+      - description: Request payload
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create showcase
+      tags:
+      - Showcases
+  /showcases/{id}:
+    delete:
+      description: Deletes a showcase owned by the authenticated user.
+      parameters:
+      - description: Showcase ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete showcase
+      tags:
+      - Showcases
+    get:
+      description: Returns one showcase and its coins for the authenticated user.
+      parameters:
+      - description: Showcase ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get showcase
+      tags:
+      - Showcases
+    put:
+      consumes:
+      - application/json
+      description: Updates metadata and active status for a showcase owned by the
+        authenticated user.
+      parameters:
+      - description: Showcase ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Request payload
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update showcase
+      tags:
+      - Showcases
+  /showcases/{id}/coins:
+    put:
+      consumes:
+      - application/json
+      description: Replaces the coin membership for a showcase owned by the authenticated
+        user.
+      parameters:
+      - description: Showcase ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Request payload
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Set showcase coins
+      tags:
+      - Showcases
+  /social/blocked:
+    get:
+      description: Returns users blocked by the authenticated user.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List blocked users
+      tags:
+      - Social
+  /social/coins/{coinId}/comments:
+    get:
+      description: Returns comments for a visible coin.
+      parameters:
+      - description: Coin ID
+        in: path
+        name: coinId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List coin comments
+      tags:
+      - Social
+    post:
+      consumes:
+      - application/json
+      description: Adds a comment and optional rating to a visible coin.
+      parameters:
+      - description: Coin ID
+        in: path
+        name: coinId
+        required: true
+        type: integer
+      - description: Request payload
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Add coin comment
+      tags:
+      - Social
+  /social/coins/{coinId}/comments/{commentId}:
+    delete:
+      description: Deletes a comment when requested by the commenter or coin owner.
+      parameters:
+      - description: Coin ID
+        in: path
+        name: coinId
+        required: true
+        type: integer
+      - description: Comment ID
+        in: path
+        name: commentId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete coin comment
+      tags:
+      - Social
+  /social/coins/{coinId}/rating:
+    get:
+      description: Returns aggregate rating stats and the authenticated user's rating
+        for a coin.
+      parameters:
+      - description: Coin ID
+        in: path
+        name: coinId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get coin rating
+      tags:
+      - Social
+    put:
+      consumes:
+      - application/json
+      description: Creates or updates the authenticated user's rating for a visible
+        coin.
+      parameters:
+      - description: Coin ID
+        in: path
+        name: coinId
+        required: true
+        type: integer
+      - description: Request payload
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Rate coin
+      tags:
+      - Social
+  /social/follow/{userId}:
+    delete:
+      description: Removes a follow relationship with another user.
+      parameters:
+      - description: User ID
+        in: path
+        name: userId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Unfollow user
+      tags:
+      - Social
+    post:
+      description: Sends a follow request to a public user.
+      parameters:
+      - description: User ID
+        in: path
+        name: userId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Follow user
+      tags:
+      - Social
+  /social/followers:
+    get:
+      description: Returns pending and accepted followers for the authenticated user.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List followers
+      tags:
+      - Social
+  /social/followers/{userId}/accept:
+    put:
+      description: Accepts a pending follow request from another user.
+      parameters:
+      - description: Follower user ID
+        in: path
+        name: userId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Accept follower
+      tags:
+      - Social
+  /social/followers/{userId}/block:
+    delete:
+      description: Removes a block on another user.
+      parameters:
+      - description: User ID
+        in: path
+        name: userId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Unblock follower
+      tags:
+      - Social
+    put:
+      description: Blocks a user from following the authenticated user.
+      parameters:
+      - description: User ID
+        in: path
+        name: userId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Block follower
+      tags:
+      - Social
+  /social/following:
+    get:
+      description: Returns accepted users the authenticated user follows.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List following
+      tags:
+      - Social
+  /social/following/{userId}/coins:
+    get:
+      description: Returns public coins for an accepted followed user.
+      parameters:
+      - description: User ID
+        in: path
+        name: userId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List followed user coins
+      tags:
+      - Social
+  /social/following/{userId}/coins/{coinId}:
+    get:
+      description: Returns a limited public coin detail for an accepted followed user.
+      parameters:
+      - description: User ID
+        in: path
+        name: userId
+        required: true
+        type: integer
+      - description: Coin ID
+        in: path
+        name: coinId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get followed user coin
+      tags:
+      - Social
   /stats:
     get:
       description: Returns counts by category/material, total/average values, and
@@ -6557,6 +8067,26 @@ paths:
       summary: Get collection distribution
       tags:
       - Coins
+  /stats/health:
+    get:
+      description: Returns collection-level metadata health score, dimensions, and
+        checklist summary for the authenticated user.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/services.CollectionHealthSummary'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get collection health summary
+      tags:
+      - Health
   /storage-locations:
     get:
       description: Returns all storage locations belonging to the authenticated user.
@@ -6749,6 +8279,221 @@ paths:
       summary: Get autocomplete suggestions
       tags:
       - Coins
+  /tags:
+    get:
+      description: Returns all tags owned by the authenticated user.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              items:
+                $ref: '#/definitions/models.Tag'
+              type: array
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List tags
+      tags:
+      - Tags
+    post:
+      consumes:
+      - application/json
+      description: Creates a tag owned by the authenticated user.
+      parameters:
+      - description: Tag payload
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Tag'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create tag
+      tags:
+      - Tags
+  /tags/{id}:
+    delete:
+      description: Deletes a tag owned by the authenticated user and removes its coin
+        associations.
+      parameters:
+      - description: Tag ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete tag
+      tags:
+      - Tags
+    put:
+      consumes:
+      - application/json
+      description: Updates a tag owned by the authenticated user.
+      parameters:
+      - description: Tag ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Tag fields to update
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Tag'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update tag
+      tags:
+      - Tags
+  /uploads/{filepath}:
+    get:
+      description: Serves an uploaded coin image or avatar only when the authenticated
+        user is authorized to view it.
+      parameters:
+      - description: Upload-relative file path
+        in: path
+        name: filepath
+        required: true
+        type: string
+      produces:
+      - image/*
+      responses:
+        "200":
+          description: Image binary data
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Serve authorized uploaded media
+      tags:
+      - Images
+  /user/avatar:
+    delete:
+      description: Removes the authenticated user's profile avatar file and clears
+        the avatar path.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.MessageResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete avatar
+      tags:
+      - User
+    post:
+      consumes:
+      - multipart/form-data
+      description: Uploads and stores a profile avatar image for the authenticated
+        user.
+      parameters:
+      - description: Avatar image
+        in: formData
+        name: avatar
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Upload avatar
+      tags:
+      - User
   /user/export:
     get:
       description: Downloads all coins and images as a ZIP archive containing coins.json
@@ -6824,6 +8569,101 @@ paths:
       summary: Import collection
       tags:
       - User
+  /user/profile:
+    put:
+      consumes:
+      - application/json
+      description: Updates profile, privacy, NumisBids, Pushover, and coin-of-day
+        preferences for the authenticated user.
+      parameters:
+      - description: Profile fields to update
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.UserInfoResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update profile
+      tags:
+      - User
+  /users/{username}:
+    get:
+      description: Returns public profile metadata for a user.
+      parameters:
+      - description: Username
+        in: path
+        name: username
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get public profile
+      tags:
+      - Social
+  /users/search:
+    get:
+      description: Searches public users by username prefix.
+      parameters:
+      - description: Search query
+        in: query
+        name: q
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Search users
+      tags:
+      - Social
   /v1/tools/collection_summary:
     post:
       consumes:

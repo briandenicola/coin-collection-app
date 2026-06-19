@@ -14,7 +14,7 @@ Ancient Coins runs as **two Docker containers** orchestrated via `docker-compose
 The **app** container uses a 3-stage Dockerfile (`Dockerfile`) that builds through:
 
 1. **Node 24** — builds the Vue frontend (`npm run build`)
-2. **Go 1.26.1** — compiles the API binary and embeds the Vue dist
+2. **Go 1.26.4** — compiles the API binary and embeds the Vue dist
 3. **Alpine 3.21** — minimal runtime (~40 MB final image)
 
 The **agent** container uses a separate Dockerfile (`src/agent/Dockerfile`) to build the Python LangGraph service.
@@ -310,6 +310,8 @@ Two images are published per build:
 | `DOCKERHUB_TOKEN` | Docker Hub access token |
 
 **Workflow action pin maintenance:** Workflow `uses:` entries in `.github/workflows/` are pinned to commit SHAs. When updating an action version, resolve the new tag to a commit SHA (for example: `git ls-remote https://github.com/<owner>/<repo> refs/tags/<tag>`) and keep the version comment (for example `# v4`) beside the SHA.
+
+**Reviewed tool and base-image pins:** CI-installed Go tools are pinned in the workflows and matching Taskfile target (`swag` for OpenAPI generation, `govulncheck` for Go vulnerability scans). Refresh these pins monthly or when a security advisory lands by reviewing upstream release notes, updating workflow and Taskfile installs together, then running `task openapi`, `cd src/api; go test ./...`, and `govulncheck ./...`. Dockerfiles use reviewed tag-plus-OCI-index-digest references (for example `image:tag@sha256:...`) so multi-arch builds remain available while production builds are reproducible; refresh the digest at the same cadence or when a base-image CVE requires it.
 
 ### Security scan gates
 

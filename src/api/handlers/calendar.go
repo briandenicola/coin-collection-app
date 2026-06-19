@@ -20,6 +20,18 @@ func NewCalendarHandler(eventRepo *repository.AuctionEventRepository, auctionRep
 }
 
 // GetCalendar returns auction lots and events in a date range.
+//
+//	@Summary		Get calendar
+//	@Description	Returns auction lots and calendar events in a date range.
+//	@Tags			Calendar
+//	@Produce		json
+//	@Param			start	query		string	false	"Start date YYYY-MM-DD"
+//	@Param			end		query		string	false	"End date YYYY-MM-DD"
+//	@Success		200	{object}	object
+//	@Failure		400	{object}	ErrorResponse
+//	@Failure		500	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/calendar [get]
 func (h *CalendarHandler) GetCalendar(c *gin.Context) {
 	userID := c.GetUint("userId")
 
@@ -101,6 +113,15 @@ func (h *CalendarHandler) GetCalendar(c *gin.Context) {
 }
 
 // ListEvents returns all calendar events for the authenticated user.
+//
+//	@Summary		List calendar events
+//	@Description	Returns calendar events owned by the authenticated user.
+//	@Tags			Calendar
+//	@Produce		json
+//	@Success		200	{object}	object
+//	@Failure		500	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/calendar/events [get]
 func (h *CalendarHandler) ListEvents(c *gin.Context) {
 	userID := c.GetUint("userId")
 	events, err := h.eventRepo.ListByUser(userID)
@@ -112,6 +133,18 @@ func (h *CalendarHandler) ListEvents(c *gin.Context) {
 }
 
 // CreateEvent creates a new auction event.
+//
+//	@Summary		Create calendar event
+//	@Description	Creates a calendar event for the authenticated user.
+//	@Tags			Calendar
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		object	true	"Request payload"
+//	@Success		200	{object}	object
+//	@Failure		400	{object}	ErrorResponse
+//	@Failure		500	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/calendar/events [post]
 func (h *CalendarHandler) CreateEvent(c *gin.Context) {
 	userID := c.GetUint("userId")
 
@@ -147,6 +180,20 @@ func (h *CalendarHandler) CreateEvent(c *gin.Context) {
 }
 
 // UpdateEvent updates an auction event.
+//
+//	@Summary		Update calendar event
+//	@Description	Updates a calendar event owned by the authenticated user.
+//	@Tags			Calendar
+//	@Accept			json
+//	@Produce		json
+//	@Param			id	path		int	true	"Event ID"
+//	@Param			body	body		object	true	"Request payload"
+//	@Success		200	{object}	MessageResponse
+//	@Failure		400	{object}	ErrorResponse
+//	@Failure		404	{object}	ErrorResponse
+//	@Failure		500	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/calendar/events/{id} [put]
 func (h *CalendarHandler) UpdateEvent(c *gin.Context) {
 	userID := c.GetUint("userId")
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
@@ -202,6 +249,17 @@ func (h *CalendarHandler) UpdateEvent(c *gin.Context) {
 }
 
 // GetEvent returns a single event with its linked auction lots.
+//
+//	@Summary		Get calendar event
+//	@Description	Returns a calendar event and linked auction lots.
+//	@Tags			Calendar
+//	@Produce		json
+//	@Param			id	path		int	true	"Event ID"
+//	@Success		200	{object}	object
+//	@Failure		400	{object}	ErrorResponse
+//	@Failure		404	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/calendar/events/{id} [get]
 func (h *CalendarHandler) GetEvent(c *gin.Context) {
 	userID := c.GetUint("userId")
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
@@ -225,6 +283,17 @@ func (h *CalendarHandler) GetEvent(c *gin.Context) {
 }
 
 // DeleteEvent deletes an auction event.
+//
+//	@Summary		Delete calendar event
+//	@Description	Deletes a calendar event owned by the authenticated user.
+//	@Tags			Calendar
+//	@Produce		json
+//	@Param			id	path		int	true	"Event ID"
+//	@Success		200	{object}	MessageResponse
+//	@Failure		400	{object}	ErrorResponse
+//	@Failure		500	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/calendar/events/{id} [delete]
 func (h *CalendarHandler) DeleteEvent(c *gin.Context) {
 	userID := c.GetUint("userId")
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)

@@ -69,4 +69,4 @@
 | Vitest | <https://vitest.dev/> | `^4.1.5` | [src/web/package.json](../src/web/package.json), [src/web/src/__tests__/](../src/web/src/__tests__/) |
 | ESLint | <https://eslint.org/> | `^10.3.0` | [src/web/package.json](../src/web/package.json), [docs/CHANGELOG.md](CHANGELOG.md) |
 | Gitleaks | <https://github.com/gitleaks/gitleaks> | `v8.30.1` (via pre-commit hook) | [.gitleaks.toml](../.gitleaks.toml), [.pre-commit-config.yaml](../.pre-commit-config.yaml), [docs/incident-response.md](incident-response.md) |
-| govulncheck | <https://pkg.go.dev/golang.org/x/vuln/cmd/govulncheck> | n/a (policy tool; not yet pinned in repo config) | [docs/security-principles.md](security-principles.md), [docs/threat-model.md](threat-model.md) |
+| govulncheck | <https://pkg.go.dev/golang.org/x/vuln/cmd/govulncheck> | `v1.4.0` | [.github/workflows/security-scan.yml](../.github/workflows/security-scan.yml), [docs/security-principles.md](security-principles.md), [docs/threat-model.md](threat-model.md) |

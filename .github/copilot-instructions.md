@@ -9,7 +9,7 @@ Ancient Coins is a full-stack PWA for managing a personal ancient coin collectio
 
 | Layer | Tech | Path |
 |---|---|---|
-| Backend | Go 1.26.1, Gin, GORM, SQLite | `src/api/` |
+| Backend | Go 1.26.4, Gin, GORM, SQLite | `src/api/` |
 | Frontend | Vue 3, TypeScript, Pinia, Vite, PWA | `src/web/` |
 | Agent | Python 3.12, FastAPI, LangGraph, LangChain | `src/agent/` |
 | Build | Multi-stage Docker (2 containers) | `Dockerfile`, `src/agent/Dockerfile` |

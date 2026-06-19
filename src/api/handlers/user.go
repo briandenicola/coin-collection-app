@@ -217,6 +217,20 @@ func (h *UserHandler) ImportCollection(c *gin.Context) {
 }
 
 // UpdateProfile updates the authenticated user's profile info.
+//
+//	@Summary		Update profile
+//	@Description	Updates profile, privacy, NumisBids, Pushover, and coin-of-day preferences for the authenticated user.
+//	@Tags			User
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		object	true	"Profile fields to update"
+//	@Success		200		{object}	UserInfoResponse
+//	@Failure		400		{object}	ErrorResponse
+//	@Failure		404		{object}	ErrorResponse
+//	@Failure		409		{object}	ErrorResponse
+//	@Failure		500		{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/user/profile [put]
 func (h *UserHandler) UpdateProfile(c *gin.Context) {
 	logger := h.logger
 	userID := c.GetUint("userId")
@@ -323,6 +337,18 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 }
 
 // UploadAvatar uploads a profile avatar image for the authenticated user.
+//
+//	@Summary		Upload avatar
+//	@Description	Uploads and stores a profile avatar image for the authenticated user.
+//	@Tags			User
+//	@Accept			multipart/form-data
+//	@Produce		json
+//	@Param			avatar	formData	file	true	"Avatar image"
+//	@Success		200		{object}	object
+//	@Failure		400		{object}	ErrorResponse
+//	@Failure		500		{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/user/avatar [post]
 func (h *UserHandler) UploadAvatar(c *gin.Context) {
 	logger := h.logger
 	userID := c.GetUint("userId")
@@ -375,6 +401,16 @@ func (h *UserHandler) UploadAvatar(c *gin.Context) {
 }
 
 // DeleteAvatar removes the authenticated user's avatar.
+//
+//	@Summary		Delete avatar
+//	@Description	Removes the authenticated user's profile avatar file and clears the avatar path.
+//	@Tags			User
+//	@Produce		json
+//	@Success		200	{object}	MessageResponse
+//	@Failure		404	{object}	ErrorResponse
+//	@Failure		500	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/user/avatar [delete]
 func (h *UserHandler) DeleteAvatar(c *gin.Context) {
 	userID := c.GetUint("userId")
 
@@ -400,6 +436,17 @@ func (h *UserHandler) DeleteAvatar(c *gin.Context) {
 }
 
 // TestPushover sends a test notification via Pushover to verify the user's configuration.
+//
+//	@Summary		Test Pushover notification
+//	@Description	Sends a test Pushover notification using the authenticated user's saved Pushover configuration.
+//	@Tags			User
+//	@Produce		json
+//	@Success		200	{object}	MessageResponse
+//	@Failure		400	{object}	ErrorResponse
+//	@Failure		404	{object}	ErrorResponse
+//	@Failure		502	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/notifications/test-pushover [post]
 func (h *UserHandler) TestPushover(c *gin.Context) {
 	userID := c.GetUint("userId")
 

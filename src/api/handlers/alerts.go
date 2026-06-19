@@ -19,6 +19,15 @@ func NewAlertHandler(alertRepo *repository.PriceAlertRepository, reminderRepo *r
 }
 
 // ListAlerts returns all price alerts for the current user.
+//
+//	@Summary		List price alerts
+//	@Description	Returns price alerts owned by the authenticated user.
+//	@Tags			Alerts
+//	@Produce		json
+//	@Success		200	{object}	object
+//	@Failure		500	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/alerts [get]
 func (h *AlertHandler) ListAlerts(c *gin.Context) {
 	userID := c.GetUint("userId")
 	alerts, err := h.alertRepo.ListByUser(userID)
@@ -44,6 +53,18 @@ func (h *AlertHandler) ListAlerts(c *gin.Context) {
 }
 
 // CreateAlert creates a new price alert.
+//
+//	@Summary		Create price alert
+//	@Description	Creates a price alert for an auction lot.
+//	@Tags			Alerts
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		object	true	"Request payload"
+//	@Success		200	{object}	object
+//	@Failure		400	{object}	ErrorResponse
+//	@Failure		500	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/alerts [post]
 func (h *AlertHandler) CreateAlert(c *gin.Context) {
 	userID := c.GetUint("userId")
 
@@ -78,6 +99,17 @@ func (h *AlertHandler) CreateAlert(c *gin.Context) {
 }
 
 // DeleteAlert deletes a price alert.
+//
+//	@Summary		Delete price alert
+//	@Description	Deletes a price alert owned by the authenticated user.
+//	@Tags			Alerts
+//	@Produce		json
+//	@Param			id	path		int	true	"Alert ID"
+//	@Success		200	{object}	MessageResponse
+//	@Failure		400	{object}	ErrorResponse
+//	@Failure		500	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/alerts/{id} [delete]
 func (h *AlertHandler) DeleteAlert(c *gin.Context) {
 	userID := c.GetUint("userId")
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
@@ -93,6 +125,15 @@ func (h *AlertHandler) DeleteAlert(c *gin.Context) {
 }
 
 // ListReminders returns all bid reminders for the current user.
+//
+//	@Summary		List bid reminders
+//	@Description	Returns bid reminders owned by the authenticated user.
+//	@Tags			Alerts
+//	@Produce		json
+//	@Success		200	{object}	object
+//	@Failure		500	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/reminders [get]
 func (h *AlertHandler) ListReminders(c *gin.Context) {
 	userID := c.GetUint("userId")
 	reminders, err := h.reminderRepo.ListByUser(userID)
@@ -117,6 +158,18 @@ func (h *AlertHandler) ListReminders(c *gin.Context) {
 }
 
 // CreateReminder creates a new bid reminder.
+//
+//	@Summary		Create bid reminder
+//	@Description	Creates a bid reminder for an auction lot.
+//	@Tags			Alerts
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		object	true	"Request payload"
+//	@Success		200	{object}	object
+//	@Failure		400	{object}	ErrorResponse
+//	@Failure		500	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/reminders [post]
 func (h *AlertHandler) CreateReminder(c *gin.Context) {
 	userID := c.GetUint("userId")
 
@@ -149,6 +202,17 @@ func (h *AlertHandler) CreateReminder(c *gin.Context) {
 }
 
 // DeleteReminder deletes a bid reminder.
+//
+//	@Summary		Delete bid reminder
+//	@Description	Deletes a bid reminder owned by the authenticated user.
+//	@Tags			Alerts
+//	@Produce		json
+//	@Param			id	path		int	true	"Reminder ID"
+//	@Success		200	{object}	MessageResponse
+//	@Failure		400	{object}	ErrorResponse
+//	@Failure		500	{object}	ErrorResponse
+//	@Security		BearerAuth
+//	@Router			/reminders/{id} [delete]
 func (h *AlertHandler) DeleteReminder(c *gin.Context) {
 	userID := c.GetUint("userId")
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)

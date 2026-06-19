@@ -35,7 +35,7 @@ jobs:
       - name: Verify OpenAPI snapshot
         shell: bash
         run: |
-          go install github.com/swaggo/swag/cmd/swag@latest
+          go install github.com/swaggo/swag/cmd/swag@v1.16.6
           "$(go env GOPATH)/bin/swag" init -g main.go -o ./docs --parseDependency --parseInternal
           cp docs/swagger.json ../../docs/openapi.json
 
