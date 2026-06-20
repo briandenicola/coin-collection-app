@@ -4,8 +4,8 @@
 
 ### Decision: Public Showcase Reuses Museum Tray Components
 
-**Date:** 2026-06-20  
-**Agent:** Aurelia  
+**Date:** 2026-06-20
+**Agent:** Aurelia
 **Status:** APPROVED — IMPLEMENTED
 
 ## Context
@@ -10662,5 +10662,73 @@ This protects the exact workflow Brian requested without duplicating the share-c
 - Focused Vitest run: 17/17 PASSED
 - Type-check: PASSED
 - Production build: PASSED
+
+---
+
+## Decision: Shared Tray Wells Prefer Coin-Face Images
+
+**Date:** 2026-06-20
+**Agent:** Aurelia
+**Status:** APPROVED — IMPLEMENTED
+
+## Context
+
+Public showcase tray wells were sometimes displaying uploaded card/slab/detail images because the shared well renderer chose a primary or first image before considering whether a coin-face image existed. The tray must prioritize actual coin photographs over metadata/slab images.
+
+## Decision
+
+`MuseumTrayWell` image selection now uses the shared tray image contract:
+
+1. `imageType === 'obverse'`
+2. `imageType === 'reverse'`
+3. `isPrimary`
+4. first image fallback
+
+Public showcase media still routes through `publicShowcaseMediaUrl(slug, filePath)` via the existing resolver, and authenticated collection tray wells keep private media handling unchanged.
+
+## Rationale
+
+This ensures the tray displays coin photographs consistently whether in collection or public showcase context. Frontend tests cover proportional sizing when `diameterMm` is returned. If a deployed public showcase payload omits `diameterMm`, live public proportional sizing requires Cassius/backend to expose that existing coin field rather than frontend faking sizes.
+
+## Constitution Alignment
+
+- Principle III: strict image selection contract without implicit behavior
+- Principle IV: simple complete change to image priority logic
+- Principle VI: consistent tray UX across collection and public contexts
+
+---
+
+## Decision: Public Showcase API Uses Showcase-Scoped Owner-Safe Tray Contract
+
+**Date:** 2026-06-20
+**Agent:** Cassius
+**Status:** APPROVED — IMPLEMENTED
+
+## Context
+
+Brian reported that the public showcase view appeared to include coins/cards that were not part of the intended showcase collection, and asked that public showcase coins display proportionally like the museum tray.
+
+## Decision
+
+The public showcase API contract must return only coins that are both linked through `showcase_coins` for the requested showcase and owned by that showcase owner. Public showcase media authorization follows the same owner-safe rule. The limited public coin payload includes `diameterMm`, `images[].filePath`, `images[].imageType`, and `images[].isPrimary` so the public tray can size coins proportionally and select the primary image consistently.
+
+## Rationale
+
+This prevents cross-owner coin linkage leaks and enables proportional tray rendering without frontend guessing of coin sizes. The scoped query is enforced at the repository layer per Principle I, keeping handlers thin and business logic auditable.
+
+## Constitution Alignment
+
+- Principle I: repository owns the scoped GORM queries; handler remains thin
+- Principle III: public API exposes explicit tray-required fields (diameterMm, imageType, isPrimary)
+- Principle V: malformed cross-owner showcase links do not leak another user's coin data or media
+- §17: covered by targeted regressions plus `go test ./...` and `go vet ./...`
+
+## Files Touched
+
+- `src/api/repository/showcase_repository.go`
+- `src/api/repository/image_repository.go`
+- `src/api/handlers/showcase.go`
+- `src/api/handlers/showcase_handler_test.go`
+- `src/api/repository/image_repository_test.go`
 
 ---

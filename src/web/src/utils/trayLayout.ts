@@ -1,6 +1,10 @@
 export interface TrayCoinImage {
+  id?: number
+  coinId?: number
   filePath: string
-  isPrimary?: boolean
+  imageType?: string | null
+  isPrimary?: boolean | null
+  createdAt?: string
 }
 
 export interface TrayCoin {
@@ -14,6 +18,14 @@ export interface TrayLayoutOptions {
   minCoinPx: number
   maxCoinPx: number
   defaultDiameterMm: number
+}
+
+export function selectTrayCoinImage(images: readonly TrayCoinImage[]): TrayCoinImage | null {
+  return images.find(image => image.imageType?.toLowerCase() === 'obverse')
+    ?? images.find(image => image.imageType?.toLowerCase() === 'reverse')
+    ?? images.find(image => image.isPrimary)
+    ?? images[0]
+    ?? null
 }
 
 /**
@@ -31,6 +43,10 @@ export function normalizeDiameterMm(
 
 export function hasKnownDiameterMm(diameterMm: number | null | undefined): boolean {
   return diameterMm != null && diameterMm > 0
+}
+
+export function selectTrayCoinImagePath(images: readonly TrayCoinImage[]): string | null {
+  return selectTrayCoinImage(images)?.filePath ?? null
 }
 
 /**

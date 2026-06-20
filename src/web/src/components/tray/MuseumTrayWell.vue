@@ -36,7 +36,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Coins } from 'lucide-vue-next'
-import type { TrayCoin } from '@/utils/trayLayout'
+import { selectTrayCoinImage, type TrayCoin } from '@/utils/trayLayout'
 import AuthenticatedImage from '@/components/AuthenticatedImage.vue'
 
 interface Props {
@@ -54,8 +54,10 @@ const emit = defineEmits<{
   'coin-clicked': [coinId: number]
 }>()
 
+const selectedImagePath = computed(() => selectTrayCoinImage(props.coin.images)?.filePath ?? null)
+
 const primaryImage = computed(() => {
-  const path = props.coin.images.find(img => img.isPrimary)?.filePath ?? props.coin.images[0]?.filePath ?? null
+  const path = selectedImagePath.value
   if (!path) return null
   // Preserve absolute URLs; prefix relative paths with /uploads/
   if (path.startsWith('/') || path.startsWith('http://') || path.startsWith('https://')) {
@@ -65,7 +67,7 @@ const primaryImage = computed(() => {
 })
 
 const resolvedImageSrc = computed(() => {
-  const path = props.coin.images.find(img => img.isPrimary)?.filePath ?? props.coin.images[0]?.filePath ?? null
+  const path = selectedImagePath.value
   if (!path || !props.imageSrcResolver) return null
   return props.imageSrcResolver(path)
 })

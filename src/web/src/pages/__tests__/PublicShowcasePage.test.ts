@@ -69,6 +69,53 @@ describe('PublicShowcasePage', () => {
     expect(image.attributes('alt')).toBe('Aureus')
   })
 
+  it('keeps public showcase tray wells proportional using returned diameterMm values', async () => {
+    mockShowcase([
+      publicCoin({
+        id: 1,
+        name: 'Small Bronze',
+        diameterMm: 10,
+        images: [{ id: 11, filePath: 'coins/small.webp', imageType: 'obverse' }],
+      }),
+      publicCoin({
+        id: 2,
+        name: 'Large Sestertius',
+        diameterMm: 30,
+        images: [{ id: 12, filePath: 'coins/large.webp', imageType: 'obverse' }],
+      }),
+    ])
+    const wrapper = await mountLoaded()
+
+    const wells = wrapper.findAll('.tray-well')
+    expect(wells).toHaveLength(2)
+    expect(wells[0]?.attributes('style')).toContain('width: 40px')
+    expect(wells[0]?.attributes('style')).toContain('height: 40px')
+    expect(wells[1]?.attributes('style')).toContain('width: 120px')
+    expect(wells[1]?.attributes('style')).toContain('height: 120px')
+  })
+
+  it('uses coin-face images in tray wells instead of card/detail images when available', async () => {
+    mockShowcase([publicCoin({
+      images: [
+        { id: 20, filePath: 'cards/aureus-card.webp', imageType: 'card', isPrimary: true },
+        { id: 21, filePath: 'details/aureus-edge.webp', imageType: 'detail' },
+        { id: 22, filePath: 'coins/aureus-reverse.webp', imageType: 'reverse' },
+      ],
+    })])
+    const wrapper = await mountLoaded()
+
+    expect(wrapper.find('img.well-coin').attributes('src')).toBe('/api/showcase/featured-set/uploads/coins/aureus-reverse.webp')
+  })
+
+  it('renders only the coins returned for the requested public showcase', async () => {
+    mockShowcase([publicCoin({ id: 1, name: 'Included Denarius' })])
+    const wrapper = await mountLoaded()
+
+    expect(wrapper.findAll('.tray-well')).toHaveLength(1)
+    expect(wrapper.find('.tray-well').attributes('aria-label')).toBe('Included Denarius')
+    expect(wrapper.text()).not.toContain('Non-member Aureus')
+  })
+
   it('keeps public tray coin labels available without exposing private coin-detail navigation', async () => {
     const wrapper = await mountLoaded()
     const well = wrapper.find('.tray-well')

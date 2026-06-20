@@ -142,6 +142,26 @@ describe('MuseumTrayWell', () => {
     expect(img.attributes('src')).toBe('/api/showcase/featured/uploads/relative-image.jpg')
   })
 
+  it('prefers obverse or reverse face images before primary or first fallback', () => {
+    const wrapper = mount(MuseumTrayWell, {
+      props: {
+        coin: {
+          ...mockCoin,
+          images: [
+            { id: 11, filePath: 'cards/slab.webp', imageType: 'card', isPrimary: true },
+            { id: 12, filePath: 'coins/reverse.webp', imageType: 'reverse', isPrimary: false },
+            { id: 13, filePath: 'coins/obverse.webp', imageType: 'obverse', isPrimary: false },
+          ],
+        },
+        renderSizePx: 70,
+        imageSrcResolver: (filePath: string) => `/api/showcase/featured/uploads/${filePath}`,
+      },
+    })
+
+    const img = wrapper.find('img')
+    expect(img.attributes('src')).toBe('/api/showcase/featured/uploads/coins/obverse.webp')
+  })
+
   it('can render as a non-interactive public well', async () => {
     const wrapper = mount(MuseumTrayWell, {
       props: {
