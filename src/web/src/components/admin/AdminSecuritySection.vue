@@ -88,7 +88,7 @@
         </select>
         <input v-model="filters.username" class="form-input" placeholder="User" autocomplete="off" />
         <input v-model="filters.ip" class="form-input" placeholder="IP" autocomplete="off" />
-        <input v-model="filters.since" class="form-input" type="date" aria-label="Since date" />
+        <input v-model="filters.since" class="form-input date-filter-input" type="date" aria-label="Since date" />
         <select v-model.number="filters.limit" class="form-select">
           <option :value="25">25</option>
           <option :value="50">50</option>
@@ -454,6 +454,11 @@ function formatDateTime(value: string) {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  min-width: 0;
+}
+
+.admin-section {
+  min-width: 0;
 }
 
 .section-heading {
@@ -590,13 +595,48 @@ function formatDateTime(value: string) {
 .ban-form {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  align-items: stretch;
   gap: 0.5rem;
   margin-bottom: 1rem;
+  max-width: 100%;
 }
 
 .filters-grid > *,
 .ban-form > * {
+  display: block;
+  justify-self: stretch;
+  width: 100%;
+  max-width: 100%;
   min-width: 0;
+}
+
+.date-filter-input {
+  display: block;
+  box-sizing: border-box;
+  overflow: hidden;
+  text-overflow: clip;
+  width: 100%;
+  inline-size: 100%;
+  max-width: 100%;
+  max-inline-size: 100%;
+  min-width: 0;
+  min-inline-size: 0;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.date-filter-input::-webkit-datetime-edit,
+.date-filter-input::-webkit-date-and-time-value {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-align: left;
+}
+
+.date-filter-input::-webkit-calendar-picker-indicator {
+  flex-shrink: 0;
+  margin-inline-start: 0.25rem;
+  padding: 0;
 }
 
 .filters-grid .btn,
@@ -606,12 +646,18 @@ function formatDateTime(value: string) {
 }
 
 .table-wrap {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .security-table {
   width: 100%;
+  min-width: 44rem;
   border-collapse: collapse;
+  table-layout: fixed;
 }
 
 .security-table th,
@@ -637,6 +683,13 @@ function formatDateTime(value: string) {
   font-size: 0.85rem;
 }
 
+.date-cell {
+  width: 8rem;
+  max-width: 8rem;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
 .empty-cell {
   text-align: center;
   padding: 1.5rem;
@@ -651,6 +704,11 @@ function formatDateTime(value: string) {
   .filters-grid,
   .ban-form {
     grid-template-columns: 1fr;
+  }
+
+  .date-cell {
+    width: 7rem;
+    max-width: 7rem;
   }
 }
 </style>

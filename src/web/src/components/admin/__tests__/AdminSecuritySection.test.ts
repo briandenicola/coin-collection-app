@@ -187,6 +187,15 @@ describe('AdminSecuritySection', () => {
     }))
   })
 
+  it('marks security event dates with narrow-safe hooks', async () => {
+    const wrapper = mountSection()
+    await flushPromises()
+
+    expect(wrapper.find('input[type="date"]').classes()).toContain('date-filter-input')
+    expect(wrapper.find('.table-wrap').exists()).toBe(true)
+    expect(wrapper.find('.date-cell').text()).toBeTruthy()
+  })
+
   it('adds and deletes IP bans through the API client', async () => {
     const wrapper = mountSection()
     await flushPromises()
