@@ -183,9 +183,7 @@ func (s *SettingsService) ResolveLLMConfig() (LLMConfig, error) {
 	}
 
 	cfg := LLMConfig{
-		Provider:   provider,
-		OllamaURL:  s.GetSetting(SettingOllamaURL),
-		SearXNGURL: s.GetSetting(SettingSearXNGURL),
+		Provider: provider,
 	}
 
 	switch provider {
@@ -197,6 +195,8 @@ func (s *SettingsService) ResolveLLMConfig() (LLMConfig, error) {
 		}
 	case "ollama":
 		cfg.Model = s.GetSetting(SettingOllamaModel)
+		cfg.OllamaURL = s.GetSetting(SettingOllamaURL)
+		cfg.SearXNGURL = s.GetSetting(SettingSearXNGURL)
 	default:
 		return LLMConfig{}, fmt.Errorf("unknown AI provider: %s", provider)
 	}

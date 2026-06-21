@@ -252,19 +252,10 @@ func (s *AvailabilityService) escalateToAgent(
 	allResults []coinResult,
 	ambiguousItems []AvailabilityCheckProxyItem,
 ) {
-	// Build LLM config from app settings
-	provider := s.settingsSvc.GetSetting(SettingAIProvider)
-	if provider == "" {
-		s.logger.Warn("availability", "No AI provider configured, skipping agent escalation")
+	llmConfig, err := s.settingsSvc.ResolveLLMConfig()
+	if err != nil {
+		s.logger.Warn("availability", "Unable to resolve AI provider config, skipping agent escalation: %v", err)
 		return
-	}
-
-	llmConfig := LLMConfig{
-		Provider:   provider,
-		APIKey:     s.settingsSvc.GetSetting(SettingAnthropicAPIKey),
-		Model:      s.settingsSvc.GetSetting(SettingAnthropicModel),
-		OllamaURL:  s.settingsSvc.GetSetting(SettingOllamaURL),
-		SearXNGURL: s.settingsSvc.GetSetting(SettingSearXNGURL),
 	}
 
 	resolvedURLs := make(map[string]struct{})

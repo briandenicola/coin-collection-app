@@ -58,10 +58,10 @@ func agentServiceHTTPError(statusCode int, body []byte) error {
 
 type LLMConfig struct {
 	Provider   string `json:"provider"`
-	APIKey     string `json:"api_key"`
+	APIKey     string `json:"api_key,omitempty"`
 	Model      string `json:"model"`
-	OllamaURL  string `json:"ollama_url"`
-	SearXNGURL string `json:"searxng_url"`
+	OllamaURL  string `json:"ollama_url,omitempty"`
+	SearXNGURL string `json:"searxng_url,omitempty"`
 }
 
 type UserContextProxy struct {

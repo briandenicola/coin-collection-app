@@ -6,7 +6,7 @@ so this service remains stateless with no direct DB access.
 
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator, model_validator
 
 from app.outbound import validate_outbound_url
 
@@ -56,10 +56,16 @@ class LLMConfig(StrictRequestModel):
     ollama_url: str = ""  # Ollama base URL (empty for Anthropic)
     searxng_url: str = ""  # SearXNG URL (for Ollama web search)
 
-    @field_validator("ollama_url", "searxng_url")
-    @classmethod
-    def validate_trusted_urls(cls, value: str, info) -> str:
-        return validate_outbound_url(value, info.field_name)
+    @model_validator(mode="after")
+    def validate_provider_urls(self) -> "LLMConfig":
+        if self.provider != "ollama":
+            self.ollama_url = ""
+            self.searxng_url = ""
+            return self
+
+        self.ollama_url = validate_outbound_url(self.ollama_url, "ollama_url")
+        self.searxng_url = validate_outbound_url(self.searxng_url, "searxng_url")
+        return self
 
 
 class UserContext(StrictRequestModel):

@@ -109,6 +109,41 @@ func TestAgentProxyAnalyzeCoinInternalCredentialConfigErrorIsNotProviderKeyFailu
 	}
 }
 
+func TestLLMConfigJSONOmitsProviderIrrelevantFields(t *testing.T) {
+	body, err := json.Marshal(LLMConfig{
+		Provider:  "anthropic",
+		APIKey:    "anthropic-key",
+		Model:     "claude-test",
+		OllamaURL: "",
+	})
+	if err != nil {
+		t.Fatalf("marshal LLMConfig: %v", err)
+	}
+
+	bodyText := string(body)
+	if strings.Contains(bodyText, "ollama_url") || strings.Contains(bodyText, "searxng_url") {
+		t.Fatalf("Anthropic LLMConfig JSON included provider-irrelevant URLs: %s", bodyText)
+	}
+
+	body, err = json.Marshal(LLMConfig{
+		Provider:   "ollama",
+		Model:      "llava-test",
+		OllamaURL:  "http://ollama:11434",
+		SearXNGURL: "http://searxng:8080",
+	})
+	if err != nil {
+		t.Fatalf("marshal LLMConfig: %v", err)
+	}
+
+	bodyText = string(body)
+	if strings.Contains(bodyText, "api_key") {
+		t.Fatalf("Ollama LLMConfig JSON included Anthropic API key field: %s", bodyText)
+	}
+	if !strings.Contains(bodyText, "ollama_url") {
+		t.Fatalf("Ollama LLMConfig JSON omitted ollama_url: %s", bodyText)
+	}
+}
+
 func TestAgentChatProxyRequestJSONIncludesTypedAppContext(t *testing.T) {
 	activeCoinID := uint(42)
 	req := AgentChatProxyRequest{

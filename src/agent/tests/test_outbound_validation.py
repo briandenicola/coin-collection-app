@@ -22,6 +22,21 @@ def test_llm_config_accepts_configured_public_origin(monkeypatch):
     assert config.ollama_url == "https://ollama.example.com"
 
 
+def test_llm_config_anthropic_ignores_non_ollama_url(monkeypatch):
+    monkeypatch.setattr(settings, "trusted_outbound_origins", "https://ollama.example.com")
+    monkeypatch.setattr(settings, "allow_local_outbound", False)
+
+    config = LLMConfig(
+        provider="anthropic",
+        model="claude-opus-4-8",
+        api_key="anthropic-key",
+        ollama_url="https://ai.denicolafamily.com",
+    )
+
+    assert config.provider == "anthropic"
+    assert config.ollama_url == ""
+
+
 @pytest.mark.parametrize(
     "url",
     [

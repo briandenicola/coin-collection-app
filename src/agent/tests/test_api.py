@@ -116,6 +116,23 @@ def test_analyze_stub():
     assert "message" in data
 
 
+def test_analyze_anthropic_ignores_non_ollama_url():
+    resp = client.post(
+        "/api/analyze",
+        json={
+            "llm": {
+                "provider": "anthropic",
+                "api_key": "k",
+                "model": "claude-opus-4-8",
+                "ollama_url": "https://ai.denicolafamily.com",
+            },
+            "coin": {"id": 1, "name": "Test Coin"},
+        },
+        headers=AUTH_HEADERS,
+    )
+    assert resp.status_code == 200
+
+
 def test_portfolio_review_rejects_invalid_body():
     resp = client.post("/api/portfolio/review", json={}, headers=AUTH_HEADERS)
     assert resp.status_code == 422

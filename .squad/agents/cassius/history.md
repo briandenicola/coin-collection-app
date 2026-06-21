@@ -695,3 +695,7 @@ Investigated the public showcase backend after Brian reported coins/cards appear
 ### 2026-06-21 — Agent Internal Credential Readiness
 
 Investigated "Agent service unavailable" / analysis 503s after agent boundary hardening. Root cause is a separate API → Python agent credential (`AGENT_INTERNAL_SERVICE_TOKEN`) missing from the agent runtime, not the Anthropic provider key. Preserved the internal-service lock: `/ready` now fails 503 when the credential is absent, Compose health checks `/ready`, Go proxy errors identify the missing shared credential, and docs/.env example call out the exact variable. Validation: targeted Go services/handlers tests + vet, targeted Python API tests + ruff, targeted frontend error-message tests, and `npm run type-check`.
+
+### 2026-06-21 — Anthropic Analysis 422 Fix
+
+Diagnosed post-`AGENT_INTERNAL_SERVICE_TOKEN` AI analysis failure where Go sent configured `OllamaURL`/`SearXNGURL` inside every LLM payload, even when `AIProvider=anthropic`. Python's Pydantic `LLMConfig` validated `ollama_url` before provider selection, so an Anthropic request with `https://ai.denicolafamily.com` failed HTTP 422 as an untrusted Ollama origin. Fixed the contract so Go only includes Ollama/SearXNG settings for the Ollama provider and omits empty provider-irrelevant JSON fields; Python now ignores and clears Ollama-only URLs for non-Ollama providers while still enforcing trusted outbound validation for actual Ollama usage. Added exact-path Go/Python regressions and validated targeted Go tests, targeted Python pytest, and targeted ruff.
