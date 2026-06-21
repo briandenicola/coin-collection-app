@@ -10732,3 +10732,78 @@ This prevents cross-owner coin linkage leaks and enables proportional tray rende
 - `src/api/repository/image_repository_test.go`
 
 ---
+
+### Decision: AI Provider Tests are Distinct from Internal Agent Service Health
+
+**Date:** 2026-06-21
+**Agent:** Aurelia
+**Status:** APPROVED — IMPLEMENTED
+
+## Context
+
+When the backend reports agent-service failures (including `Agent service unavailable` or `Internal service credential is not configured`), the frontend was previously treating these as provider connectivity issues. Brian reported that Anthropic status was valid while chat and image analysis failed because the agent service rejected internal service credentials.
+
+## Decision
+
+Frontend AI surfaces must distinguish between:
+1. **Provider connectivity tests** (Admin AI Configuration) — validate only Anthropic/Ollama connectivity
+2. **Agent service + internal credential readiness** (Chat, image analysis) — require both provider AND internal agent service configuration
+
+When the backend reports agent-service failures, frontend surfaces direct users to internal agent service configuration (e.g., "Internal agent service not configured — see deployment docs"), not provider settings. The UI preserves backend error text where specific to guide users to the correct remediation path.
+
+## Rationale
+
+Pointing users back to Anthropic configuration when the real fault domain is internal agent service credentials masks the actionable problem and prevents resolution. Surfacing specific error text from the backend ensures diagnosis accuracy.
+
+## Constitution Alignment
+
+- Principle V: provides clear, actionable error guidance to users
+- Principle VI: consistent error UX across AI-powered features
+- §17: covered by client tests, component tests, and type-checking
+
+## Files Touched
+
+- `src/web/src/api/client.ts`
+- `src/web/src/components/coin/CoinAIAnalysis.vue`
+- `src/web/src/components/admin/AdminAISection.vue`
+- related test files
+
+---
+
+### Decision: Agent Internal Credential Readiness Contract
+
+**Date:** 2026-06-21
+**Agent:** Cassius
+**Status:** APPROVED — IMPLEMENTED
+
+## Context
+
+After Python agent boundary hardening, deployments with Anthropic provider key configured but `AGENT_INTERNAL_SERVICE_TOKEN` missing returned HTTP 200 for `/health` and HTTP 503 for `/ready`, but users saw `{"detail":"Internal service credential is not configured"}` in chat and analysis failures even though the agent was reachable.
+
+## Decision
+
+- `AGENT_INTERNAL_SERVICE_TOKEN` remains required for every hardened Python agent endpoint.
+- `/health` is a shallow liveness endpoint (always HTTP 200 if process is running).
+- `/ready` is the configuration-readiness endpoint and returns HTTP 503 when `AGENT_INTERNAL_SERVICE_TOKEN` is missing or when the service is not fully initialized.
+- Docker Compose health checks must use `/ready` endpoint so a reachable-but-unconfigured agent is not treated as healthy.
+- Go proxy (`services/agent_proxy.go`) maps missing-credential responses to a distinguished error type that UI-facing error formatting can recognize and classify as internal agent service configuration, not an Anthropic/Ollama provider-key failure.
+
+## Rationale
+
+This preserves internal service credential protection per Principle V while enabling operational clarity: `/ready` reflects actual service readiness for production, not just TCP connectivity. Health check integration ensures deployments catch missing credentials before traffic routes to unconfigured instances.
+
+## Constitution Alignment
+
+- Principle V: preserves internal service credential protection instead of weakening agent access
+- Principle I: layered responsibility — Go proxy handles credential error classification
+- §17 and §21: adds targeted contract/regression coverage for the exact failing path
+
+## Files Touched
+
+- `src/agent/app/main.py` (FastAPI health/ready endpoints)
+- `src/api/services/agent_proxy.go` (error classification)
+- `Dockerfile` (Docker health check `/ready`)
+- `docker-compose.yml` (health check configuration)
+- test files for agent proxy and internal credential handling
+
+---

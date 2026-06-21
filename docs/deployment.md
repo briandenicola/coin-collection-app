@@ -74,7 +74,7 @@ services:
     expose:
       - "8081"
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8081/health')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8081/ready')"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -86,7 +86,7 @@ volumes:
   uploads:
 ```
 
-Create a `.env` file with your JWT secret (see [Generating a JWT Secret](#generating-a-jwt-secret)), then start the app:
+Create a `.env` file with every required value in [Required `.env` values](#required-env-values), then start the app:
 
 ```sh
 docker compose up -d
@@ -98,11 +98,56 @@ The app is now available at `http://localhost:8080`. Keep this binding local or 
 > - `AGENT_SERVICE_URL` (API → agent): used for all AI features
 > - `AGENT_INTERNAL_CALLBACK_URL` (agent → API): used only by collection chat (#217)
 >
-> In containerized deployments, both **must** use Docker service names (e.g., `http://app:8080`, `http://agent:8081`) instead of `localhost`. The agent service is not published on a host port by default; all non-health endpoints require `AGENT_INTERNAL_SERVICE_TOKEN` from the Go API. The `AGENT_INTERNAL_CALLBACK_URL` defaults to `localhost:8080` for local `task up-all` development; **set it explicitly** in compose/k8s environments or collection chat will fail with "All connection attempts failed".
+> In containerized deployments, both **must** use Docker service names (e.g., `http://app:8080`, `http://agent:8081`) instead of `localhost`. The agent service is not published on a host port by default; every endpoint except `/health` requires `AGENT_INTERNAL_SERVICE_TOKEN` to be configured, and protected endpoints also require the Go API to send it. The `AGENT_INTERNAL_CALLBACK_URL` defaults to `localhost:8080` for local `task up-all` development; **set it explicitly** in compose/k8s environments or collection chat will fail with "All connection attempts failed".
 
 ---
 
 ## Environment Variables
+
+### Required `.env` values
+
+Copy `.env.example` to `.env` and replace the placeholders before starting the app. For Docker Compose, the following values are required:
+
+```env
+JWT_SECRET=<48-byte random value>
+AGENT_INTERNAL_SERVICE_TOKEN=<48-byte random value shared by app and agent>
+TRUSTED_PROXIES=none
+```
+
+Generate the two secrets with:
+
+```sh
+openssl rand -base64 48
+```
+
+`AGENT_INTERNAL_SERVICE_TOKEN` is **not** an Anthropic/Ollama API key. It is a private shared credential between the Go API and Python agent service. If it is missing from either process, Admin AI provider tests can still pass, but coin analysis and agent chat will fail with an internal agent service credential error.
+
+For public HTTPS/passkey deployments, also set:
+
+```env
+WEBAUTHN_RP_ID=coins.example.com
+WEBAUTHN_ORIGIN=https://coins.example.com
+CORS_ORIGINS=https://coins.example.com
+```
+
+For Docker Compose/multi-container deployments, keep the agent URLs on Docker service names:
+
+```env
+AGENT_SERVICE_URL=http://agent:8081
+AGENT_INTERNAL_CALLBACK_URL=http://app:8080
+AGENT_TRUSTED_OUTBOUND_ORIGINS=http://app:8080
+```
+
+For local `task up-all` development, the API and agent both load the repo-root `.env`. Use localhost URLs:
+
+```env
+AGENT_SERVICE_URL=http://localhost:8081
+AGENT_INTERNAL_CALLBACK_URL=http://localhost:8080
+AGENT_TRUSTED_OUTBOUND_ORIGINS=http://localhost:8080
+AGENT_ALLOW_LOCAL_OUTBOUND=true
+```
+
+### Full variable reference
 
 | Variable | Default | Description |
 |---|---|---|
@@ -114,7 +159,7 @@ The app is now available at `http://localhost:8080`. Keep this binding local or 
 | `WEBAUTHN_ORIGIN` | `http://localhost:8080` | WebAuthn origin URL (supports comma-separated list) |
 | `AGENT_SERVICE_URL` | `http://agent:8081` | Python agent service URL (API → agent) |
 | `AGENT_INTERNAL_CALLBACK_URL` | `http://localhost:8080` | URL the Python agent uses to call back into the Go API for collection-chat tools (#217). **In multi-container deployments, must be set to the API container's network address** (e.g., `http://app:8080`), **not `localhost`**, or collection chat fails with "All connection attempts failed" |
-| `AGENT_INTERNAL_SERVICE_TOKEN` | — | Shared API → agent credential required by every Python agent endpoint except `/health` and `/ready`. Required in Docker Compose and production-like deployments. |
+| `AGENT_INTERNAL_SERVICE_TOKEN` | — | Shared API → agent credential. The Python agent `/ready` endpoint fails without it, and every endpoint except `/health` requires it in configured deployments. Required for local `task up-all`, Docker Compose, and production-like deployments. |
 | `CORS_ORIGINS` | *(WebAuthn origins + localhost)* | Comma-separated list of allowed CORS origins. Falls back to `WEBAUTHN_ORIGIN` values plus `http://localhost:5173` and `http://localhost:8080` |
 | `AGENT_LOG_LEVEL` | `INFO` | Python agent log level |
 | `AGENT_DEBUG` | `false` | Enable debug mode on the agent container (exposes `/docs` endpoint) |
@@ -123,21 +168,24 @@ The app is now available at `http://localhost:8080`. Keep this binding local or 
 | `AGENT_ALLOW_LOCAL_OUTBOUND` | `false` | Set `true` only for explicit local development when trusted origins include localhost/private service endpoints. |
 | `TRUSTED_PROXIES` / `GIN_TRUSTED_PROXIES` | *(required in `GIN_MODE=release`)* | Comma-separated proxy IPs/CIDRs whose `X-Forwarded-*` headers the Go API should trust. Use the exact reverse-proxy IP/CIDR, `none` only when no reverse proxy is present, and never `0.0.0.0/0`. |
 
-### Generating a JWT Secret
+### Generating local secrets
 
-The `task init` command generates a `.env` file containing only `JWT_SECRET` (set to a random value via `openssl rand -base64 48`). To generate one manually:
+The `task init` command creates `.env` if needed and adds missing `JWT_SECRET` and `AGENT_INTERNAL_SERVICE_TOKEN` values without overwriting existing secrets.
+
+To generate either value manually:
 
 ```sh
 openssl rand -base64 48
 ```
 
-Copy the output into your `.env` file:
+Copy each output into your `.env` file:
 
 ```sh
 JWT_SECRET=your-generated-secret-here
+AGENT_INTERNAL_SERVICE_TOKEN=your-generated-token-here
 ```
 
-> **⚠️ Important:** Never use the default JWT secret in production. A weak or default secret compromises all authentication tokens.
+> **⚠️ Important:** Never use the default JWT secret in production. A weak or default secret compromises all authentication tokens. Never expose `AGENT_INTERNAL_SERVICE_TOKEN` to browsers or third-party services; it must only be shared between the Go API and Python agent service.
 
 ---
 

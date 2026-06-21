@@ -45,8 +45,8 @@
           class="exposure-row"
           :class="{ warning: !check.ok }"
         >
-          <span class="chip-sm">{{ check.ok ? 'OK' : 'Review' }}</span>
-          <div>
+          <span class="chip-sm exposure-status">{{ check.ok ? 'OK' : 'Review' }}</span>
+          <div class="exposure-copy">
             <strong>{{ check.label }}</strong>
             <p>{{ check.message }}</p>
           </div>
@@ -538,7 +538,17 @@ function formatDateTime(value: string) {
   color: var(--accent-gold);
 }
 
-.exposure-row,
+.exposure-row {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: start;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+}
+
 .locked-row {
   display: flex;
   align-items: flex-start;
@@ -554,19 +564,45 @@ function formatDateTime(value: string) {
   border-color: var(--border-accent);
 }
 
+.exposure-status {
+  justify-content: center;
+  min-width: 4rem;
+}
+
+.exposure-copy {
+  min-width: 0;
+}
+
+.exposure-copy strong {
+  display: block;
+  line-height: 1.3;
+}
+
 .exposure-row p,
 .locked-row p {
   margin: 0.25rem 0 0;
   color: var(--text-secondary);
   font-size: 0.85rem;
+  overflow-wrap: anywhere;
 }
 
 .filters-grid,
 .ban-form {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
   gap: 0.5rem;
   margin-bottom: 1rem;
+}
+
+.filters-grid > *,
+.ban-form > * {
+  min-width: 0;
+}
+
+.filters-grid .btn,
+.ban-form .btn {
+  justify-content: center;
+  width: 100%;
 }
 
 .table-wrap {
@@ -610,6 +646,11 @@ function formatDateTime(value: string) {
   .section-heading,
   .locked-row {
     flex-direction: column;
+  }
+
+  .filters-grid,
+  .ban-form {
+    grid-template-columns: 1fr;
   }
 }
 </style>

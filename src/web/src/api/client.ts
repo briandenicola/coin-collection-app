@@ -7,6 +7,46 @@ const api = axios.create({
   baseURL: `${API_BASE}/api`,
 })
 
+type ApiErrorPayload = {
+  error?: unknown
+  message?: unknown
+  detail?: unknown
+}
+
+export function getApiErrorMessage(error: unknown): string {
+  if (typeof error === 'string') return error
+
+  if (typeof error === 'object' && error !== null) {
+    const maybeResponse = error as { response?: { data?: ApiErrorPayload } }
+    const data = maybeResponse.response?.data ?? (error as ApiErrorPayload)
+    const candidate = data.error ?? data.message ?? data.detail
+    if (typeof candidate === 'string') return candidate
+  }
+
+  if (error instanceof Error) return error.message
+
+  return ''
+}
+
+export function formatAgentServiceError(error: unknown, fallback = 'Agent service unavailable. Check the internal agent service configuration.'): string {
+  const message = getApiErrorMessage(error).trim()
+  if (!message) return fallback
+
+  if (/internal service credential is not configured/i.test(message)) {
+    return 'Internal agent service credential is not configured. Check the internal agent service configuration.'
+  }
+
+  if (/agent service unavailable/i.test(message) || /^HTTP 503$/i.test(message)) {
+    return 'Agent service unavailable. Check the internal agent service configuration.'
+  }
+
+  if (/check agent service configuration/i.test(message)) {
+    return 'Check the agent service configuration and retry.'
+  }
+
+  return message
+}
+
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token')
   if (token) {
@@ -332,7 +372,7 @@ export async function agentChatStream(
 
     if (!resp.ok) {
       const err = await resp.json().catch(() => ({ error: `HTTP ${resp.status}` }))
-      onError(err.error || `HTTP ${resp.status}`)
+      onError(formatAgentServiceError(err, `HTTP ${resp.status}`))
       return
     }
 
@@ -379,7 +419,10 @@ export async function agentChatStream(
             event.collection,
           )
         } else if (event.type === 'error') {
-          sendError(typeof event.message === 'string' ? event.message : 'Agent stream error')
+          sendError(formatAgentServiceError(
+            typeof event.message === 'string' ? event.message : '',
+            'Agent stream error',
+          ))
         }
       } catch {
         // Ignore malformed stream chunks.

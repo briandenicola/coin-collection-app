@@ -104,6 +104,38 @@ describe('API Client', () => {
   })
 
   // ========================================================================
+  // Agent service error formatting
+  // ========================================================================
+
+  describe('formatAgentServiceError', () => {
+    it('maps missing internal credential config to a service-configuration message', () => {
+      const message = client.formatAgentServiceError({
+        response: {
+          data: {
+            detail: 'Internal service credential is not configured',
+          },
+        },
+      })
+
+      expect(message).toContain('Internal agent service credential is not configured')
+      expect(message).toContain('internal agent service configuration')
+      expect(message).not.toMatch(/Anthropic|API provider/i)
+    })
+
+    it('does not rewrite provider-key failures as internal service configuration', () => {
+      const message = client.formatAgentServiceError({
+        response: {
+          data: {
+            error: 'Anthropic API key is invalid',
+          },
+        },
+      })
+
+      expect(message).toBe('Anthropic API key is invalid')
+    })
+  })
+
+  // ========================================================================
   // sanitizeCoin
   // ========================================================================
 
@@ -381,6 +413,40 @@ describe('API Client', () => {
   // ========================================================================
   // API wrapper methods — URL construction
   // ========================================================================
+
+  describe('AI agent error messaging', () => {
+    it('extracts backend error payloads from axios-style errors', () => {
+      const message = client.getApiErrorMessage({
+        response: {
+          data: {
+            error: 'Agent service unavailable',
+          },
+        },
+      })
+
+      expect(message).toBe('Agent service unavailable')
+    })
+
+    it('points agent-service outages at internal service configuration, not provider settings', () => {
+      expect(client.formatAgentServiceError({
+        response: {
+          data: {
+            error: 'Agent service unavailable',
+          },
+        },
+      })).toBe('Agent service unavailable. Check the internal agent service configuration.')
+    })
+
+    it('keeps the internal credential failure actionable without exposing credential values', () => {
+      expect(client.formatAgentServiceError({
+        detail: 'Internal service credential is not configured',
+      })).toBe('Internal agent service credential is not configured. Check the internal agent service configuration.')
+    })
+
+    it('treats bare HTTP 503 stream failures as agent-service configuration failures', () => {
+      expect(client.formatAgentServiceError('HTTP 503')).toBe('Agent service unavailable. Check the internal agent service configuration.')
+    })
+  })
 
   describe('API method wrappers', () => {
     it('login sends POST to /auth/login', async () => {

@@ -691,3 +691,7 @@ Modeled Go's optional `app_context` payload explicitly in Python as `AppContext(
 ### 2026-06-20 — Public Showcase Coin Scope and Tray Contract
 
 Investigated the public showcase backend after Brian reported coins/cards appearing outside the intended showcase. The public endpoint already queried through `showcase_coins`, but the API payload omitted `diameterMm` and `isPrimary`, which prevented the shared tray from using the same proportional sizing and primary-image contract as the authenticated tray. Tightened showcase coin retrieval and public showcase media checks so returned/served coins must both be linked to the requested showcase and owned by the showcase owner, guarding against malformed cross-owner join rows. Added targeted handler and repository regressions, then validated with `go test ./...` and `go vet ./...` from `src/api`.
+
+### 2026-06-21 — Agent Internal Credential Readiness
+
+Investigated "Agent service unavailable" / analysis 503s after agent boundary hardening. Root cause is a separate API → Python agent credential (`AGENT_INTERNAL_SERVICE_TOKEN`) missing from the agent runtime, not the Anthropic provider key. Preserved the internal-service lock: `/ready` now fails 503 when the credential is absent, Compose health checks `/ready`, Go proxy errors identify the missing shared credential, and docs/.env example call out the exact variable. Validation: targeted Go services/handlers tests + vet, targeted Python API tests + ruff, targeted frontend error-message tests, and `npm run type-check`.

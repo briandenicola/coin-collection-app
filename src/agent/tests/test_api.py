@@ -6,6 +6,7 @@ Integration tests requiring a live LLM belong in a separate suite.
 
 from fastapi.testclient import TestClient
 
+from app.config import settings
 from app.main import app
 
 client = TestClient(app)
@@ -26,6 +27,20 @@ def test_ready():
     assert resp.json()["status"] == "ready"
 
 
+def test_ready_reports_missing_internal_service_credential():
+    original = settings.internal_service_token
+    settings.internal_service_token = ""
+    try:
+        resp = client.get("/ready")
+    finally:
+        settings.internal_service_token = original
+
+    assert resp.status_code == 503
+    assert resp.json()["detail"] == (
+        "Internal service credential is not configured; set AGENT_INTERNAL_SERVICE_TOKEN"
+    )
+
+
 def test_agent_api_requires_internal_token():
     resp = client.post("/api/search/coins", json={})
     assert resp.status_code == 401
@@ -39,6 +54,24 @@ def test_logs_requires_internal_token():
 def test_log_level_requires_internal_token():
     resp = client.put("/log-level", json={"level": "INFO"})
     assert resp.status_code == 401
+
+
+def test_internal_token_missing_config_returns_clear_503(monkeypatch):
+    monkeypatch.setattr(settings, "internal_service_token", "")
+
+    resp = client.get("/logs", headers=AUTH_HEADERS)
+
+    assert resp.status_code == 503
+    assert resp.json() == {"detail": "Internal service credential is not configured"}
+
+
+def test_configured_internal_token_allows_go_proxy_header(monkeypatch):
+    monkeypatch.setattr(settings, "internal_service_token", "go-proxy-token")
+
+    resp = client.get("/logs", headers={"X-Internal-Service-Token": "go-proxy-token"})
+
+    assert resp.status_code == 200
+    assert "logs" in resp.json()
 
 
 def test_logs_allow_go_mediated_internal_token():
