@@ -522,9 +522,12 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+  background: transparent;
+  border: none;
   color: var(--text-secondary);
   padding: 0.4rem;
   border-radius: var(--radius-sm);
+  cursor: pointer;
   transition: color var(--transition-fast), background var(--transition-fast);
   text-decoration: none;
 }
