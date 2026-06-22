@@ -11,6 +11,7 @@
     <div class="collection-toolbar">
       <div class="toolbar-filters">
         <CategoryFilter :model-value="selectedCategory" @update:model-value="$emit('update:selectedCategory', $event)" />
+        <EraFilter :model-value="selectedEra" :eras="eraOptions" @update:model-value="$emit('update:selectedEra', $event)" />
         <select v-if="userTags.length" :value="selectedTag" @change="$emit('update:selectedTag', ($event.target as HTMLSelectElement).value)" class="tag-filter-select">
           <option value="">All Sets</option>
           <option v-for="tag in userTags" :key="tag.filterValue" :value="tag.filterValue">{{ tag.name }}</option>
@@ -37,6 +38,7 @@
 <script setup lang="ts">
 import type { CollectionSetOption, ImageType } from '@/types'
 import CategoryFilter from '@/components/CategoryFilter.vue'
+import EraFilter from '@/components/collection/EraFilter.vue'
 import SearchBar from '@/components/SearchBar.vue'
 import SortSelect from '@/components/SortSelect.vue'
 import { CirclePlus, CheckSquare } from 'lucide-vue-next'
@@ -45,8 +47,10 @@ defineProps<{
   search: string
   selectMode: boolean
   selectedCategory: string
+  selectedEra: string
   selectedTag: string
   userTags: CollectionSetOption[]
+  eraOptions: string[]
   sortKey: string
   gridSide: ImageType | null
 }>()
@@ -54,6 +58,7 @@ defineProps<{
 defineEmits<{
   'update:search': [value: string]
   'update:selectedCategory': [value: string]
+  'update:selectedEra': [value: string]
   'update:selectedTag': [value: string]
   'update:sortKey': [value: string]
   'update:gridSide': [value: ImageType | null]
