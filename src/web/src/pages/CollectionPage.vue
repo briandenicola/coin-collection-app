@@ -17,6 +17,7 @@
       v-model:grid-side="gridSide"
       :select-mode="selectMode"
       :user-tags="userTags"
+      :era-options="eraOptions"
       @toggle-select-mode="toggleSelectMode"
     />
 
@@ -24,11 +25,13 @@
       v-if="!isPwa"
       v-model:search="search"
       v-model:selected-category="selectedCategory"
+      v-model:selected-era="selectedEra"
       v-model:selected-tag="selectedTag"
       v-model:sort-key="sortKey"
       v-model:grid-side="gridSide"
       :select-mode="selectMode"
       :user-tags="userTags"
+      :era-options="eraOptions"
       @toggle-select-mode="toggleSelectMode"
     />
 
@@ -122,7 +125,7 @@ const router = useRouter()
 
 const {
   selectedCategory, search, page, sortKey, selectedTag, userTags,
-  selectedEra,
+  selectedEra, eraOptions,
   fetchUserTags, loadCoins,
 } = useCollectionFilters()
 
