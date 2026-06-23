@@ -1,8 +1,8 @@
 <template>
   <div class="auth-page">
     <div class="auth-card">
-      <img :src="coinLogoSrc" alt="Ancient Coins" class="auth-logo" />
-      <h1>Ancient Coins</h1>
+      <img :src="coinLogoSrc" alt="Aurearia - Coin Collection" class="auth-logo" />
+      <h1>Aurearia - Coin Collection</h1>
       <p class="auth-subtitle">Sign in to your collection</p>
       <form @submit.prevent="handleLogin" class="auth-form">
         <div class="form-group">

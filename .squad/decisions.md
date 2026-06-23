@@ -2,6 +2,35 @@
 
 ## Active Decisions
 
+### Decision: Ancient Title Branding Follow-Up
+
+**Date:** 2026-06-22
+**Agent:** Aurelia
+**Status:** IMPLEMENTED
+
+## Context
+
+Brian requested that titles and metadata surfaces explicitly saying "Ancient" be replaced, clarifying that the app is not just for ancient coins, though ancient coins remain a focus area.
+
+## Decision
+
+Frontend title surfaces (browser metadata, PWA manifest, help headings, share card app name, accessibility labels) changed from "Ancient Coins" or similar explicit patterns to neutral wording like "Aurearia - Coin Collection" or generic "coin collection" language. Descriptive educational and historical content discussing ancient coins is preserved, as are NGCAncients URLs which reference external catalog data, not the app brand.
+
+## Rationale
+
+The product brand should not imply single-era focus, while remaining the primary resource for ancient collectors. Title surfaces are marketing/metadata; educational copy is informational and not subject to the same constraint.
+
+## Files Touched
+
+Frontend: `src/web/index.html`, `src/web/vite.config.ts`, `src/web/src/components/HelpSection.vue`, `src/web/src/composables/useCoinShareCard.ts`, `src/web/src/composables/__tests__/useCoinShareCard.test.ts`, `src/web/src/utils/__tests__/coinShareCard.test.ts`, `src/web/src/components/MintMap.vue`
+
+## Validation
+
+- `npm.cmd run build` passed from `src/web/` — no type errors, no regressions
+- Final ripgrep sweep confirmed no remaining title-like "Ancient" patterns
+
+---
+
 ### Decision: Duplicate Coin Backend Contract
 
 **Date:** 2026-06-21

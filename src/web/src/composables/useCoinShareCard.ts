@@ -4,7 +4,7 @@ import { getShareCardFilename, getShareImageUrls, renderCoinShareCard } from '@/
 import type { CoinShareCardContext } from '@/utils/coinShareCard'
 import { useDialog } from '@/composables/useDialog'
 
-const APP_NAME = 'Ed-Mar Ancient Coins'
+const APP_NAME = 'Aurearia - Coin Collection'
 
 export type CoinShareResultMode = 'shared' | 'downloaded'
 

@@ -1,8 +1,8 @@
 <template>
   <section class="settings-section card help-section">
-    <h2>Beginner's Guide to Ancient Coins</h2>
+    <h2>Beginner's Guide to Coin Collecting</h2>
     <p class="setting-desc" style="margin-bottom: 1.5rem">
-      Everything you need to know to start collecting ancient coins with confidence.
+      Everything you need to know to start collecting coins with confidence.
     </p>
 
     <details class="help-accordion" open>
@@ -46,7 +46,7 @@ Constantius II Follis,Roman,Bronze,Follis,Constantius II,337-361 AD,Antioch,2.90
     </details>
 
     <details class="help-accordion">
-      <summary class="help-summary">Types of Ancient Coins</summary>
+      <summary class="help-summary">Historical Coin Types</summary>
       <div class="help-content">
         <p>Ancient coins span thousands of years across many civilizations. Here are the major categories:</p>
 

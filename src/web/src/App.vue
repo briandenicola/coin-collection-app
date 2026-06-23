@@ -4,8 +4,8 @@
     <nav v-if="auth.isAuthenticated" class="nav-bar" :class="{ 'pwa-mode': isPwa }">
       <div class="nav-content">
         <button class="nav-brand" @click="sidebarOpen = !sidebarOpen">
-          <img src="/coin-logo.jpg" alt="Ancient Coins" class="nav-logo" />
-          <span class="nav-title">Coin Collection</span>
+          <img src="/coin-logo.jpg" alt="Aurearia - Coin Collection" class="nav-logo" />
+          <span class="nav-title">Aurearia - Coin Collection</span>
         </button>
         <div class="nav-actions">
           <template v-if="showCollectionActions">
@@ -42,8 +42,8 @@
     <Transition name="sidebar-slide">
       <aside v-if="sidebarOpen" class="sidebar">
         <div class="sidebar-header">
-          <img src="/coin-logo.jpg" alt="Ancient Coins" class="sidebar-logo" />
-          <span class="sidebar-title">Coin Collection</span>
+          <img src="/coin-logo.jpg" alt="Aurearia - Coin Collection" class="sidebar-logo" />
+          <span class="sidebar-title">Aurearia - Coin Collection</span>
           <button class="sidebar-header-btn" :class="{ active: editMode }" @click="toggleEditMode" :title="editMode ? 'Done' : 'Reorder menu'">
             <GripVertical :size="18" />
           </button>
@@ -153,7 +153,7 @@
 
     <div v-if="showOnboardingPrompt" class="modal-overlay" @click.self="dismissOnboardingPrompt">
       <div class="modal card">
-        <h3>Welcome to Coin Collection</h3>
+        <h3>Aurearia - Coin Collection</h3>
         <p>Start with the Getting Started guide to download the CSV template, build your file, and import your first collection.</p>
         <div class="modal-actions">
           <button class="btn btn-secondary" @click="dismissOnboardingPrompt">Not now</button>
