@@ -108,7 +108,7 @@ describe('OIDCLoginCallbackPage', () => {
 
     expect(mockApplyAuthResponse).not.toHaveBeenCalled()
     expect(wrapper.text()).toContain('Sign In Failed')
-    expect(wrapper.text()).toContain('The sign-in provider is not configured correctly: provider rejected the client secret; for Entra, paste the client secret Value, not the Secret ID. Ask an administrator to test the provider settings.')
+    expect(wrapper.text()).toContain('The sign-in provider is not configured correctly: provider rejected the client secret; for Entra, paste the client secret Value, not the Secret ID. Ask an administrator to review the provider settings.')
     expect(wrapper.text()).not.toContain('The provider response could not be validated.')
   })
 })

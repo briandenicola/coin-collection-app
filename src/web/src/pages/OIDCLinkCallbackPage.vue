@@ -165,9 +165,9 @@ function getErrorDetail(error: unknown) {
 function providerConfigurationMessage(detail: string) {
   const safeDetail = detail.trim()
   if (safeDetail) {
-    return `The sign-in provider is not configured correctly: ${safeDetail}. Ask an administrator to test the provider settings.`
+    return `The sign-in provider is not configured correctly: ${safeDetail}. Ask an administrator to review the provider settings.`
   }
-  return 'The sign-in provider is not configured correctly. Ask an administrator to test the provider settings.'
+  return 'The sign-in provider is not configured correctly. Ask an administrator to review the provider settings.'
 }
 </script>
 
