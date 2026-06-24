@@ -38,7 +38,12 @@ func setupOIDCLoginServiceTest(t *testing.T) (*gorm.DB, *OIDCService) {
 
 func TestOIDCServiceLoginCallbackIssuesTokensForLinkedIdentity(t *testing.T) {
 	db, svc := setupOIDCLoginServiceTest(t)
-	issuer := startMockOIDCProvider(t, "subject-123", "collector@example.com", true)
+	issuer := startMockOIDCProviderWithOptions(t, oidcMockProviderOptions{
+		Subject:             "subject-123",
+		Email:               "collector@example.com",
+		EmailVerified:       true,
+		ExpectedRedirectURI: "http://app.example/api/auth/oidc/1/callback",
+	})
 	provider := createOIDCLoginProvider(t, db, issuer)
 	user := createOIDCLoginUser(t, db, "collector", "collector@example.com")
 	if err := db.Create(&models.ExternalIdentity{UserID: user.ID, ProviderID: provider.ID, Issuer: issuer, Subject: "subject-123", Email: user.Email, EmailVerified: true}).Error; err != nil {
@@ -51,7 +56,7 @@ func TestOIDCServiceLoginCallbackIssuesTokensForLinkedIdentity(t *testing.T) {
 	}
 	authURL, _ := url.Parse(start.AuthorizationURL)
 	currentOIDCTestNonce = authURL.Query().Get("nonce")
-	result, err := svc.CompleteLoginCallback(context.Background(), provider.ID, "valid-code", authURL.Query().Get("state"), "http://app.example", OIDCAuditContext{})
+	result, err := svc.CompleteLoginCallback(context.Background(), provider.ID, "valid-code", authURL.Query().Get("state"), "http://internal-api:8080", OIDCAuditContext{})
 	if err != nil {
 		t.Fatalf("callback failed: %v", err)
 	}
@@ -365,6 +370,7 @@ type oidcMockProviderOptions struct {
 	ExpiresAt            time.Time
 	OmitSubject          bool
 	SignWithUntrustedKey bool
+	ExpectedRedirectURI  string
 }
 
 func startMockOIDCProviderWithOptions(t *testing.T, options oidcMockProviderOptions) string {
@@ -388,6 +394,10 @@ func startMockOIDCProviderWithOptions(t *testing.T, options oidcMockProviderOpti
 		case "/token":
 			if err := r.ParseForm(); err != nil {
 				http.Error(w, "bad form", http.StatusBadRequest)
+				return
+			}
+			if options.ExpectedRedirectURI != "" && r.Form.Get("redirect_uri") != options.ExpectedRedirectURI {
+				http.Error(w, "redirect_uri mismatch", http.StatusBadRequest)
 				return
 			}
 			nonce := r.Form.Get("nonce")

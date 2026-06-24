@@ -20,6 +20,7 @@ type OIDCAuthState struct {
 	PKCEVerifierHash string       `gorm:"type:varchar(128);not null" json:"-"`
 	NonceHash        string       `gorm:"type:varchar(128);not null" json:"-"`
 	RedirectPath     string       `gorm:"type:text;not null" json:"redirectPath"`
+	RedirectURI      string       `gorm:"type:text" json:"-"`
 	ExpiresAt        time.Time    `gorm:"not null;index" json:"expiresAt"`
 	ConsumedAt       *time.Time   `gorm:"index" json:"consumedAt,omitempty"`
 	CreatedAt        time.Time    `json:"createdAt"`

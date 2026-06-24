@@ -199,7 +199,8 @@ func (s *OIDCService) startFlow(ctx context.Context, providerID uint, userID *ui
 	if err != nil {
 		return OIDCStartLoginResult{}, err
 	}
-	runtime.OAuth2Config.RedirectURL = absoluteOIDCURL(requestOrigin, oidcFlowCallbackPath(*provider, flowType))
+	redirectURI := absoluteOIDCURL(requestOrigin, oidcFlowCallbackPath(*provider, flowType))
+	runtime.OAuth2Config.RedirectURL = redirectURI
 
 	state, err := secureRandomURLToken(32)
 	if err != nil {
@@ -222,6 +223,7 @@ func (s *OIDCService) startFlow(ctx context.Context, providerID uint, userID *ui
 		PKCEVerifierHash: verifier,
 		NonceHash:        hashOIDCSecret(nonce),
 		RedirectPath:     redirectPath,
+		RedirectURI:      redirectURI,
 		ExpiresAt:        expiresAt,
 	}
 	if err := s.repo.CreateAuthState(&authState); err != nil {
@@ -415,10 +417,14 @@ func (s *OIDCService) exchangeAndValidateCallback(ctx context.Context, provider 
 	if err != nil {
 		return nil, oidcLoginClaims{}, err
 	}
-	runtime.OAuth2Config.RedirectURL = absoluteOIDCURL(requestOrigin, oidcFlowCallbackPath(provider, consumed.FlowType))
+	redirectURI := consumed.RedirectURI
+	if redirectURI == "" {
+		redirectURI = absoluteOIDCURL(requestOrigin, oidcFlowCallbackPath(provider, consumed.FlowType))
+	}
+	runtime.OAuth2Config.RedirectURL = redirectURI
 	token, err := runtime.OAuth2Config.Exchange(ctx, code, oauth2.SetAuthURLParam("code_verifier", consumed.PKCEVerifierHash))
 	if err != nil {
-		return nil, oidcLoginClaims{}, ErrOIDCCodeExchangeFailed
+		return nil, oidcLoginClaims{}, fmt.Errorf("%w: %v", ErrOIDCCodeExchangeFailed, err)
 	}
 	rawIDToken, ok := token.Extra("id_token").(string)
 	if !ok || rawIDToken == "" {
