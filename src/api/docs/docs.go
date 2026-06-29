@@ -8227,6 +8227,42 @@ const docTemplate = `{
                         "in": "formData"
                     },
                     {
+                        "type": "string",
+                        "description": "Draft source",
+                        "name": "source",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "NGC certification number",
+                        "name": "ngcCertNumber",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "NGC lookup URL",
+                        "name": "ngcLookupUrl",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "NGC grade",
+                        "name": "ngcGrade",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Visible label text",
+                        "name": "labelText",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "AI confidence",
+                        "name": "aiConfidence",
+                        "in": "formData"
+                    },
+                    {
                         "type": "file",
                         "description": "Obverse image",
                         "name": "obverseImage",
@@ -8365,6 +8401,42 @@ const docTemplate = `{
                         "type": "number",
                         "description": "Purchase price",
                         "name": "purchasePrice",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Draft source",
+                        "name": "source",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "NGC certification number",
+                        "name": "ngcCertNumber",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "NGC lookup URL",
+                        "name": "ngcLookupUrl",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "NGC grade",
+                        "name": "ngcGrade",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Visible label text",
+                        "name": "labelText",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "AI confidence",
+                        "name": "aiConfidence",
                         "in": "formData"
                     },
                     {
@@ -16627,6 +16699,10 @@ const docTemplate = `{
                     "type": "string",
                     "maxLength": 500
                 },
+                "aiConfidence": {
+                    "type": "string",
+                    "maxLength": 20
+                },
                 "createdAt": {
                     "type": "string"
                 },
@@ -16650,6 +16726,22 @@ const docTemplate = `{
                         "$ref": "#/definitions/models.QuickCaptureDraftImage"
                     }
                 },
+                "labelText": {
+                    "type": "string",
+                    "maxLength": 5000
+                },
+                "ngcCertNumber": {
+                    "type": "string",
+                    "maxLength": 32
+                },
+                "ngcGrade": {
+                    "type": "string",
+                    "maxLength": 100
+                },
+                "ngcLookupUrl": {
+                    "type": "string",
+                    "maxLength": 500
+                },
                 "notes": {
                     "type": "string",
                     "maxLength": 5000
@@ -16662,6 +16754,10 @@ const docTemplate = `{
                 },
                 "purchasePrice": {
                     "type": "number"
+                },
+                "source": {
+                    "type": "string",
+                    "maxLength": 40
                 },
                 "status": {
                     "$ref": "#/definitions/models.QuickCaptureDraftStatus"

@@ -2143,6 +2143,9 @@ definitions:
       acquisitionSource:
         maxLength: 500
         type: string
+      aiConfidence:
+        maxLength: 20
+        type: string
       createdAt:
         type: string
       dateRange:
@@ -2159,6 +2162,18 @@ definitions:
         items:
           $ref: '#/definitions/models.QuickCaptureDraftImage'
         type: array
+      labelText:
+        maxLength: 5000
+        type: string
+      ngcCertNumber:
+        maxLength: 32
+        type: string
+      ngcGrade:
+        maxLength: 100
+        type: string
+      ngcLookupUrl:
+        maxLength: 500
+        type: string
       notes:
         maxLength: 5000
         type: string
@@ -2168,6 +2183,9 @@ definitions:
         type: integer
       purchasePrice:
         type: number
+      source:
+        maxLength: 40
+        type: string
       status:
         $ref: '#/definitions/models.QuickCaptureDraftStatus'
       updatedAt:
@@ -8062,6 +8080,30 @@ paths:
         in: formData
         name: notes
         type: string
+      - description: Draft source
+        in: formData
+        name: source
+        type: string
+      - description: NGC certification number
+        in: formData
+        name: ngcCertNumber
+        type: string
+      - description: NGC lookup URL
+        in: formData
+        name: ngcLookupUrl
+        type: string
+      - description: NGC grade
+        in: formData
+        name: ngcGrade
+        type: string
+      - description: Visible label text
+        in: formData
+        name: labelText
+        type: string
+      - description: AI confidence
+        in: formData
+        name: aiConfidence
+        type: string
       - description: Obverse image
         in: formData
         name: obverseImage
@@ -8154,6 +8196,30 @@ paths:
         in: formData
         name: purchasePrice
         type: number
+      - description: Draft source
+        in: formData
+        name: source
+        type: string
+      - description: NGC certification number
+        in: formData
+        name: ngcCertNumber
+        type: string
+      - description: NGC lookup URL
+        in: formData
+        name: ngcLookupUrl
+        type: string
+      - description: NGC grade
+        in: formData
+        name: ngcGrade
+        type: string
+      - description: Visible label text
+        in: formData
+        name: labelText
+        type: string
+      - description: AI confidence
+        in: formData
+        name: aiConfidence
+        type: string
       - description: Comma-separated image IDs to remove
         in: formData
         name: removeImageIds
