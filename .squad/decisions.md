@@ -11689,3 +11689,95 @@ The #357 completion/review batch closed the implementation and blocker-remediati
 - Principle I (layered architecture and repository-owned transactions)
 - Principle V (trusted-source SSRF controls and privacy)
 - Principle IX, §17, §21 (automated enforcement and Definition of Done)
+
+---
+
+## Decision: Unified Quick Capture with Camera and NGC Support
+
+**Date:** 2026-06-29
+**Agent:** Squad
+**Status:** IMPLEMENTED
+
+### Context
+
+User directive: merged Quick Add / Find Coin flow should support camera capture, make reverse image optional, and capture the NGC coin number as a data point. Previously, Quick Add and Find Coin were separate flows. CoinLookupPage (from Find Coin) has become the unified entry point and now integrates with Quick Capture drafts, supporting structured NGC certification data.
+
+### Decision
+
+1. **Unified Flow:** CoinLookupPage serves as the single entry point for both quick lookup and immediate capture. Lookup results (coin details + AI analysis) are persisted as Quick Capture drafts instead of wishlist coins.
+
+2. **Camera-First Image Capture:** Frontend supports camera input (device camera API) in addition to file upload. Images are captured in order: obverse first, reverse optional.
+
+3. **Optional Reverse Image:** Reverse image slot is now optional (previously implicit for 2-image coins). Slot labels mark reverse as optional.
+
+4. **NGC Certification Capture:** QuickCaptureDraft now stores:
+   - `source` (camera, upload, paste-OCR)
+   - `ngcNumber` (cert number)
+   - `ngcLookupNumber` (dealer-supplied lookup reference)
+   - `ngcGrade` (captured or OCR'd grade)
+   - `labelText` (OCR from label, if available)
+   - `aiConfidence` (AI model confidence metadata)
+
+5. **Quick Lookup Prompt:** Coin lookup AI prompt is now quick/minimum-detail focused (fast inference).
+
+### Implementation
+
+**Backend Changes (Go):**
+- `models/quick_capture_draft.go`: Extended QuickCaptureDraft model with source, NGC fields, label text, and AI confidence
+- `services/quick_capture_service.go`: New service for draft creation and persistence
+- `handlers/quick_capture_handler.go`: Endpoints for draft creation from AI results
+- `services/coin_lookup_service.go`: Refactored to return minimal coin summary + AI analysis
+- Created draft parsing and validation logic in service layer
+
+**Frontend Changes (Vue/TypeScript):**
+- `pages/CoinLookupPage.vue`: Unified entry point; saves lookup results as drafts instead of wishlist coins
+- `components/QuickCaptureCamera.vue`: New component supporting device camera API with obverse/reverse ordering
+- `components/QuickCaptureUpload.vue`: Enhanced to support optional reverse slot
+- `pages/QuickCapturePage.vue`: Display and edit draft cards, showing NGC metadata and AI results
+- NGC number field is editable in the UI
+- Navigate to created draft after lookup/AI analysis completes
+
+**Tests & Validation:**
+- ✅ Targeted Go quick capture tests: `go test -v ./services -run TestQuickCapture`
+- ✅ Full suite: `go test -v ./...`
+- ✅ Go linter: `go vet ./...`
+- ✅ TypeScript: `npm run type-check`
+- ✅ Targeted Vitest: Quick Capture component tests
+- ✅ Full Vite build: `npm run build`
+- ✅ Full npm test: `npm test -- --run`
+- ✅ Linter: `npm run lint` (exit 0 with pre-existing warnings only)
+
+### Rationale
+
+1. **Principle IV (Simple Complete Changes):** One unified entry point (CoinLookupPage) is simpler than maintaining two flows; camera support is additive without breaking uploads; NGC capture is a straightforward data field.
+2. **User Experience:** Camera-first for mobile users collecting coins; optional reverse reduces friction for single-sided analysis; NGC number capture aligns with real collection practices.
+3. **Data Completeness:** Structured NGC fields enable future validation (verify cert number against official databases), audit trails, and portfolio reporting.
+
+### Verification
+
+- ✅ Go architecture tests pass (layered imports, DI wiring)
+- ✅ Frontend builds without type errors (Vue strict mode)
+- ✅ All targeted and full test suites pass
+- ✅ Linter/vet clean
+- ✅ Session validation successful: specs, plan, drafts saved
+
+### Files Modified
+
+- `src/api/models/quick_capture_draft.go`
+- `src/api/services/quick_capture_service.go`
+- `src/api/services/coin_lookup_service.go`
+- `src/api/handlers/quick_capture_handler.go`
+- `src/web/src/pages/CoinLookupPage.vue`
+- `src/web/src/pages/QuickCapturePage.vue`
+- `src/web/src/components/QuickCaptureCamera.vue`
+- `src/web/src/components/QuickCaptureUpload.vue`
+- `specs/336-quick-capture/spec.md` (updated)
+- `specs/336-quick-capture/plan.md` (updated)
+
+### Alignment with Constitution
+
+- **Principle I (Clear Layered Architecture):** Service layer owns draft creation; repository owns persistence; handlers expose only necessary API surface
+- **Principle IV (Simple Complete Changes):** Unified flow, additive camera support, straightforward NGC data model
+- **Principle V (Security & Privacy):** Image data is user-owned; NGC capture is optional; no external API calls without user consent
+- **§17 Quality Gate:** Tests, vet, build, and manual validation all pass
+- **§21 Definition of Done:** Spec updated, implementation verified, all gates pass

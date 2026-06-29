@@ -18,9 +18,11 @@ As a collector handling a newly acquired coin on a phone, I want to open Quick C
 **Acceptance Scenarios**:
 
 1. **Given** an authenticated collector is using the mobile/PWA navigation, **When** they choose Quick Capture, **Then** they see a compact capture flow optimized for photo-first intake and sparse entry.
-2. **Given** the collector provides obverse and/or reverse photos plus at least a working title or note, **When** they save the capture, **Then** the system creates a resumable draft marked incomplete rather than a normal collection coin.
-3. **Given** the collector enters title, date range or era, acquisition source, price, and notes, **When** they save the capture, **Then** those values are preserved on the draft for later review.
-4. **Given** the collector saves a draft, **When** they return to the main collection, **Then** the draft does not increase the normal collection count.
+2. **Given** the collector provides an obverse photo, an optional reverse photo, or enough identifying text, **When** they save the capture, **Then** the system creates a resumable draft marked incomplete rather than a normal collection coin.
+3. **Given** the collector chooses the merged Find Coin / Quick Add AI path, **When** they capture or upload at least one coin/slab image, **Then** the system runs a quick minimum-detail analysis and offers to save the result as a Quick Capture draft.
+4. **Given** an NGC certification number is visible in a captured/uploaded image, **When** quick AI analysis completes, **Then** the NGC coin/certification number is captured as structured draft data and shown for review.
+5. **Given** the collector enters title, date range or era, acquisition source, price, and notes, **When** they save the capture, **Then** those values are preserved on the draft for later review.
+6. **Given** the collector saves a draft, **When** they return to the main collection, **Then** the draft does not increase the normal collection count.
 
 ---
 
@@ -89,7 +91,7 @@ As a collector who already uses full coin entry, wishlist, sold flags, and image
 
 - **FR-001**: System MUST provide an authenticated Quick Capture entry point from mobile/PWA navigation and an accessible desktop route or navigation path.
 - **FR-002**: System MUST allow authenticated users to create separate quick capture draft/intake records before any normal coin record is created.
-- **FR-003**: System MUST support attaching obverse and reverse photos to a quick capture draft using the same supported image constraints as normal coin image handling.
+- **FR-003**: System MUST support camera capture and file upload for an obverse photo, an optional reverse photo, and optional detail/slab photos using the same supported image constraints as normal coin image handling.
 - **FR-004**: System MUST allow users to capture and persist a working title, date range or era, acquisition source, price, and freeform notes on a draft.
 - **FR-005**: System MUST allow saving a partial draft when the collector provides at least enough information to identify it later, such as a working title, note, or image.
 - **FR-006**: System MUST mark quick capture drafts as incomplete until they are intentionally promoted or otherwise closed.
@@ -104,14 +106,15 @@ As a collector who already uses full coin entry, wishlist, sold flags, and image
 - **FR-015**: System MUST preserve existing full add/edit coin workflows, wishlist and sold flags, image handling, and collection count behavior except for the intentional addition of a promoted coin.
 - **FR-016**: System MUST enforce authenticated user ownership for draft create, read, update, delete/close, and promote operations.
 - **FR-017**: System MUST provide clear user-facing validation and error messages for missing promotion fields, invalid images, unavailable camera, failed save, failed promote, and unauthorized access.
-- **FR-018**: System MUST keep Quick Capture v1 deterministic and manually controlled; AI enrichment, automatic attribution, and automatic coin creation from images are deferred from v1 unless an existing draft service can be reused without expanding scope.
+- **FR-018**: System MUST merge Find Coin and Quick Capture by allowing captured/uploaded images to run through a quick AI analysis that extracts only minimum draft details and saves the reviewed result as a Quick Capture draft rather than creating a normal Coin automatically.
 - **FR-019**: System MUST provide a way to discard or close an unwanted draft without creating a normal Coin record.
 - **FR-020**: System MUST record enough lifecycle information to distinguish active, promoted, and discarded drafts and to link a promoted draft to its created Coin.
+- **FR-021**: System MUST capture NGC coin/certification number, NGC lookup URL, grade, and visible label text as structured draft data when present in Find Coin / Quick Add AI analysis.
 
 ### Constitution-Aligned Constraints
 
 - **CON-001**: Quick Capture persistence and promotion MUST follow the repository's layered architecture: Handler → Service → Repository → Database, with multi-step promotion treated as a transactional workflow.
-- **CON-002**: Quick Capture MUST respect service boundaries; deterministic manual v1 behavior MUST NOT introduce direct Python-agent database access or browser-to-agent calls.
+- **CON-002**: Quick Capture MUST respect service boundaries; AI analysis MUST be proxied through the Go API to the Python agent, and the Python agent MUST remain stateless with no direct database access.
 - **CON-003**: New or changed user-facing contracts MUST remain explicit and typed across API and frontend boundaries.
 - **CON-004**: Draft and image handling MUST be authenticated, user-scoped, validated, and safe by default; internal errors and other users' draft details MUST NOT leak to clients.
 - **CON-005**: The mobile/PWA experience MUST reuse existing design tokens, global styles, icon conventions, buttons, chips, and upload patterns rather than introducing a parallel visual system.
@@ -120,7 +123,7 @@ As a collector who already uses full coin entry, wishlist, sold flags, and image
 
 ### Key Entities
 
-- **QuickCaptureDraft**: A user-owned, incomplete intake record containing lifecycle status, working title, date range or era, acquisition source, price, notes, image references, timestamps, and optional link to a promoted Coin.
+- **QuickCaptureDraft**: A user-owned, incomplete intake record containing lifecycle status, working title, date range or era, acquisition source, price, notes, optional AI/NGC metadata, image references, timestamps, and optional link to a promoted Coin.
 - **DraftImage**: An obverse, reverse, or supplemental image reference attached to a draft with validation status and display ordering.
 - **Coin**: Existing normal collection record created only when a draft is promoted; after promotion it participates in standard collection counts, views, flags, images, and edit workflows.
 - **DraftLifecycleEvent**: Status transition evidence for draft creation, update, promotion, and discard, sufficient to prevent duplicate promotion and support troubleshooting.
@@ -141,8 +144,8 @@ As a collector who already uses full coin entry, wishlist, sold flags, and image
 
 ## Assumptions
 
-- Quick Capture v1 uses separate draft/intake records first, then promotes to normal Coin records after explicit user confirmation.
-- AI enrichment is deferred from v1; deterministic manual capture is the default unless existing draft services make limited reuse trivial without expanding the MVP.
+- Quick Capture uses separate draft/intake records first, then promotes to normal Coin records after explicit user confirmation.
+- Find Coin / Quick Add AI analysis is intentionally shallow and fast: enough to seed a draft, not enough to replace full cataloging or promotion review.
 - Drafts do not appear in the main collection count or normal collection views until promoted, but are resumable from a Quick Capture drafts view.
 - Existing authentication and user ownership rules apply to all draft and promotion operations.
 - Existing normal Coin minimum field rules remain authoritative for promotion readiness.

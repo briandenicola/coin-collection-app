@@ -49,6 +49,35 @@ func TestQuickCaptureServiceRejectsInvalidPrice(t *testing.T) {
 	}
 }
 
+func TestQuickCaptureServicePersistsFindCoinMetadata(t *testing.T) {
+	svc := newQuickCaptureServiceForTest(t)
+	draft, err := svc.CreateDraft(CreateQuickCaptureDraftInput{
+		UserID:        1,
+		WorkingTitle:  "Augustus Denarius",
+		Source:        "find_coin_ai",
+		NGCCertNumber: "1234567-001",
+		NGCLookupURL:  "https://www.ngccoin.com/certlookup/1234567001/NGCAncients/",
+		NGCGrade:     "Ch VF",
+		LabelText:    "NGC Ancients Augustus Denarius",
+		AIConfidence: "high",
+		Images: []QuickCaptureImageUpload{{
+			Filename:  "obverse.png",
+			Data:      validQuickCapturePNG(),
+			ImageType: string(models.ImageTypeObverse),
+			IsPrimary: true,
+		}},
+	})
+	if err != nil {
+		t.Fatalf("create draft: %v", err)
+	}
+	if draft.Source != "find_coin_ai" || draft.NGCCertNumber != "1234567-001" || draft.NGCGrade != "Ch VF" {
+		t.Fatalf("expected find coin metadata to persist, got %#v", draft)
+	}
+	if draft.LabelText == "" || draft.AIConfidence != "high" {
+		t.Fatalf("expected label text and confidence to persist, got label=%q confidence=%q", draft.LabelText, draft.AIConfidence)
+	}
+}
+
 func TestQuickCaptureServiceRollsBackDraftWhenImageSaveFails(t *testing.T) {
 	uploadRoot := filepath.Join(t.TempDir(), "not-a-directory")
 	if err := os.WriteFile(uploadRoot, []byte("blocks directory creation"), 0644); err != nil {

@@ -368,6 +368,12 @@ export interface QuickCaptureDraft {
   acquisitionSource: string
   purchasePrice: number | null
   notes: string
+  source: string
+  ngcCertNumber: string
+  ngcLookupUrl: string
+  ngcGrade: string
+  labelText: string
+  aiConfidence: string
   status: QuickCaptureDraftStatus
   promotedCoinId: number | null
   promotedAt: string | null
@@ -391,6 +397,12 @@ export interface QuickCaptureDraftInput {
   acquisitionSource?: string
   purchasePrice?: number | null
   notes?: string
+  source?: string
+  ngcCertNumber?: string
+  ngcLookupUrl?: string
+  ngcGrade?: string
+  labelText?: string
+  aiConfidence?: string
   obverseImage?: File | null
   reverseImage?: File | null
   detailImages?: File[]
@@ -403,6 +415,12 @@ export interface QuickCaptureDraftUpdateInput {
   acquisitionSource: string
   purchasePrice: number | null
   notes: string
+  source?: string
+  ngcCertNumber?: string
+  ngcLookupUrl?: string
+  ngcGrade?: string
+  labelText?: string
+  aiConfidence?: string
   removeImageIds?: string // comma-separated IDs
   replaceObverse?: boolean
   replaceReverse?: boolean

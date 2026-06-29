@@ -25,6 +25,28 @@
         <template v-else>
           <form class="card" @submit.prevent="saveDraft">
             <h2>Edit Draft</h2>
+            <section v-if="draft.source === 'find_coin_ai' || draft.ngcCertNumber || draft.labelText" class="ai-summary">
+              <h3>Find Coin / AI Capture</h3>
+              <div class="metadata-grid">
+                <div v-if="draft.source === 'find_coin_ai'" class="metadata-item">
+                  <span class="section-label">Source</span>
+                  <strong>Quick AI Draft</strong>
+                </div>
+                <div v-if="draft.aiConfidence" class="metadata-item">
+                  <span class="section-label">Confidence</span>
+                  <strong>{{ draft.aiConfidence }}</strong>
+                </div>
+                <div v-if="draft.ngcCertNumber" class="metadata-item">
+                  <span class="section-label">NGC Coin Number</span>
+                  <strong>{{ draft.ngcCertNumber }}</strong>
+                </div>
+                <div v-if="draft.ngcGrade" class="metadata-item">
+                  <span class="section-label">NGC Grade</span>
+                  <strong>{{ draft.ngcGrade }}</strong>
+                </div>
+              </div>
+              <p v-if="draft.labelText" class="label-text">{{ draft.labelText }}</p>
+            </section>
             <!-- Existing images -->
             <section v-if="draft.images.length" class="existing-images">
               <h3>Current images</h3>
@@ -241,6 +263,28 @@ function onPromoted(coinId: number) {
 </script>
 
 <style scoped>
+.ai-summary {
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+}
+.metadata-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.75rem;
+}
+.metadata-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.label-text {
+  margin: 0.75rem 0 0;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
 .existing-images {
   margin-bottom: 1rem;
 }

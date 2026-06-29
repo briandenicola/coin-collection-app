@@ -11,7 +11,7 @@
       <span class="slot-title">Reverse</span>
       <img v-if="reverseUrl" :src="reverseUrl" alt="Reverse preview" class="slot-preview">
       <button v-if="reverseImage" type="button" class="slot-clear" @click.prevent="emit('update:reverseImage', null)">Remove reverse</button>
-      <span v-else class="slot-empty">Take or upload reverse photo</span>
+      <span v-else class="slot-empty">Optional reverse photo</span>
       <input type="file" accept="image/*" capture="environment" @change="onFile('reverse', $event)">
     </label>
     <label class="slot-card detail">

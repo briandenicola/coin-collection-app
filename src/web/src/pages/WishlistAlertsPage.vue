@@ -5,7 +5,12 @@
         <h1>Wishlist Search Alerts</h1>
         <p class="subtitle">Discovery alerts find acquisition ideas. Availability checking for saved wishlist URLs remains separate.</p>
       </div>
-      <button class="btn btn-primary" type="button" @click="startCreate"><Search :size="16" /> New Search Alert</button>
+      <div v-if="isPwa" class="pwa-actions">
+        <button class="pwa-icon-btn" type="button" title="New Search Alert" @click="startCreate">
+          <Search :size="22" />
+        </button>
+      </div>
+      <button v-else class="btn btn-primary" type="button" @click="startCreate"><Search :size="16" /> New Search Alert</button>
     </div>
 
     <p v-if="error" class="page-error">{{ error }}</p>
@@ -120,6 +125,7 @@ import AlertCriteriaSummary from '@/components/wishlist-alerts/AlertCriteriaSumm
 import AlertForm from '@/components/wishlist-alerts/AlertForm.vue'
 import AlertRunHistory from '@/components/wishlist-alerts/AlertRunHistory.vue'
 import CandidateReviewCard from '@/components/wishlist-alerts/CandidateReviewCard.vue'
+import { usePwa } from '@/composables/usePwa'
 import {
   adjustWishlistSearchAlertCriteria,
   convertWishlistSearchAlertCandidate,
@@ -158,6 +164,7 @@ const candidateState = ref<AlertCandidateState | ''>('')
 const provenanceStatus = ref<CandidateProvenanceStatus | ''>('')
 const candidateBusyId = ref<number | null>(null)
 const duplicateWarnings = ref<Record<number, string[]>>({})
+const { isPwa } = usePwa()
 
 const selectedAlert = computed(() => alerts.value.find((alert) => alert.id === selectedAlertId.value) ?? null)
 

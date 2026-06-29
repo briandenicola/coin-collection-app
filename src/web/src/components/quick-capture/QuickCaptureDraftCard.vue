@@ -12,6 +12,8 @@
       <p>{{ draft.notes || draft.acquisitionSource || 'Incomplete Quick Capture draft' }}</p>
       <div class="draft-meta">
         <span class="chip-sm">{{ draft.status }}</span>
+        <span v-if="draft.source === 'find_coin_ai'" class="chip-sm">AI draft</span>
+        <span v-if="draft.ngcCertNumber" class="chip-sm">NGC {{ draft.ngcCertNumber }}</span>
         <span class="updated-at">{{ relativeTime }}</span>
       </div>
     </div>

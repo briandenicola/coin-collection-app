@@ -129,6 +129,10 @@ describe('WishlistPage', () => {
 
     expect(wrapper.find('.coins-grid').exists()).toBe(false)
     expect(wrapper.find('.empty-state').exists()).toBe(true)
+    const finderLink = wrapper.find('a[title="Add Wish List Finder Agent"]')
+    expect(finderLink.exists()).toBe(true)
+    expect(finderLink.attributes('href')).toBe('/wishlist/search-alerts')
+    expect(finderLink.text()).toContain('Add Wish List Finder Agent')
   })
 
   it('routes the desktop add action to the Identify Coin workflow', () => {
@@ -146,6 +150,24 @@ describe('WishlistPage', () => {
     expect(links.some(link => link.attributes('href') === '/add?wishlist=true')).toBe(false)
   })
 
+  it('shows the finder agent icon action when wishlist coins are present', () => {
+    mockStore.coins = [createCoin(1)]
+    mockStore.total = 1
+
+    const wrapper = shallowMount(WishlistPage, {
+      global: {
+        stubs: {
+          RouterLink: routerLinkStub,
+        },
+      },
+    })
+
+    const finderLink = wrapper.find('a[title="Add Wish List Finder Agent"]')
+    expect(finderLink.exists()).toBe(true)
+    expect(finderLink.attributes('href')).toBe('/wishlist/search-alerts')
+    expect(finderLink.text()).not.toContain('Search Alerts')
+  })
+
   it('routes the PWA plus icon to the Identify Coin workflow', () => {
     mockIsPwa = true
 
@@ -161,5 +183,23 @@ describe('WishlistPage', () => {
     expect(lookupLink.exists()).toBe(true)
     expect(lookupLink.attributes('href')).toBe('/lookup')
     expect(wrapper.find('a[href="/add?wishlist=true"]').exists()).toBe(false)
+  })
+
+  it('shows the finder agent icon in PWA mode when wishlist coins are present', () => {
+    mockIsPwa = true
+    mockStore.coins = [createCoin(1)]
+    mockStore.total = 1
+
+    const wrapper = shallowMount(WishlistPage, {
+      global: {
+        stubs: {
+          RouterLink: routerLinkStub,
+        },
+      },
+    })
+
+    const finderLink = wrapper.find('a[title="Add Wish List Finder Agent"]')
+    expect(finderLink.exists()).toBe(true)
+    expect(finderLink.attributes('href')).toBe('/wishlist/search-alerts')
   })
 })

@@ -45,6 +45,12 @@ type CreateQuickCaptureDraftInput struct {
 	AcquisitionSource string
 	PurchasePrice     *float64
 	Notes             string
+	Source            string
+	NGCCertNumber     string
+	NGCLookupURL      string
+	NGCGrade          string
+	LabelText         string
+	AIConfidence      string
 	Images            []QuickCaptureImageUpload
 }
 
@@ -60,6 +66,12 @@ type UpdateQuickCaptureDraftInput struct {
 	PurchasePrice     *float64
 	PurchasePriceSet  bool // true means PurchasePrice was explicitly provided (even if nil)
 	Notes             string
+	Source            string
+	NGCCertNumber     string
+	NGCLookupURL      string
+	NGCGrade          string
+	LabelText         string
+	AIConfidence      string
 	RemoveImageIDsRaw string // e.g. "3,7,12"
 	ReplaceObverse    bool
 	ReplaceReverse    bool
@@ -139,6 +151,12 @@ func (s *QuickCaptureService) CreateDraft(input CreateQuickCaptureDraftInput) (*
 		AcquisitionSource: strings.TrimSpace(input.AcquisitionSource),
 		PurchasePrice:     input.PurchasePrice,
 		Notes:             strings.TrimSpace(input.Notes),
+		Source:            strings.TrimSpace(input.Source),
+		NGCCertNumber:     strings.TrimSpace(input.NGCCertNumber),
+		NGCLookupURL:      strings.TrimSpace(input.NGCLookupURL),
+		NGCGrade:          strings.TrimSpace(input.NGCGrade),
+		LabelText:         strings.TrimSpace(input.LabelText),
+		AIConfidence:      strings.TrimSpace(input.AIConfidence),
 		Status:            models.QuickCaptureDraftStatusActive,
 	}
 	var writtenFiles []string

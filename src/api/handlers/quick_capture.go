@@ -40,6 +40,12 @@ type quickCaptureDraftListResponse struct {
 //	@Param			acquisitionSource	formData	string	false	"Acquisition source"
 //	@Param			purchasePrice		formData	number	false	"Purchase price"
 //	@Param			notes				formData	string	false	"Notes"
+//	@Param			source				formData	string	false	"Draft source"
+//	@Param			ngcCertNumber		formData	string	false	"NGC certification number"
+//	@Param			ngcLookupUrl		formData	string	false	"NGC lookup URL"
+//	@Param			ngcGrade			formData	string	false	"NGC grade"
+//	@Param			labelText			formData	string	false	"Visible label text"
+//	@Param			aiConfidence		formData	string	false	"AI confidence"
 //	@Param			obverseImage		formData	file	false	"Obverse image"
 //	@Param			reverseImage		formData	file	false	"Reverse image"
 //	@Param			detailImages		formData	file	false	"Detail images"
@@ -55,6 +61,12 @@ func (h *QuickCaptureHandler) CreateDraft(c *gin.Context) {
 		Era:               c.PostForm("era"),
 		AcquisitionSource: c.PostForm("acquisitionSource"),
 		Notes:             c.PostForm("notes"),
+		Source:            c.PostForm("source"),
+		NGCCertNumber:     c.PostForm("ngcCertNumber"),
+		NGCLookupURL:      c.PostForm("ngcLookupUrl"),
+		NGCGrade:          c.PostForm("ngcGrade"),
+		LabelText:         c.PostForm("labelText"),
+		AIConfidence:      c.PostForm("aiConfidence"),
 	}
 	if rawPrice := c.PostForm("purchasePrice"); rawPrice != "" {
 		price, err := strconv.ParseFloat(rawPrice, 64)
@@ -179,6 +191,12 @@ type promoteDraftRequest struct {
 //	@Param			era					formData	string	false	"Era"
 //	@Param			acquisitionSource	formData	string	false	"Acquisition source"
 //	@Param			purchasePrice		formData	number	false	"Purchase price"
+//	@Param			source				formData	string	false	"Draft source"
+//	@Param			ngcCertNumber		formData	string	false	"NGC certification number"
+//	@Param			ngcLookupUrl		formData	string	false	"NGC lookup URL"
+//	@Param			ngcGrade			formData	string	false	"NGC grade"
+//	@Param			labelText			formData	string	false	"Visible label text"
+//	@Param			aiConfidence		formData	string	false	"AI confidence"
 //	@Param			removeImageIds		formData	string	false	"Comma-separated image IDs to remove"
 //	@Param			replaceObverse		formData	bool	false	"Replace existing obverse images"
 //	@Param			replaceReverse		formData	bool	false	"Replace existing reverse images"
@@ -204,6 +222,12 @@ func (h *QuickCaptureHandler) UpdateDraft(c *gin.Context) {
 		Era:               c.PostForm("era"),
 		AcquisitionSource: c.PostForm("acquisitionSource"),
 		Notes:             c.PostForm("notes"),
+		Source:            c.PostForm("source"),
+		NGCCertNumber:     c.PostForm("ngcCertNumber"),
+		NGCLookupURL:      c.PostForm("ngcLookupUrl"),
+		NGCGrade:          c.PostForm("ngcGrade"),
+		LabelText:         c.PostForm("labelText"),
+		AIConfidence:      c.PostForm("aiConfidence"),
 		RemoveImageIDsRaw: c.PostForm("removeImageIds"),
 		ReplaceObverse:    c.PostForm("replaceObverse") == "true",
 		ReplaceReverse:    c.PostForm("replaceReverse") == "true",

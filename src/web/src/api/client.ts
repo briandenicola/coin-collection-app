@@ -243,6 +243,12 @@ export async function createQuickCaptureDraft(input: QuickCaptureDraftInput) {
   appendOptionalFormValue(formData, 'era', input.era)
   appendOptionalFormValue(formData, 'acquisitionSource', input.acquisitionSource)
   appendOptionalFormValue(formData, 'notes', input.notes)
+  appendOptionalFormValue(formData, 'source', input.source)
+  appendOptionalFormValue(formData, 'ngcCertNumber', input.ngcCertNumber)
+  appendOptionalFormValue(formData, 'ngcLookupUrl', input.ngcLookupUrl)
+  appendOptionalFormValue(formData, 'ngcGrade', input.ngcGrade)
+  appendOptionalFormValue(formData, 'labelText', input.labelText)
+  appendOptionalFormValue(formData, 'aiConfidence', input.aiConfidence)
   if (input.purchasePrice !== undefined && input.purchasePrice !== null) {
     formData.append('purchasePrice', String(input.purchasePrice))
   }
@@ -264,6 +270,12 @@ export async function updateQuickCaptureDraft(id: number, input: QuickCaptureDra
   formData.append('era', input.era)
   formData.append('acquisitionSource', input.acquisitionSource)
   formData.append('notes', input.notes)
+  appendOptionalFormValue(formData, 'source', input.source)
+  appendOptionalFormValue(formData, 'ngcCertNumber', input.ngcCertNumber)
+  appendOptionalFormValue(formData, 'ngcLookupUrl', input.ngcLookupUrl)
+  appendOptionalFormValue(formData, 'ngcGrade', input.ngcGrade)
+  appendOptionalFormValue(formData, 'labelText', input.labelText)
+  appendOptionalFormValue(formData, 'aiConfidence', input.aiConfidence)
   if (input.purchasePrice !== null && input.purchasePrice !== undefined) {
     formData.append('purchasePrice', String(input.purchasePrice))
   }

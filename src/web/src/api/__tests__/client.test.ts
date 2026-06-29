@@ -486,11 +486,21 @@ describe('API Client', () => {
       await client.createQuickCaptureDraft({
         workingTitle: 'Unattributed denarius',
         notes: 'Needs ruler check',
+        source: 'find_coin_ai',
+        ngcCertNumber: '1234567-001',
+        ngcLookupUrl: 'https://www.ngccoin.com/certlookup/1234567001/NGCAncients/',
+        ngcGrade: 'Ch VF',
+        labelText: 'NGC Ancients',
+        aiConfidence: 'high',
         obverseImage: obverse,
         reverseImage: reverse,
       })
 
       expect(mockApi.post).toHaveBeenCalledWith('/quick-capture/drafts', expect.any(FormData))
+      const formData = mockApi.post.mock.calls.at(-1)?.[1] as FormData
+      expect(formData.get('source')).toBe('find_coin_ai')
+      expect(formData.get('ngcCertNumber')).toBe('1234567-001')
+      expect(formData.get('ngcGrade')).toBe('Ch VF')
     })
 
     it('quick capture list/get methods use draft routes', async () => {

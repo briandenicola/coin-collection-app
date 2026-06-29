@@ -35,6 +35,12 @@ type QuickCaptureDraft struct {
 	AcquisitionSource string                   `gorm:"size:500" json:"acquisitionSource" binding:"max=500"`
 	PurchasePrice     *float64                 `json:"purchasePrice"`
 	Notes             string                   `gorm:"type:text" json:"notes" binding:"max=5000"`
+	Source            string                   `gorm:"size:40" json:"source" binding:"max=40"`
+	NGCCertNumber     string                   `gorm:"size:32" json:"ngcCertNumber" binding:"max=32"`
+	NGCLookupURL      string                   `gorm:"size:500" json:"ngcLookupUrl" binding:"max=500"`
+	NGCGrade          string                   `gorm:"size:100" json:"ngcGrade" binding:"max=100"`
+	LabelText         string                   `gorm:"type:text" json:"labelText" binding:"max=5000"`
+	AIConfidence      string                   `gorm:"size:20" json:"aiConfidence" binding:"max=20"`
 	Status            QuickCaptureDraftStatus  `gorm:"type:varchar(20);not null;default:'active';index" json:"status"`
 	PromotedCoinID    *uint                    `json:"promotedCoinId"`
 	PromotedAt        *time.Time               `json:"promotedAt"`

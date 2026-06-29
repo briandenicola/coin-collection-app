@@ -3,11 +3,11 @@
 **Branch**: `feature/async-ai-jobs` (working tree; `SPECIFY_FEATURE=336-quick-capture` used for this plan without switching branches) | **Date**: 2026-06-29 | **Spec**: `specs/336-quick-capture/spec.md`
 **Input**: Feature specification from `/specs/336-quick-capture/spec.md`
 
-**Scope boundary**: Quick Capture v1 is deterministic/manual only. It creates separate quick-capture draft/intake records and promotes them explicitly into normal `Coin` records. Existing AI intake (`/coins/intake/*`) remains unchanged and is not expanded for this MVP.
+**Scope boundary**: Quick Capture remains draft-first, but Find Coin and Quick Capture now share a quick AI draft path. Captured/uploaded coin images can seed a `QuickCaptureDraft` with minimum details and structured NGC metadata; promotion into a normal `Coin` record remains explicit and user-confirmed.
 
 ## Summary
 
-Implement a mobile/PWA-first Quick Capture workflow for authenticated collectors to save sparse draft records with obverse/reverse photos and purchase context, resume or discard those drafts, and explicitly promote a valid draft into exactly one normal coin. The implementation adds a dedicated Go API model/repository/service/handler stack for `QuickCaptureDraft`, `DraftImage`, and lifecycle events, reuses existing coin/image validation and authenticated media display patterns, and adds Vue routes/pages/API client types for capture, draft list/resume, and promotion. Drafts remain outside normal `coins` rows until promotion, so collection counts, wishlist/sold totals, collection views, and health scoring remain unchanged until a transactional, idempotent promotion creates the normal coin.
+Implement a mobile/PWA-first Quick Capture workflow for authenticated collectors to capture an obverse photo, optionally add reverse/detail/slab photos, run quick minimum-detail AI analysis from the Find Coin path, save sparse draft records with structured NGC metadata when present, resume or discard those drafts, and explicitly promote a valid draft into exactly one normal coin. The implementation adds a dedicated Go API model/repository/service/handler stack for `QuickCaptureDraft`, `DraftImage`, and lifecycle events, reuses existing coin/image validation and authenticated media display patterns, and adds Vue routes/pages/API client types for capture, draft list/resume, and promotion. Drafts remain outside normal `coins` rows until promotion, so collection counts, wishlist/sold totals, collection views, and health scoring remain unchanged until a transactional, idempotent promotion creates the normal coin.
 
 ## Technical Context
 
@@ -18,7 +18,7 @@ Implement a mobile/PWA-first Quick Capture workflow for authenticated collectors
 **Target Platform**: Self-hosted REST API + Vue SPA/PWA; mobile/PWA viewport (375px) is primary, desktop route remains functional.  
 **Project Type**: Web application with Go API backend and Vue PWA frontend.  
 **Performance Goals**: Save a draft with at least one photo or identifying note in under 60 seconds during usability testing; draft list loads first page (default 50) with preview metadata without scanning `coins`; promotion writes one coin and related image rows in one database transaction.  
-**Constraints**: Handler → Service → Repository → Database; all GORM access in `src/api/repository/`; multi-step promotion is transactional and idempotent; authenticated owner scope on every draft operation; image extension/signature/size rules align with normal coin images; no AI enrichment/automatic attribution/agent calls in v1; drafts do not affect normal collection contracts before promotion.  
+**Constraints**: Handler → Service → Repository → Database; all GORM access in `src/api/repository/`; multi-step promotion is transactional and idempotent; authenticated owner scope on every draft operation; image extension/signature/size rules align with normal coin images; AI stays behind the Go API → Python agent boundary and only seeds drafts with minimum details; drafts do not affect normal collection contracts before promotion.
 **Scale/Scope**: One owner-scoped draft queue, compact capture/resume/promote UI, obverse/reverse plus optional supplemental image handling, targeted regression coverage for collection counts, wishlist/sold totals, health scoring, existing add/edit image flows, and repeated promotion.
 
 ## Constitution Check
@@ -28,9 +28,9 @@ Implement a mobile/PWA-first Quick Capture workflow for authenticated collectors
 | Gate | Status | Evidence / Plan Response |
 |------|--------|--------------------------|
 | Principle I — Clear Layered Architecture | PASS | Add `models`, `repository`, `services`, and `handlers` files; handlers parse/bind only; services own validation, lifecycle, promotion, and image orchestration; repositories own all GORM queries/scopes. Promotion uses `db.Transaction`. |
-| Principle II — Service Boundary Separation | PASS | Quick Capture v1 is manual/deterministic and does not call the Python agent or browser-to-agent routes. Existing `/coins/intake/*` remains unchanged. |
+| Principle II — Service Boundary Separation | PASS | Quick AI analysis is initiated through the Go API Find Coin path and proxied to the Python agent. The browser never calls the Python agent directly, and the Python agent remains stateless. |
 | Principle III — Strict Types and Explicit Contracts | PASS | Add typed Go request/response structs with Swagger annotations, typed TypeScript interfaces and API-client methods, and `contracts/quick-capture-api.md`. No `any`/`@ts-ignore`. |
-| Principle IV — Simple Complete Changes | PASS | Implement only manual drafts/resume/discard/promote; no AI enrichment, no broad add/edit rewrite, no parallel visual system. |
+| Principle IV — Simple Complete Changes | PASS | Merge Find Coin and Quick Capture only at the draft outcome: quick analysis seeds sparse drafts, while full cataloging and promotion remain explicit. |
 | Principle V — Security/Auth/Privacy by Default | PASS | Every draft query scopes by `user_id`; non-owned drafts return not found; uploads reuse allowlist + magic-byte validation; internal errors stay generic. |
 | Principle VI — Consistent UX | PASS | Reuse design tokens/global classes, `lucide-vue-next`, `AuthenticatedImage`, existing PWA camera/upload conventions, responsive layouts. No emoji UI text. |
 | §17/§21 — Workflow Contract Regression | PASS | Plan includes targeted tests for draft exclusion from counts/health/views, wishlist/sold totals, image validation/display, add/edit regressions, and idempotent promotion. |
@@ -112,7 +112,7 @@ See `research.md`.
 Key resolved decisions:
 
 - Use new `quick_capture_drafts`, `quick_capture_draft_images`, and lifecycle event tables.
-- Keep existing AI `CoinIntakeDraft` unchanged; it is AI-generated, 24-hour, and commit-oriented, so it does not satisfy resumable manual Quick Capture v1.
+- Keep existing AI `CoinIntakeDraft` unchanged; it is AI-generated, 24-hour, and commit-oriented. The merged Find Coin / Quick Add flow saves reviewed minimum AI data into durable `QuickCaptureDraft` records instead.
 - Reuse/extract image validation and authenticated media display patterns rather than creating a parallel upload system.
 - Promotion claims the draft transactionally and returns the existing promoted coin on repeated calls.
 
@@ -123,7 +123,7 @@ See `data-model.md`, `contracts/quick-capture-api.md`, and `quickstart.md`.
 Implementation highlights:
 
 1. **Backend**:
-   - Add `QuickCaptureDraft`, `QuickCaptureDraftImage`, and `DraftLifecycleEvent` models with owner, status, promoted coin link, and timestamps.
+   - Add `QuickCaptureDraft`, `QuickCaptureDraftImage`, and `DraftLifecycleEvent` models with owner, status, optional NGC metadata, promoted coin link, and timestamps.
    - Add repository methods for owner-scoped list/get/update/discard, image association, promotion claim, and lifecycle event insertions.
    - Add `QuickCaptureService` to validate partial-save identity (title, note, or image), validate promotion readiness against normal coin rules, and orchestrate transactional promotion.
    - Reuse `CoinService` validation logic or extract shared validation so promoted coins obey existing normal create rules.
@@ -131,7 +131,7 @@ Implementation highlights:
    - Extend authenticated media resolution to authorize draft image paths by draft ownership.
 
 2. **Frontend**:
-   - Add mobile-first `/quick-capture` page with photo-first obverse/reverse slots, fallback file upload, sparse fields, and explicit save states.
+   - Add mobile-first capture with camera-first obverse image, optional reverse/detail/slab images, fallback file upload, sparse fields, and explicit save states.
    - Add `/quick-capture/drafts` and `/quick-capture/drafts/:id` to list, resume, discard, and promote drafts.
    - Add `Quick Capture` PWA/sidebar navigation using existing `lucide-vue-next` icons, tokens, chips/buttons, and responsive layout patterns.
    - Use `AuthenticatedImage` for draft previews and new typed API client methods in `client.ts`.
