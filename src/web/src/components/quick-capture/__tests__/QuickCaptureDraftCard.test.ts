@@ -16,7 +16,8 @@ describe('QuickCaptureDraftCard', () => {
 
   it('shows incomplete context, updated time, and empty-image fallback without leaking raw img URLs', () => {
     expect(source).toContain('Incomplete Quick Capture draft')
-    expect(source).toContain("draft.notes || draft.acquisitionSource")
+    expect(source).toContain('renderSafeMarkdown')
+    expect(source).toContain('v-html="renderedNotes"')
     expect(source).toContain('updated-at')
     expect(source).toContain('relativeTime')
     expect(source).toContain('No image')

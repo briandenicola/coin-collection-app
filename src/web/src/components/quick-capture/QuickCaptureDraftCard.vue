@@ -9,7 +9,8 @@
     <div v-else class="draft-preview empty">No image</div>
     <div class="draft-info">
       <h3>{{ draft.workingTitle || 'Untitled draft' }}</h3>
-      <p>{{ draft.notes || draft.acquisitionSource || 'Incomplete Quick Capture draft' }}</p>
+      <div v-if="draft.notes" class="draft-context markdown-rendered" v-html="renderedNotes"></div>
+      <p v-else class="draft-context">{{ draft.acquisitionSource || 'Incomplete Quick Capture draft' }}</p>
       <div class="draft-meta">
         <span class="chip-sm">{{ draft.status }}</span>
         <span v-if="draft.source === 'find_coin_ai'" class="chip-sm">AI draft</span>
@@ -25,9 +26,11 @@ import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import type { QuickCaptureDraft } from '@/types'
 import AuthenticatedImage from '@/components/AuthenticatedImage.vue'
+import { renderSafeMarkdown } from '@/composables/useMarkdown'
 
 const props = defineProps<{ draft: QuickCaptureDraft }>()
 const previewImage = computed(() => props.draft.images.find(image => image.isPrimary) ?? props.draft.images[0])
+const renderedNotes = computed(() => renderSafeMarkdown(props.draft.notes))
 
 const relativeTime = computed(() => {
   const date = new Date(props.draft.updatedAt)
@@ -66,8 +69,30 @@ const relativeTime = computed(() => {
   font-size: 0.8rem;
 }
 
-.draft-info h3, .draft-info p {
+.draft-info h3, .draft-context {
   margin: 0 0 0.35rem;
+}
+
+.draft-context {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.markdown-rendered {
+  max-height: 8.5rem;
+  overflow: hidden;
+}
+
+.markdown-rendered :deep(p),
+.markdown-rendered :deep(ul),
+.markdown-rendered :deep(ol) {
+  margin: 0 0 0.4rem;
+}
+
+.markdown-rendered :deep(strong) {
+  color: var(--text-primary);
+  font-weight: 600;
 }
 
 .draft-meta {
