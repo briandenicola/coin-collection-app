@@ -15,6 +15,8 @@ describe('QuickCapturePage', () => {
 
   it('keeps Quick Capture v1 manual and navigates to drafts without AI intake expansion', () => {
     expect(source).toContain('to="/quick-capture/drafts"')
+    expect(source).toContain('aria-label="All captures"')
+    expect(source).toContain('List')
     expect(source).toContain('Capture sparse coin details quickly')
     expect(source).not.toContain('createIntakeDraft')
     expect(source).not.toContain('lookupCoin')

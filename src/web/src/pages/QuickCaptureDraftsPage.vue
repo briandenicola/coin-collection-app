@@ -2,8 +2,17 @@
   <div class="container">
     <div class="form-wrapper">
       <div class="page-header">
-        <h1>Quick Capture Drafts</h1>
-        <RouterLink class="btn btn-primary" to="/quick-capture">New Draft</RouterLink>
+        <h1>Quick Capture</h1>
+        <div v-if="isPwa" class="pwa-actions">
+          <RouterLink class="pwa-icon-btn" to="/quick-capture" title="New capture" aria-label="New capture">
+            <CirclePlus :size="22" />
+          </RouterLink>
+        </div>
+        <div v-else class="header-actions">
+          <RouterLink class="btn btn-primary" to="/quick-capture">
+            <Plus :size="16" /> New
+          </RouterLink>
+        </div>
       </div>
       <p v-if="loading">Loading drafts...</p>
       <p v-else-if="error" class="status-text status-warning">{{ error }}</p>
@@ -18,13 +27,16 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
+import { CirclePlus, Plus } from 'lucide-vue-next'
 import { getApiErrorMessage, listQuickCaptureDrafts } from '@/api/client'
 import type { QuickCaptureDraft } from '@/types'
 import QuickCaptureDraftCard from '@/components/quick-capture/QuickCaptureDraftCard.vue'
+import { usePwa } from '@/composables/usePwa'
 
 const drafts = ref<QuickCaptureDraft[]>([])
 const loading = ref(true)
 const error = ref('')
+const { isPwa } = usePwa()
 
 onMounted(async () => {
   try {
