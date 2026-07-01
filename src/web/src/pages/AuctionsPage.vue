@@ -232,6 +232,11 @@ async function syncWatchlist() {
   syncMessage.value = ''
   try {
     const providers = configuredAuctionProviders()
+    if (!providers.length) {
+      syncMessage.value = 'Configure auction provider credentials in Settings before syncing'
+      setTimeout(() => { syncMessage.value = '' }, 5000)
+      return
+    }
     const results = await Promise.allSettled(providers.map((source) => syncNumisBidsWatchlist(source)))
     const synced = results.reduce((total, result) => total + (result.status === 'fulfilled' ? result.value.data?.synced ?? 0 : 0), 0)
     const failed = results.filter((result) => result.status === 'rejected')
@@ -255,7 +260,7 @@ function configuredAuctionProviders(): string[] {
   const providers: string[] = []
   if (auth.user?.numisBidsConfigured) providers.push('numisbids')
   if (auth.user?.cngConfigured) providers.push('cng')
-  return providers.length ? providers : ['numisbids']
+  return providers
 }
 
 function providerName(source: string): string {
