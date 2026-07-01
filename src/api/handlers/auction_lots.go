@@ -19,12 +19,13 @@ type AuctionLotHandler struct {
 	svc      *services.AuctionLotService
 	userRepo *repository.UserRepository
 	nbSvc    *services.NumisBidsService
+	cngSvc   *services.CNGAuctionService
 	logger   *services.Logger
 }
 
 // NewAuctionLotHandler creates a new AuctionLotHandler.
-func NewAuctionLotHandler(repo *repository.AuctionLotRepository, svc *services.AuctionLotService, userRepo *repository.UserRepository, nbSvc *services.NumisBidsService, logger *services.Logger) *AuctionLotHandler {
-	return &AuctionLotHandler{repo: repo, svc: svc, userRepo: userRepo, nbSvc: nbSvc, logger: logger}
+func NewAuctionLotHandler(repo *repository.AuctionLotRepository, svc *services.AuctionLotService, userRepo *repository.UserRepository, nbSvc *services.NumisBidsService, cngSvc *services.CNGAuctionService, logger *services.Logger) *AuctionLotHandler {
+	return &AuctionLotHandler{repo: repo, svc: svc, userRepo: userRepo, nbSvc: nbSvc, cngSvc: cngSvc, logger: logger}
 }
 
 // List returns a paginated list of auction lots for the authenticated user.
@@ -52,6 +53,7 @@ func (h *AuctionLotHandler) List(c *gin.Context) {
 	filters := repository.AuctionLotListFilters{
 		Status:    c.Query("status"),
 		Search:    c.Query("search"),
+		Source:    c.Query("source"),
 		SortField: c.DefaultQuery("sort", "updated_at"),
 		SortOrder: c.DefaultQuery("order", "desc"),
 		Page:      page,
@@ -522,11 +524,43 @@ func (h *AuctionLotHandler) ImportFromURL(c *gin.Context) {
 		return
 	}
 
+	source := auctionSourceFromRequest(req.Source, req.URL)
+	if source == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Unsupported auction URL"})
+		return
+	}
+
+	if source == models.AuctionSourceCNG {
+		wl, err := h.cngSvc.ScrapeLot(req.URL)
+		if err != nil {
+			h.warn("CNG lot import scrape failed for user %d url=%s: %v", userID, req.URL, err)
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to scrape CNG lot"})
+			return
+		}
+		lot := auctionLotFromWatchlist(source, userID, wl, models.AuctionStatusWatching, services.ParseCNGDate(wl.SaleDate))
+		if req.Category != "" {
+			lot.Category = models.Category(req.Category)
+		}
+		if err := h.repo.Upsert(&lot); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to import auction lot"})
+			return
+		}
+		imported, err := h.repo.GetBySourceURL(source, lot.SourceURL, userID)
+		if err != nil {
+			c.JSON(http.StatusCreated, lot)
+			return
+		}
+		c.JSON(http.StatusCreated, imported)
+		return
+	}
+
 	// Store the URL and basic info — the frontend will call the agent
 	// to scrape details separately, or we can enhance this later
 	// to call the agent service directly.
 	lot := models.AuctionLot{
 		NumisBidsURL: req.URL,
+		Source:       source,
+		SourceURL:    req.URL,
 		Title:        req.Title,
 		Description:  req.Description,
 		AuctionHouse: req.AuctionHouse,
@@ -573,12 +607,28 @@ func (h *AuctionLotHandler) ImportFromURL(c *gin.Context) {
 //	@Router			/auctions/sync [post]
 func (h *AuctionLotHandler) SyncWatchlist(c *gin.Context) {
 	userID := c.GetUint("userId")
-	h.debug("NumisBids sync started for user %d", userID)
+	source := models.AuctionSource(c.DefaultQuery("source", string(models.AuctionSourceNumisBids)))
+	if c.Request.ContentLength > 0 {
+		var req SyncWatchlistRequest
+		if err := c.ShouldBindJSON(&req); err == nil && req.Source != "" {
+			source = models.AuctionSource(req.Source)
+		}
+	}
+	if source != models.AuctionSourceNumisBids && source != models.AuctionSourceCNG {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Unsupported auction source"})
+		return
+	}
+	h.debug("%s sync started for user %d", source, userID)
 
 	user, err := h.userRepo.FindByID(userID)
 	if err != nil {
-		h.warn("NumisBids sync failed to load user %d: %v", userID, err)
+		h.warn("%s sync failed to load user %d: %v", source, userID, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load user"})
+		return
+	}
+
+	if source == models.AuctionSourceCNG {
+		h.syncCNGWatchlist(c, userID, user)
 		return
 	}
 
@@ -656,6 +706,9 @@ func (h *AuctionLotHandler) SyncWatchlist(c *gin.Context) {
 
 		lot := models.AuctionLot{
 			NumisBidsURL: wl.URL,
+			Source:       models.AuctionSourceNumisBids,
+			SourceURL:    wl.URL,
+			SourceSaleID: wl.SourceSaleID,
 			SaleID:       wl.SaleID,
 			LotNumber:    wl.LotNumber,
 			Title:        wl.Title,
@@ -693,6 +746,114 @@ func (h *AuctionLotHandler) SyncWatchlist(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"synced": len(synced), "lots": synced})
 }
 
+func (h *AuctionLotHandler) syncCNGWatchlist(c *gin.Context, userID uint, user *models.User) {
+	if user.CNGUsername == "" || user.CNGPassword == "" {
+		h.warn("CNG sync blocked for user %d: credentials not configured", userID)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "CNG credentials not configured. Go to Settings to add them."})
+		return
+	}
+
+	client, err := h.cngSvc.Login(user.CNGUsername, user.CNGPassword)
+	if err != nil {
+		h.warn("CNG login failed for user %d: %v", userID, err)
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "CNG login failed. Check your credentials in Settings."})
+		return
+	}
+
+	rawHTML, err := h.cngSvc.FetchWatchlist(client)
+	if err != nil {
+		if errors.Is(err, services.ErrCNGAuthenticationRequired) {
+			h.warn("CNG watchlist returned login page for user %d after login", userID)
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "CNG login succeeded but watched lots were not authenticated. Check your credentials in Settings."})
+			return
+		}
+		h.warn("CNG watchlist fetch failed for user %d: %v", userID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch watched lots from CNG"})
+		return
+	}
+
+	parsed := h.cngSvc.ParseWatchlist(rawHTML)
+	h.debug("CNG watchlist parsed for user %d: lots=%d", userID, len(parsed))
+
+	var synced []models.AuctionLot
+	now := time.Now()
+	for _, wl := range parsed {
+		status := models.AuctionStatusWatching
+		auctionEndTime := services.ParseCNGDate(wl.SaleDate)
+		if auctionEndTime != nil && auctionEndTime.Before(now) {
+			status = models.AuctionStatusPassed
+		}
+
+		lot := auctionLotFromWatchlist(models.AuctionSourceCNG, userID, wl, status, auctionEndTime)
+		if err := h.repo.Upsert(&lot); err != nil {
+			h.warn("Failed to upsert CNG lot for user %d url=%s: %v", userID, wl.URL, err)
+			continue
+		}
+
+		if upserted, err := h.repo.GetBySourceURL(models.AuctionSourceCNG, lot.SourceURL, userID); err == nil {
+			synced = append(synced, *upserted)
+		} else {
+			h.warn("CNG lot upserted but reload failed for user %d url=%s: %v", userID, wl.URL, err)
+		}
+	}
+
+	h.repo.MarkPastAuctionsAsPassed(userID, now)
+	h.info("CNG sync completed for user %d: parsed=%d synced=%d", userID, len(parsed), len(synced))
+	c.JSON(http.StatusOK, gin.H{"synced": len(synced), "lots": synced})
+}
+
+func auctionLotFromWatchlist(source models.AuctionSource, userID uint, wl services.WatchlistLot, status models.AuctionLotStatus, auctionEndTime *time.Time) models.AuctionLot {
+	sourceURL := strings.TrimSpace(wl.URL)
+	return models.AuctionLot{
+		NumisBidsURL:   sourceURL,
+		Source:         source,
+		SourceURL:      sourceURL,
+		SourceLotID:    wl.SourceLotID,
+		SourceSaleID:   firstNonEmpty(wl.SourceSaleID, wl.SaleID),
+		SaleID:         wl.SaleID,
+		LotNumber:      wl.LotNumber,
+		Title:          wl.Title,
+		Description:    wl.Description,
+		ImageURL:       wl.ImageURL,
+		Estimate:       wl.Estimate,
+		CurrentBid:     wl.CurrentBid,
+		Currency:       firstNonEmpty(wl.Currency, "USD"),
+		AuctionHouse:   wl.AuctionHouse,
+		SaleName:       wl.SaleName,
+		AuctionEndTime: auctionEndTime,
+		Status:         status,
+		UserID:         userID,
+	}
+}
+
+func auctionSourceFromRequest(rawSource, rawURL string) models.AuctionSource {
+	source := models.AuctionSource(strings.TrimSpace(strings.ToLower(rawSource)))
+	if source == "" {
+		normalizedURL := strings.ToLower(rawURL)
+		switch {
+		case strings.Contains(normalizedURL, "auctions.cngcoins.com"):
+			source = models.AuctionSourceCNG
+		case strings.Contains(normalizedURL, "numisbids.com"):
+			source = models.AuctionSourceNumisBids
+		default:
+			return ""
+		}
+	}
+	if source != models.AuctionSourceNumisBids && source != models.AuctionSourceCNG {
+		return ""
+	}
+	return source
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
+}
+
 func (h *AuctionLotHandler) debug(format string, args ...interface{}) {
 	if h.logger != nil {
 		h.logger.Debug("auctions", format, args...)
@@ -717,6 +878,10 @@ type SyncWatchlistResponse struct {
 	Lots   []models.AuctionLot `json:"lots"`
 }
 
+type SyncWatchlistRequest struct {
+	Source string `json:"source"`
+}
+
 // ValidateNumisBids tests the given credentials against NumisBids.
 //
 //	@Summary		Validate NumisBids credentials
@@ -737,7 +902,20 @@ func (h *AuctionLotHandler) ValidateNumisBids(c *gin.Context) {
 		return
 	}
 
-	_, err := h.nbSvc.Login(req.Username, req.Password)
+	source := models.AuctionSource(req.Source)
+	if source == "" {
+		source = models.AuctionSourceNumisBids
+	}
+	var err error
+	switch source {
+	case models.AuctionSourceNumisBids:
+		_, err = h.nbSvc.Login(req.Username, req.Password)
+	case models.AuctionSourceCNG:
+		_, err = h.cngSvc.Login(req.Username, req.Password)
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Unsupported auction source"})
+		return
+	}
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"valid": false, "error": "Login failed. Check your credentials."})
 		return
@@ -750,11 +928,13 @@ func (h *AuctionLotHandler) ValidateNumisBids(c *gin.Context) {
 type ValidateNumisBidsRequest struct {
 	Username string `json:"username" binding:"required"`
 	Password string `json:"password" binding:"required"`
+	Source   string `json:"source"`
 }
 
 // ImportLotRequest holds the data for importing a lot from NumisBids.
 type ImportLotRequest struct {
 	URL          string   `json:"url" binding:"required"`
+	Source       string   `json:"source"`
 	Title        string   `json:"title"`
 	Description  string   `json:"description"`
 	AuctionHouse string   `json:"auctionHouse"`

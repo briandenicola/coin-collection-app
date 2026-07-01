@@ -16,6 +16,7 @@
         <span v-if="lot.lotNumber" class="meta-item lot-number">Lot {{ lot.lotNumber }}</span>
       </div>
       <div class="lot-details">
+        <span class="detail provider-detail">{{ providerLabel }}</span>
         <span v-if="lot.category" class="detail" :class="`category-${lot.category.toLowerCase()}`">{{ lot.category }}</span>
         <span v-if="lot.currency && lot.currency !== 'USD'" class="detail">{{ lot.currency }}</span>
       </div>
@@ -26,14 +27,14 @@
       </div>
       <div v-if="saleCountdown" class="lot-countdown">{{ saleCountdown }}</div>
       <SafeExternalLink
-        v-if="lot.numisBidsUrl"
-        :href="lot.numisBidsUrl"
+        v-if="externalUrl"
+        :href="externalUrl"
         class="lot-link"
         target="_blank"
         rel="noopener noreferrer"
         @click.stop
       >
-        View on NumisBids
+        View on {{ providerLabel }}
       </SafeExternalLink>
     </div>
   </div>
@@ -59,6 +60,8 @@ const emit = defineEmits<{
   select: [lot: AuctionLot]
   'toggle-select': [lotId: number]
 }>()
+const providerLabel = computed(() => props.lot.source === 'cng' ? 'CNG' : 'NumisBids')
+const externalUrl = computed(() => props.lot.sourceUrl || props.lot.numisBidsUrl)
 
 function handleClick() {
   if (props.selectable) {

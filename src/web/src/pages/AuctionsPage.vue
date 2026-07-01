@@ -19,7 +19,7 @@
         <div v-else class="header-actions">
           <button class="btn btn-secondary" :disabled="syncing" @click="syncWatchlist">
             <RefreshCw :size="16" :class="{ spinning: syncing }" />
-            {{ syncing ? 'Syncing...' : 'Sync Watchlist' }}
+            {{ syncing ? 'Syncing...' : 'Sync Watchlists' }}
           </button>
           <button class="btn" :class="selectMode ? 'btn-primary' : 'btn-secondary'" @click="toggleSelectMode">
             <CheckSquare :size="16" /> {{ selectMode ? 'Cancel' : 'Select' }}
@@ -56,12 +56,15 @@
 
       <div v-else class="empty-state">
         <h3>No auction lots{{ activeStatus ? ` with status "${activeStatus}"` : '' }}</h3>
-        <p>Import lots from NumisBids to start tracking auctions</p>
+        <p>Import lots from NumisBids or CNG Auctions to start tracking auctions</p>
         <button class="btn btn-primary" @click="showImport = true" style="margin-top: 0.75rem">
           <Plus :size="16" /> Import Your First Lot
         </button>
         <SafeExternalLink href="https://www.numisbids.com/" class="btn btn-secondary auction-house-link">
           <ExternalLink :size="16" /> Visit NumisBids
+        </SafeExternalLink>
+        <SafeExternalLink href="https://auctions.cngcoins.com/" class="btn btn-secondary auction-house-link">
+          <ExternalLink :size="16" /> Visit CNG Auctions
         </SafeExternalLink>
       </div>
 
@@ -97,8 +100,10 @@ import AuctionBulkActionBar from '@/components/auction/AuctionBulkActionBar.vue'
 import { Plus, CirclePlus, RefreshCw, CheckSquare, ExternalLink } from 'lucide-vue-next'
 import SafeExternalLink from '@/components/SafeExternalLink.vue'
 import { usePwa } from '@/composables/usePwa'
+import { useAuthStore } from '@/stores/auth'
 
 const { isPwa } = usePwa()
+const auth = useAuthStore()
 
 const lots = ref<AuctionLot[]>([])
 const statusCounts = ref<Record<string, number>>({})
@@ -201,9 +206,14 @@ async function syncWatchlist() {
   syncing.value = true
   syncMessage.value = ''
   try {
-    const res = await syncNumisBidsWatchlist()
-    const count = res.data?.synced ?? 0
-    syncMessage.value = `Synced ${count} lot${count !== 1 ? 's' : ''} from NumisBids`
+    const providers = configuredAuctionProviders()
+    const results = await Promise.allSettled(providers.map((source) => syncNumisBidsWatchlist(source)))
+    const synced = results.reduce((total, result) => total + (result.status === 'fulfilled' ? result.value.data?.synced ?? 0 : 0), 0)
+    const failed = results.filter((result) => result.status === 'rejected')
+    const providerLabel = providers.length > 1 ? 'watchlists' : providerName(providers[0] ?? 'numisbids')
+    syncMessage.value = failed.length
+      ? `Synced ${synced} lot${synced !== 1 ? 's' : ''}; ${failed.length} provider${failed.length !== 1 ? 's' : ''} failed`
+      : `Synced ${synced} lot${synced !== 1 ? 's' : ''} from ${providerLabel}`
     fetchLots()
     fetchAllCounts()
     setTimeout(() => { syncMessage.value = '' }, 4000)
@@ -214,6 +224,17 @@ async function syncWatchlist() {
   } finally {
     syncing.value = false
   }
+}
+
+function configuredAuctionProviders(): string[] {
+  const providers: string[] = []
+  if (auth.user?.numisBidsConfigured) providers.push('numisbids')
+  if (auth.user?.cngConfigured) providers.push('cng')
+  return providers.length ? providers : ['numisbids']
+}
+
+function providerName(source: string): string {
+  return source === 'cng' ? 'CNG Auctions' : 'NumisBids'
 }
 
 fetchLots()

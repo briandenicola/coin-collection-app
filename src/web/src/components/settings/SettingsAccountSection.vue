@@ -70,6 +70,29 @@
       NumisBids account connected
     </div>
 
+    <h3>CNG Auctions Integration</h3>
+    <p class="setting-desc" style="margin-bottom: 0.75rem">
+      Connect your CNG Auctions account to sync your watched lots.
+    </p>
+    <div class="form-group">
+      <label class="form-label">CNG Username</label>
+      <input v-model="cngUsername" class="form-input" placeholder="Your CNG username or email" autocomplete="off" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">CNG Password</label>
+      <input v-model="cngPassword" type="password" class="form-input" placeholder="Your CNG password" autocomplete="new-password" />
+      <span class="setting-desc" style="font-size: 0.8rem; margin-top: 0.25rem; display: block">Stored on the server and used only for watched-lot sync.</span>
+    </div>
+    <div v-if="cngValidating" class="nb-status validating">
+      Validating CNG credentials...
+    </div>
+    <div v-else-if="cngValidationError" class="nb-status error">
+      {{ cngValidationError }}
+    </div>
+    <div v-else-if="auth.user?.cngConfigured" class="nb-status connected">
+      CNG account connected
+    </div>
+
     <h3>Pushover Notifications</h3>
     <p class="setting-desc" style="margin-bottom: 0.75rem">
       Receive push notifications on your phone when wishlist items become unavailable or friends add new coins.
@@ -111,8 +134,8 @@
         <span class="toggle-slider"></span>
       </label>
     </div>
-    <button class="btn btn-primary btn-sm" @click="handleSaveProfile" :disabled="profileSaving || nbValidating" style="margin-top: 0.5rem">
-      {{ nbValidating ? 'Validating...' : profileSaving ? 'Saving...' : 'Save Profile' }}
+    <button class="btn btn-primary btn-sm" @click="handleSaveProfile" :disabled="profileSaving || nbValidating || cngValidating" style="margin-top: 0.5rem">
+      {{ nbValidating || cngValidating ? 'Validating...' : profileSaving ? 'Saving...' : 'Save Profile' }}
     </button>
     <p v-if="profileMsg" class="msg" :class="{ error: profileError }" style="margin-top: 0.5rem">{{ profileMsg }}</p>
 
@@ -271,10 +294,10 @@ const { showConfirm } = useDialog()
 const {
   avatarUrl, handleAvatarUpload, handleAvatarDelete,
   profileEmail, profileBio, profileZipCode,
-  nbUsername, nbPassword, pushoverKey, pushoverTesting, pushoverTestMsg, pushoverTestError,
+  nbUsername, nbPassword, cngUsername, cngPassword, pushoverKey, pushoverTesting, pushoverTestMsg, pushoverTestError,
   handleTestPushover, profilePublic, profileMsg, profileError, profileSaving,
   showPrivacyWarning, onPublicToggle, confirmGoPrivate, cancelGoPrivate,
-  nbValidating, nbValidationError, handleSaveProfile, coinOfDayEnabled,
+  nbValidating, nbValidationError, cngValidating, cngValidationError, handleSaveProfile, coinOfDayEnabled,
   currentPassword, newPassword, confirmPassword,
   passwordMsg, passwordError, passwordLoading, handleChangePassword,
 } = useSettingsProfile()

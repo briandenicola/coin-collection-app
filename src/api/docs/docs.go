@@ -14372,6 +14372,9 @@ const docTemplate = `{
                 "saleName": {
                     "type": "string"
                 },
+                "source": {
+                    "type": "string"
+                },
                 "title": {
                     "type": "string"
                 },
@@ -14992,6 +14995,9 @@ const docTemplate = `{
             ],
             "properties": {
                 "password": {
+                    "type": "string"
+                },
+                "source": {
                     "type": "string"
                 },
                 "username": {
@@ -16066,6 +16072,18 @@ const docTemplate = `{
                 "saleName": {
                     "type": "string"
                 },
+                "source": {
+                    "$ref": "#/definitions/models.AuctionSource"
+                },
+                "sourceLotId": {
+                    "type": "string"
+                },
+                "sourceSaleId": {
+                    "type": "string"
+                },
+                "sourceUrl": {
+                    "type": "string"
+                },
                 "status": {
                     "$ref": "#/definitions/models.AuctionLotStatus"
                 },
@@ -16095,6 +16113,17 @@ const docTemplate = `{
                 "AuctionStatusWon",
                 "AuctionStatusLost",
                 "AuctionStatusPassed"
+            ]
+        },
+        "models.AuctionSource": {
+            "type": "string",
+            "enum": [
+                "numisbids",
+                "cng"
+            ],
+            "x-enum-varnames": [
+                "AuctionSourceNumisBids",
+                "AuctionSourceCNG"
             ]
         },
         "models.CandidateProvenance": {

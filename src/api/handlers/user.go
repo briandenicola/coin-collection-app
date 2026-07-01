@@ -117,6 +117,8 @@ func (h *UserHandler) GetMe(c *gin.Context) {
 		"createdAt":           user.CreatedAt,
 		"numisBidsUsername":   user.NumisBidsUsername,
 		"numisBidsConfigured": user.NumisBidsUsername != "" && user.NumisBidsPassword != "",
+		"cngUsername":         user.CNGUsername,
+		"cngConfigured":       user.CNGUsername != "" && user.CNGPassword != "",
 		"pushoverEnabled":     user.PushoverEnabled,
 		"coinOfDayEnabled":    user.CoinOfDayEnabled,
 	})
@@ -242,6 +244,8 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 		ZipCode           *string `json:"zipCode"`
 		NumisBidsUsername *string `json:"numisBidsUsername"`
 		NumisBidsPassword *string `json:"numisBidsPassword"`
+		CNGUsername       *string `json:"cngUsername"`
+		CNGPassword       *string `json:"cngPassword"`
 		PushoverUserKey   *string `json:"pushoverUserKey"`
 		CoinOfDayEnabled  *bool   `json:"coinOfDayEnabled"`
 	}
@@ -285,6 +289,12 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 	}
 	if req.NumisBidsPassword != nil {
 		updates["numis_bids_password"] = *req.NumisBidsPassword
+	}
+	if req.CNGUsername != nil {
+		updates["cng_username"] = strings.TrimSpace(*req.CNGUsername)
+	}
+	if req.CNGPassword != nil {
+		updates["cng_password"] = *req.CNGPassword
 	}
 	if req.PushoverUserKey != nil {
 		key := strings.TrimSpace(*req.PushoverUserKey)
@@ -331,6 +341,8 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 		"zipCode":             user.ZipCode,
 		"numisBidsUsername":   user.NumisBidsUsername,
 		"numisBidsConfigured": user.NumisBidsUsername != "" && user.NumisBidsPassword != "",
+		"cngUsername":         user.CNGUsername,
+		"cngConfigured":       user.CNGUsername != "" && user.CNGPassword != "",
 		"pushoverEnabled":     user.PushoverEnabled,
 		"coinOfDayEnabled":    user.CoinOfDayEnabled,
 	})

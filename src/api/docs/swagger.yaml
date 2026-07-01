@@ -542,6 +542,8 @@ definitions:
         type: string
       saleName:
         type: string
+      source:
+        type: string
       title:
         type: string
       url:
@@ -964,6 +966,8 @@ definitions:
   handlers.ValidateNumisBidsRequest:
     properties:
       password:
+        type: string
+      source:
         type: string
       username:
         type: string
@@ -1701,6 +1705,14 @@ definitions:
         type: string
       saleName:
         type: string
+      source:
+        $ref: '#/definitions/models.AuctionSource'
+      sourceLotId:
+        type: string
+      sourceSaleId:
+        type: string
+      sourceUrl:
+        type: string
       status:
         $ref: '#/definitions/models.AuctionLotStatus'
       title:
@@ -1724,6 +1736,14 @@ definitions:
     - AuctionStatusWon
     - AuctionStatusLost
     - AuctionStatusPassed
+  models.AuctionSource:
+    enum:
+    - numisbids
+    - cng
+    type: string
+    x-enum-varnames:
+    - AuctionSourceNumisBids
+    - AuctionSourceCNG
   models.CandidateProvenance:
     properties:
       candidateId:

@@ -358,8 +358,9 @@ func main() {
 
 		auctionLotSvc := services.NewAuctionLotService(auctionLotRepo, coinRepo)
 		nbSvc := services.NewNumisBidsService(logger)
+		cngSvc := services.NewCNGAuctionService(logger)
 		auctionUserRepo := repository.NewUserRepository(database.DB)
-		auctionLotHandler := handlers.NewAuctionLotHandler(auctionLotRepo, auctionLotSvc, auctionUserRepo, nbSvc, logger)
+		auctionLotHandler := handlers.NewAuctionLotHandler(auctionLotRepo, auctionLotSvc, auctionUserRepo, nbSvc, cngSvc, logger)
 		protected.GET("/auctions", auctionLotHandler.List)
 		protected.GET("/auctions/counts", auctionLotHandler.Counts)
 		protected.PUT("/auctions/bulk-link-event", auctionLotHandler.BulkLinkEvent)
