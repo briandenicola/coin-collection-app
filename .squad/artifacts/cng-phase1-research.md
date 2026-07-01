@@ -6,9 +6,9 @@
 
 ## Executive Summary
 
-CNG Auctions is technically more favorable than the initial spike assumed for **manual lot import**: public auction and lot pages are delivered through normal HTTP and embed structured lot data in the `viewVars` JavaScript object. A Go HTTP scraper should be able to parse auction and lot detail pages without a headless browser for public import.
+CNG Auctions is technically more favorable than the initial spike assumed: public auction pages, public lot pages, and authenticated watched lots are delivered through normal HTTP and embed structured lot data in the `viewVars` JavaScript object. A Go HTTP scraper should be able to parse manual lot imports and watchlist sync without a headless browser.
 
-The remaining blocker is **authenticated watchlist sync**. The site exposes watched-lot routes and AJAX endpoints, but the attempted form login did not create an authenticated session. Before implementing watchlist sync, the credentials/login flow needs manual verification or a browser-captured request comparison.
+The initial environment-variable login failed because `CNG_USERNAME` differed from the successful browser login captured in the HAR. Using the HAR's successful form field values in memory, the scripted login succeeded and `/watched-lots` returned the authenticated watched-lot list.
 
 ## Confirmed Public Site Structure
 
@@ -155,7 +155,12 @@ Attempts made:
 2. `POST /login` with `username`, `password`, and `Login=Login`
 3. Browser-like `POST /login` with `Origin`, `Referer`, `Accept`, and URL-encoded body
 
-All attempts returned the login page and `/ajax/refresh-me` continued returning `null`, so no authenticated session was established.
+The attempts using the current environment variables returned the login page and `/ajax/refresh-me` continued returning `null`. The supplied HAR showed a successful browser login with the same password but a different username value. Using the HAR's successful `username`, `password`, and `Login=Login` fields in memory:
+
+- `POST /login` returned a final authenticated home page.
+- `viewVars.me` was present.
+- `/ajax/refresh-me` returned a logged-in user JSON payload.
+- `/watched-lots` returned the authenticated watched-lot page.
 
 ### Authenticated Route Behavior
 
@@ -169,9 +174,33 @@ Unauthenticated/requested after failed login:
 | `/ajax/watching/` | `404` without authenticated/contextual route state |
 | `/ajax/my-bids/` | `200` JSON-like response but not useful for watched lots while unauthenticated |
 
+Authenticated with the HAR login fields:
+
+| Route | Result |
+|---|---|
+| `/ajax/refresh-me` | `200` JSON payload, logged-in user present |
+| `/watched-lots` | `200` HTML with `viewVars`, route `watched-lots-index` |
+| `/ajax/watching/` | `404` HTML with `viewVars`, not needed for the first sync implementation |
+| `/auctions/my-upcoming-bids` | `200` HTML with `viewVars`, route `my-upcoming-bids` |
+| `/ajax/my-bids/` | `200` JSON payload with bid-related lot signals |
+
 ### Watchlist Sync Status
 
-Watchlist sync is **not yet validated**. The site clearly has watched-lot concepts, including:
+Watchlist sync is **validated for the HTML route**. The implementation can fetch `/watched-lots` after login and parse watched lots from:
+
+- `viewVars.lots.result_page`
+- `viewVars.lots.query_info`
+
+Observed authenticated watchlist:
+
+- route: `watched-lots-index`
+- watched lots on page: `7`
+- total results: `7`
+- page size: `48`
+
+Each watched lot contained the same core fields as public auction lot summaries, plus `is_watched = true`.
+
+The site also has watched-lot AJAX concepts:
 
 - `/watched-lots`
 - `/ajax/watching/`
@@ -179,7 +208,7 @@ Watchlist sync is **not yet validated**. The site clearly has watched-lot concep
 - `/ajax/unwatch-lot/`
 - lot-level `watch_url`
 
-But the login/session issue must be resolved before implementing the sync path.
+For the first implementation, use the HTML `/watched-lots` route and treat `/ajax/watching/` as optional follow-up research.
 
 ## Go / No-Go Assessment
 
@@ -204,27 +233,24 @@ Auction pages expose `viewVars.lots.result_page` and pagination metadata. Full-a
 
 ### CNG Watchlist Sync
 
-**Blocked pending login/session verification.**
+**Go.**
 
-Do not implement watchlist sync until one of these is true:
+Authenticated watchlist sync is feasible with normal Go HTTP:
 
-1. Local scripted login succeeds and `/ajax/refresh-me` returns a user object.
-2. A browser-captured successful login request reveals the missing token/header/payload.
-3. The feature scope is reduced to manual import only.
+1. `GET /login` to establish initial cookies.
+2. `POST /login` with form fields `username`, `password`, and `Login=Login`.
+3. Verify login by checking that the redirected page or `/ajax/refresh-me` has a non-null user.
+4. Fetch `/watched-lots`.
+5. Extract `viewVars.lots.result_page`.
+6. Map each watched lot into provider-aware `AuctionLot` records.
 
 ## Recommended Next Steps
 
-1. Have Brian verify the same temporary credentials can log in manually at `https://auctions.cngcoins.com/login`.
-2. If browser login works, capture the successful login request shape locally without exposing credentials:
-   - request path
-   - method
-   - non-secret headers required
-   - form field names
-   - redirect status
-   - whether reCAPTCHA or another challenge is present
-3. If browser login does not work, rotate/reset the temporary CNG password and retry Phase 1 auth validation.
-4. Begin implementation with manual CNG lot import first; keep watchlist sync behind a separate gate.
-5. Use fixture-based tests from `.squad/skills/external-service-scraping-with-fixtures/SKILL.md`; committed fixtures should be sanitized public lot/auction HTML only unless an authenticated fixture is reviewed for personal data.
+1. Correct `CNG_USERNAME` if live env-based integration tests are needed; the current value differs from the successful HAR login username.
+2. Begin implementation with provider-aware CNG manual import and watchlist sync.
+3. Use `/watched-lots` HTML parsing for watchlist sync; defer `/ajax/watching/` unless pagination or live refresh requires it.
+4. Use fixture-based tests from `.squad/skills/external-service-scraping-with-fixtures/SKILL.md`; committed fixtures should be sanitized public lot/auction HTML only unless an authenticated fixture is reviewed for personal data.
+5. Rotate the temporary CNG password after the spike/implementation validation is complete.
 
 ## Implementation Notes
 
@@ -238,3 +264,4 @@ Do not implement watchlist sync until one of these is true:
 - `description` contains HTML; implementation should sanitize or store consistently with existing NumisBids description behavior.
 - `auction.effective_end_time` appears to be the best source for `AuctionEndTime` on timed sales.
 - Direct Auction Mobility API calls currently return `401`; avoid relying on them unless authenticated access is solved.
+- The root HAR file is sensitive and is locally excluded through `.git/info/exclude`; do not commit HAR files or credentials.
