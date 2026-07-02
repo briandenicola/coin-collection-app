@@ -980,6 +980,9 @@ export interface AppSettings {
   LogLevel: string
   PublicAppURL?: string
   RegistrationMode?: string
+  AuctionAlertsCheckEnabled?: string
+  AuctionAlertsCheckStartTime?: string
+  AuctionAlertsCheckInterval?: string
   CoinCategories?: string
   CoinEras?: string
   [key: string]: string | undefined
@@ -1082,12 +1085,17 @@ export interface ValueEstimate {
 }
 
 export type AIJobStatus = string
+export type AIJobType = 'coin_analysis' | 'coin_grading' | 'coin_value_estimate' | 'value_estimate' | 'valuation' | (string & {})
+
+export interface CoinGradingResult {
+  gradingReport: string
+}
 
 export interface AIJob {
   id: string
   userId?: number
   coinId: number
-  jobType: string
+  jobType: AIJobType
   side?: 'obverse' | 'reverse' | null
   status: AIJobStatus
   result?: unknown
@@ -1350,6 +1358,29 @@ export interface AuctionLotListResponse {
   total: number
 }
 
+export type PriceAlertDirection = 'above' | 'below'
+
+export interface PriceAlert {
+  id: number
+  auctionLotId: number
+  lotTitle?: string
+  targetPrice: number
+  direction: PriceAlertDirection
+  isTriggered: boolean
+  triggeredAt: string | null
+  createdAt: string
+}
+
+export interface BidReminder {
+  id: number
+  auctionLotId: number
+  lotTitle?: string
+  minutesBefore: number
+  isNotified: boolean
+  notifiedAt: string | null
+  createdAt: string
+}
+
 export interface CalendarEventDetail {
   id: number
   title: string
@@ -1460,6 +1491,27 @@ export interface AuctionWatchBidDigestRun {
   startedAt: string
   completedAt: string | null
   errorMessage: string
+  createdAt: string
+}
+
+export interface AuctionAlertReminderRun {
+  id: number
+  triggerType: 'scheduled' | 'manual'
+  triggerUserId: number | null
+  status: 'running' | 'success' | 'error'
+  lotsChecked?: number
+  alertsChecked?: number
+  alertsTriggered?: number
+  alertsSent?: number
+  priceAlertsTriggered?: number
+  remindersChecked?: number
+  remindersNotified?: number
+  remindersSent?: number
+  bidRemindersSent?: number
+  durationMs: number
+  startedAt: string
+  completedAt: string | null
+  errorMessage?: string
   createdAt: string
 }
 

@@ -57,6 +57,8 @@
 
 ## Learnings
 
+- **2026-07-01 — Scraper Provider Refactor Completion:** NumisBids and CNG now consume the shared scraper transport helper for cookie-jar clients, request/header/form creation, status checks, body reads, and close/drain behavior. Provider services intentionally retain source-specific auth flows: NumisBids AJAX status JSON + watchlist verification; CNG login-page preflight, refresh-me auth check, 302/401 watchlist sentinel handling, URL safety, pagination, and parsers.
+- **2026-07-01 — Shared Scraper Transport Helper:** Added package-private `newScraperClient`, `newScraperRequest`, `newScraperFormRequest`, `doScraperRequest`, and `readScraperResponseBody` in `src/api/services/scraper_transport.go`. Intended usage is authenticated scraper session mechanics shared by NumisBids/CNG-style services: cookie-jar client creation, common request/header/form construction, status checks, body reads, close/drain behavior, and wrapped request errors; provider-specific login forms, auth verification, URL safety, pagination, parsing, and sentinel errors stay in provider services.
 - **2026-06-30:** Find Coin Backend Implementation — Structured Extraction and Backfill
   - Implemented structured Find Coin extraction in Python agent and Go backfill layer
   - Files: `src/agent/app/models/requests.py` (FindCoinRequest), `src/agent/app/routes.py` (`/find-coin`), `src/agent/app/teams/coin_analysis.py` (LangGraph team), `src/api/services/coin_lookup_service.go` (Numista backfill), `src/api/services/agent_proxy.go` (SSE proxy)
@@ -607,3 +609,9 @@ Created src/api/services/availability_service_test.go with comprehensive test co
   - **Quality gate:** No implementation started. Awaiting Phase 1 research go/no-go decision and encryption layer prerequisite resolution.
   - **Orchestration log:** .squad/orchestration-log/2026-06-30T22-43-42Z-cassius.md.
 - **2026-07-01:** Auction watchlist sync now uses repository-level `UpsertWithCalendarEvent` to create and link in-app `AuctionEvent` rows only for newly tracked `watching`/`bidding` NumisBids/CNG lots. Existing source-aware `(source, source_url, user_id)` upserts remain idempotent; passed/won/lost lots skip auto-events.
+
+- **2026-07-01 — Coin Grading Backend Workflow (#374):** Added dedicated grading path through existing AI jobs: Go `POST /coins/:id/grade` owner-scopes coin images, rejects image-less coins, enqueues `coin_grading`, calls Python `/api/grade`, and stores `gradingReport` only in the AI job result (does not mutate `Coin.Grade`). Agent route returns `{report}` and fails model errors as 502 so the worker can mark jobs failed.
+
+- **2026-07-02 — #374 Coin Grading Completion (Validated):** Coin grading workflow completed and validated. Verified all backend dependencies met: agent endpoint working, job submission passing, grading service correctly handling image bytes and report response, no mutations to `Coin.Grade` field. All Go tests passing; integrated with existing AI job state machine and result persistence. Feature release-ready. Session log: .squad/log/2026-07-02T10-55-14-coin-grading-workflow.md.
+
+- **2026-07-02 — Price Alerts and Bid Reminders Completion (#371):** Completed backend scheduler path for auction price alerts and bid reminders using existing watched-lot refresh (AuctionWatchlistSyncService) before evaluation. Added AuctionAlertsCheckEnabled, AuctionAlertsCheckInterval, and AuctionAlertsCheckStartTime settings, AuctionAlertRun history, admin endpoints /api/admin/auction-alert-runs, /api/admin/auction-alerts/status, and /api/admin/auction-alerts/run, plus owner/watchable-lot validation in the service layer. Alerts/reminders are one-shot via conditional repository updates (is_triggered / is_notified) and Pushover notification delivery.

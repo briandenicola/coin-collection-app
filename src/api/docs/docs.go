@@ -59,6 +59,147 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/auction-alert-runs": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns paginated history of price alert and bid reminder scheduler runs.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "List auction alert runs",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Items per page",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/auction-alerts/run": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Refreshes watched auction lots and evaluates price alerts and bid reminders.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Trigger manual auction alert check",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/auction-alerts/status": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns runtime status for the auction alert scheduler.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Get auction alert scheduler status",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/services.SchedulerStatus"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/auction-ending-runs": {
             "get": {
                 "security": [
@@ -2990,7 +3131,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Creates a price alert for an auction lot.",
+                "description": "Creates a one-shot price alert for an auction lot watched by the authenticated user.",
                 "consumes": [
                     "application/json"
                 ],
@@ -3008,13 +3149,13 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object"
+                            "$ref": "#/definitions/services.PriceAlertCreateRequest"
                         }
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "OK",
+                    "201": {
+                        "description": "Created",
                         "schema": {
                             "type": "object"
                         }
@@ -6061,6 +6202,64 @@ const docTemplate = `{
                 }
             }
         },
+        "/coins/{id}/grade": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Queues asynchronous AI-powered coin grade estimation for a coin owned by the authenticated user. The grading report is stored in the AI job result and does not update the coin's saved grade.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Analysis"
+                ],
+                "summary": "Queue coin grading",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Coin ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "$ref": "#/definitions/services.AIJobSubmissionResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/coins/{id}/health": {
             "get": {
                 "security": [
@@ -8854,7 +9053,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Creates a bid reminder for an auction lot.",
+                "description": "Creates a one-shot bid reminder for an auction lot watched by the authenticated user.",
                 "consumes": [
                     "application/json"
                 ],
@@ -8872,13 +9071,13 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object"
+                            "$ref": "#/definitions/services.BidReminderCreateRequest"
                         }
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "OK",
+                    "201": {
+                        "description": "Created",
                         "schema": {
                             "type": "object"
                         }
@@ -15894,11 +16093,13 @@ const docTemplate = `{
             "type": "string",
             "enum": [
                 "analysis",
-                "value_estimate"
+                "value_estimate",
+                "coin_grading"
             ],
             "x-enum-varnames": [
                 "AIJobTypeAnalysis",
-                "AIJobTypeValueEstimate"
+                "AIJobTypeValueEstimate",
+                "AIJobTypeCoinGrading"
             ]
         },
         "models.AgentConversation": {
@@ -17310,6 +17511,20 @@ const docTemplate = `{
                 }
             }
         },
+        "services.BidReminderCreateRequest": {
+            "type": "object",
+            "required": [
+                "auctionLotId"
+            ],
+            "properties": {
+                "auctionLotId": {
+                    "type": "integer"
+                },
+                "minutesBefore": {
+                    "type": "integer"
+                }
+            }
+        },
         "services.CancelCollectionProposalResult": {
             "type": "object",
             "properties": {
@@ -17779,6 +17994,24 @@ const docTemplate = `{
                 },
                 "expiresAt": {
                     "type": "string"
+                }
+            }
+        },
+        "services.PriceAlertCreateRequest": {
+            "type": "object",
+            "required": [
+                "auctionLotId",
+                "targetPrice"
+            ],
+            "properties": {
+                "auctionLotId": {
+                    "type": "integer"
+                },
+                "direction": {
+                    "type": "string"
+                },
+                "targetPrice": {
+                    "type": "number"
                 }
             }
         },
