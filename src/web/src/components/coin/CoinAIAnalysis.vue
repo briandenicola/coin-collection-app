@@ -3,7 +3,7 @@
     <div class="ai-analysis-content">
       <div class="ai-buttons">
         <button
-          class="btn btn-primary btn-sm"
+          class="btn btn-primary btn-sm ai-action-btn"
           :disabled="busy || !hasObverse || !aiAvailable"
           :title="!aiAvailable ? aiMessage : !hasObverse ? 'No obverse image' : ''"
           @click="handleAnalyze('obverse')"
@@ -11,7 +11,7 @@
           {{ analyzingSide === 'obverse' ? 'Analyzing...' : 'Analyze Obverse' }}
         </button>
         <button
-          class="btn btn-primary btn-sm"
+          class="btn btn-primary btn-sm ai-action-btn"
           :disabled="busy || !hasReverse || !aiAvailable"
           :title="!aiAvailable ? aiMessage : !hasReverse ? 'No reverse image' : ''"
           @click="handleAnalyze('reverse')"
@@ -19,7 +19,7 @@
           {{ analyzingSide === 'reverse' ? 'Analyzing...' : 'Analyze Reverse' }}
         </button>
         <button
-          class="btn btn-secondary btn-sm"
+          class="btn btn-primary btn-sm ai-action-btn"
           :disabled="busy || !canGradeCoin || !aiAvailable"
           :title="gradingDisabledTitle"
           @click="handleGradeCoin"
@@ -498,9 +498,18 @@ function capitalize(value: string) {
 }
 
 .ai-buttons {
-  display: flex;
-  gap: 0.4rem;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
   margin-bottom: 0.75rem;
+}
+
+.ai-action-btn {
+  min-width: 0;
+  min-height: 3.25rem;
+  justify-content: center;
+  white-space: normal;
+  line-height: 1.25;
 }
 
 .ai-result-section {
